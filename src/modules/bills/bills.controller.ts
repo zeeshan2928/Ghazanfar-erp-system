@@ -1,0 +1,50 @@
+import { Controller, Post, Get, Param, Body, UseGuards, Query } from '@nestjs/common';
+import { BillsService } from './services/bills.service';
+import { CreateBillDto } from './dto/create-bill.dto';
+import { JwtGuard } from '@common/guards/jwt.guard';
+import { OrgContext } from '@common/decorators/org-context.decorator';
+
+@Controller('bills')
+@UseGuards(JwtGuard)
+export class BillsController {
+  constructor(private billsService: BillsService) {}
+
+  @Post()
+  async create(
+    @Body() createBillDto: CreateBillDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsService.create(
+      orgContext.organizationId,
+      orgContext.userId,
+      createBillDto,
+    );
+  }
+
+  @Get()
+  async findAll(
+    @Query('skip') skip?: string,
+    @Query('take') take?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const skipNum = skip ? parseInt(skip, 10) : 0;
+    const takeNum = take ? parseInt(take, 10) : 10;
+
+    return this.billsService.findAll(
+      orgContext.organizationId,
+      skipNum,
+      takeNum,
+    );
+  }
+
+  @Get(':billId')
+  async findById(
+    @Param('billId') billId: string,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsService.findById(
+      orgContext.organizationId,
+      parseInt(billId, 10),
+    );
+  }
+}

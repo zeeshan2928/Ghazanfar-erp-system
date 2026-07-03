@@ -1,0 +1,100 @@
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 17:52:26"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 17:58:03"}
+{"context":"HTTP","level":"info","message":"POST /users/login","requestId":"5cf79132-2c41-450d-a8d2-e2b0fa12b13c","service":"erp-backend","timestamp":"2026-07-03 17:59:05"}
+{"context":"HTTP","duration":"109ms","level":"info","message":"POST /users/login 201","requestId":"5cf79132-2c41-450d-a8d2-e2b0fa12b13c","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 17:59:05"}
+{"context":"HTTP","level":"info","message":"POST /users/register","requestId":"586d4599-ee56-4287-a38c-8cc8522e0d12","service":"erp-backend","timestamp":"2026-07-03 17:59:23"}
+{"context":"HTTP","level":"info","message":"POST /users/register","requestId":"827340f0-6caa-41d7-b63d-019a752d39fe","service":"erp-backend","timestamp":"2026-07-03 18:00:04"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:24:18"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:24:20"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:25:31"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:25:37"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:25:46"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:29:59"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:30:34"}
+{"context":"HTTP","level":"info","message":"POST /users/login","requestId":"efb675b8-76e2-4942-b5bf-b767e29e253b","service":"erp-backend","timestamp":"2026-07-03 18:30:46"}
+{"context":"HTTP","duration":"98ms","level":"info","message":"POST /users/login 201","requestId":"efb675b8-76e2-4942-b5bf-b767e29e253b","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 18:30:46"}
+{"context":"HTTP","level":"info","message":"POST /users/register","requestId":"cce58328-b1c7-4dda-8ea5-d609910e51f5","service":"erp-backend","timestamp":"2026-07-03 18:30:57"}
+{"context":"HTTP","duration":"93ms","level":"info","message":"POST /users/register 201","requestId":"cce58328-b1c7-4dda-8ea5-d609910e51f5","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 18:30:57"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 18:32:41"}
+{"context":"HTTP","level":"info","message":"GET /users/me","requestId":"d81fefbd-0634-43f0-b91f-d85e5d7256ee","service":"erp-backend","timestamp":"2026-07-03 18:32:55"}
+{"context":"HTTP","duration":"2ms","level":"info","message":"GET /users/me 200","requestId":"d81fefbd-0634-43f0-b91f-d85e5d7256ee","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 18:32:55"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 19:39:35"}
+{"context":"HTTP","level":"info","message":"GET /users/me","requestId":"2d065d3c-185c-4a1c-833d-9e5ff6ec25c5","service":"erp-backend","timestamp":"2026-07-03 19:39:54"}
+{"context":"HTTP","duration":"3ms","level":"info","message":"GET /users/me 200","requestId":"2d065d3c-185c-4a1c-833d-9e5ff6ec25c5","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:39:54"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 19:43:00"}
+{"context":"HTTP","level":"info","message":"GET /warehouses/product/1/stock","params":{"productId":"1"},"requestId":"b8ee65cf-4ac0-4bf1-a26b-94ce4f60a7e6","service":"erp-backend","timestamp":"2026-07-03 19:43:26"}
+{"context":"HTTP","duration":"16ms","level":"info","message":"GET /warehouses/product/1/stock 200","requestId":"b8ee65cf-4ac0-4bf1-a26b-94ce4f60a7e6","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:43:26"}
+{"context":"HTTP","level":"info","message":"GET /customers/1/sale-history","params":{"customerId":"1"},"requestId":"b16b1cea-1df6-4f9e-8417-76839dbb5222","service":"erp-backend","timestamp":"2026-07-03 19:43:42"}
+{"context":"HTTP","level":"info","message":"GET /bills","requestId":"257edcef-780e-4a30-bcbc-bfb77f6c37d7","service":"erp-backend","timestamp":"2026-07-03 19:43:53"}
+{"context":"HTTP","duration":"50ms","level":"info","message":"GET /bills 200","requestId":"257edcef-780e-4a30-bcbc-bfb77f6c37d7","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:43:53"}
+{"context":"HTTP","level":"info","message":"GET /warehouses/product/1/stock","params":{"productId":"1"},"requestId":"45c24b7f-c799-4e62-b085-fd3923d530be","service":"erp-backend","timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","duration":"8ms","level":"info","message":"GET /warehouses/product/1/stock 200","requestId":"45c24b7f-c799-4e62-b085-fd3923d530be","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","level":"info","message":"GET /customers/1/sale-history","params":{"customerId":"1"},"requestId":"b30f6d33-c0df-4119-9cf1-82dfce8e20b4","service":"erp-backend","timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","duration":"8ms","level":"info","message":"GET /customers/1/sale-history 200","requestId":"b30f6d33-c0df-4119-9cf1-82dfce8e20b4","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","level":"info","message":"GET /products/1/purchase-history","params":{"productId":"1"},"requestId":"373824d3-20a7-4ff8-869d-2e1e0a92f2f4","service":"erp-backend","timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","duration":"9ms","level":"info","message":"GET /products/1/purchase-history 200","requestId":"373824d3-20a7-4ff8-869d-2e1e0a92f2f4","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:46:46"}
+{"context":"HTTP","level":"info","message":"POST /bills","requestId":"8c6b69ea-2259-4019-92c7-a7735e809d7e","service":"erp-backend","timestamp":"2026-07-03 19:47:01"}
+{"context":"HTTP","duration":"37ms","level":"info","message":"POST /bills 201","requestId":"8c6b69ea-2259-4019-92c7-a7735e809d7e","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 19:47:01"}
+{"context":"HTTP","level":"info","message":"GET /customers/1/sale-history","params":{"customerId":"1"},"requestId":"1fde987a-952d-4f36-a6d2-48b8beb38ccf","service":"erp-backend","timestamp":"2026-07-03 19:47:17"}
+{"context":"HTTP","duration":"7ms","level":"info","message":"GET /customers/1/sale-history 200","requestId":"1fde987a-952d-4f36-a6d2-48b8beb38ccf","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 19:47:17"}
+{"context":"HTTP","level":"info","message":"POST /bills","requestId":"ac000ac8-d848-4576-a1fc-346cbb9c95d6","service":"erp-backend","timestamp":"2026-07-03 20:01:01"}
+{"context":"HTTP","duration":"101ms","level":"info","message":"POST /bills 201","requestId":"ac000ac8-d848-4576-a1fc-346cbb9c95d6","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:01:01"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:01:44"}
+{"context":"HTTP","level":"info","message":"POST /bills","requestId":"2df9085d-e857-480b-baa3-af73a5696cca","service":"erp-backend","timestamp":"2026-07-03 20:01:55"}
+{"context":"HTTP","duration":"116ms","level":"info","message":"POST /bills 201","requestId":"2df9085d-e857-480b-baa3-af73a5696cca","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:01:56"}
+{"context":"HTTP","level":"info","message":"GET /gate-passes?warehouseId=1","query":{"warehouseId":"1"},"requestId":"9e0708bc-b22b-4398-8b09-481509e416d3","service":"erp-backend","timestamp":"2026-07-03 20:01:56"}
+{"context":"HTTP","duration":"15ms","level":"info","message":"GET /gate-passes?warehouseId=1 200","requestId":"9e0708bc-b22b-4398-8b09-481509e416d3","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:01:56"}
+{"context":"HTTP","level":"info","message":"POST /gate-passes/1/confirm","params":{"gatePassId":"1"},"requestId":"ca0e4dea-55c6-44a2-ae96-4e1cf3d4fe9b","service":"erp-backend","timestamp":"2026-07-03 20:01:56"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:02:05"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:02:41"}
+{"context":"HTTP","level":"info","message":"POST /bills","requestId":"93ffcd8c-a8e5-4bcf-9278-eb9c6e4cb6f3","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"223ms","level":"info","message":"POST /bills 201","requestId":"93ffcd8c-a8e5-4bcf-9278-eb9c6e4cb6f3","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","level":"info","message":"GET /gate-passes?warehouseId=1","query":{"warehouseId":"1"},"requestId":"f8953b68-9551-468e-81a8-ca80b922d816","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"20ms","level":"info","message":"GET /gate-passes?warehouseId=1 200","requestId":"f8953b68-9551-468e-81a8-ca80b922d816","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","level":"info","message":"POST /gate-passes/2/confirm","params":{"gatePassId":"2"},"requestId":"1f4919d8-419c-4d47-9721-c4bdb27ef178","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"22ms","level":"info","message":"POST /gate-passes/2/confirm 201","requestId":"1f4919d8-419c-4d47-9721-c4bdb27ef178","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","level":"info","message":"POST /bills","requestId":"589828c1-9302-432c-a380-68b4789656ac","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"31ms","level":"info","message":"POST /bills 201","requestId":"589828c1-9302-432c-a380-68b4789656ac","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","level":"info","message":"GET /gate-passes?warehouseId=1&skip=0&take=5","query":{"skip":"0","take":"5","warehouseId":"1"},"requestId":"6b4e3161-ec21-4d59-93a9-baf4d701283a","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"7ms","level":"info","message":"GET /gate-passes?warehouseId=1&skip=0&take=5 200","requestId":"6b4e3161-ec21-4d59-93a9-baf4d701283a","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","level":"info","message":"POST /gate-passes/3/reject","params":{"gatePassId":"3"},"requestId":"99b8fde5-2c0e-468b-a4e3-25a33d7d13fb","service":"erp-backend","timestamp":"2026-07-03 20:02:46"}
+{"context":"HTTP","duration":"12ms","level":"info","message":"POST /gate-passes/3/reject 201","requestId":"99b8fde5-2c0e-468b-a4e3-25a33d7d13fb","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:02:46"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:08:42"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:09:23"}
+{"context":"HTTP","level":"info","message":"POST /website-orders/cmr52ktp3000010rga8ri7uzk/approve","params":{"orderId":"cmr52ktp3000010rga8ri7uzk"},"requestId":"40b5196e-2807-430b-ba9f-e339407625ad","service":"erp-backend","timestamp":"2026-07-03 20:09:54"}
+{"context":"ExceptionFilter","level":"error","message":"items.reduce is not a function","requestId":"40b5196e-2807-430b-ba9f-e339407625ad","service":"erp-backend","timestamp":"2026-07-03 20:09:55","trace":"TypeError: items.reduce is not a function\n    at <anonymous> (D:\\ghazanfar-erp-backend\\src\\modules\\website-orders\\services\\website-orders.service.ts:105:27)\n    at async Proxy._transactionWithCallback (D:\\ghazanfar-erp-backend\\node_modules\\@prisma\\client\\runtime\\library.js:130:8000)"}
+{"context":"HTTP","level":"info","message":"POST /warehouse-transfers","requestId":"5628a68f-7019-4621-bfb2-2de98eac7f47","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","duration":"30ms","level":"info","message":"POST /warehouse-transfers 201","requestId":"5628a68f-7019-4621-bfb2-2de98eac7f47","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","level":"info","message":"POST /warehouse-transfers/1/confirm-receipt","params":{"transferId":"1"},"requestId":"41e44862-f9ab-4389-b138-cc435751146b","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","level":"info","message":"GET /reports/gate-pass-analytics?days=30","query":{"days":"30"},"requestId":"d30091a3-9f4a-4c1d-a60b-8cb949a794ba","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","duration":"8ms","level":"info","message":"GET /reports/gate-pass-analytics?days=30 200","requestId":"d30091a3-9f4a-4c1d-a60b-8cb949a794ba","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","level":"info","message":"GET /reports/warehouse-performance?days=30","query":{"days":"30"},"requestId":"4ec7afb6-e63d-45ff-8036-a6712b0964d1","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","duration":"8ms","level":"info","message":"GET /reports/warehouse-performance?days=30 200","requestId":"4ec7afb6-e63d-45ff-8036-a6712b0964d1","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","level":"info","message":"GET /reports/bill-analytics?days=30","query":{"days":"30"},"requestId":"d4332732-23a4-44e4-9265-3734fb417696","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","duration":"11ms","level":"info","message":"GET /reports/bill-analytics?days=30 200","requestId":"d4332732-23a4-44e4-9265-3734fb417696","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","level":"info","message":"GET /reports/inventory-snapshot","requestId":"95ab0e97-bac0-4eaf-ac16-ef2547b88c44","service":"erp-backend","timestamp":"2026-07-03 20:09:55"}
+{"context":"HTTP","duration":"6ms","level":"info","message":"GET /reports/inventory-snapshot 200","requestId":"95ab0e97-bac0-4eaf-ac16-ef2547b88c44","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:09:55"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:10:03"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:10:14"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:10:21"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:11:12"}
+{"context":"HTTP","level":"info","message":"POST /website-orders/cmr52mlhi0000babz7flrrgyc/approve","params":{"orderId":"cmr52mlhi0000babz7flrrgyc"},"requestId":"cfd6b1df-815e-45ba-bc07-cbe5dbfce1dc","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"66ms","level":"info","message":"POST /website-orders/cmr52mlhi0000babz7flrrgyc/approve 201","requestId":"cfd6b1df-815e-45ba-bc07-cbe5dbfce1dc","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"POST /warehouse-transfers","requestId":"ba20d0db-5887-48ca-8543-c7855b262d7d","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"21ms","level":"info","message":"POST /warehouse-transfers 201","requestId":"ba20d0db-5887-48ca-8543-c7855b262d7d","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"POST /warehouse-transfers/2/start","params":{"transferId":"2"},"requestId":"992537e7-25e1-42f2-8956-c2e01e642b70","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"7ms","level":"info","message":"POST /warehouse-transfers/2/start 201","requestId":"992537e7-25e1-42f2-8956-c2e01e642b70","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"POST /warehouse-transfers/2/confirm-receipt","params":{"transferId":"2"},"requestId":"92cc566b-9c29-43a1-b72c-e3caa811e704","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"14ms","level":"info","message":"POST /warehouse-transfers/2/confirm-receipt 201","requestId":"92cc566b-9c29-43a1-b72c-e3caa811e704","service":"erp-backend","statusCode":201,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"GET /reports/gate-pass-analytics?days=30","query":{"days":"30"},"requestId":"c619f1e3-e79a-4619-8482-ec0763ac42ce","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"7ms","level":"info","message":"GET /reports/gate-pass-analytics?days=30 200","requestId":"c619f1e3-e79a-4619-8482-ec0763ac42ce","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"GET /reports/warehouse-performance?days=30","query":{"days":"30"},"requestId":"6a4e5e57-7444-49d6-bf31-35b7bf5f2006","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"8ms","level":"info","message":"GET /reports/warehouse-performance?days=30 200","requestId":"6a4e5e57-7444-49d6-bf31-35b7bf5f2006","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"GET /reports/bill-analytics?days=30","query":{"days":"30"},"requestId":"8565c8ee-3e96-43a8-8197-7663d7204c11","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"4ms","level":"info","message":"GET /reports/bill-analytics?days=30 200","requestId":"8565c8ee-3e96-43a8-8197-7663d7204c11","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","level":"info","message":"GET /reports/inventory-snapshot","requestId":"75bc6bd9-ec8a-4657-85b5-4ee77c6755be","service":"erp-backend","timestamp":"2026-07-03 20:11:17"}
+{"context":"HTTP","duration":"4ms","level":"info","message":"GET /reports/inventory-snapshot 200","requestId":"75bc6bd9-ec8a-4657-85b5-4ee77c6755be","service":"erp-backend","statusCode":200,"timestamp":"2026-07-03 20:11:17"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:40:17"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:40:21"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:40:26"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-03 20:45:59"}
