@@ -106,3 +106,4 @@
 {"context":"HTTP","level":"info","message":"POST /users/login","requestId":"59ae2bd9-0dc5-46de-af00-192bf42758c0","service":"erp-backend","timestamp":"2026-07-03 20:48:51"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 01:01:54"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 01:30:14"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 01:38:12"}

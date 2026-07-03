@@ -6,18 +6,26 @@ import {
   Body,
   Query,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { PurchaseOrdersService } from './services/purchase-orders.service';
+import { PurchaseOrdersSearchService } from './services/purchase-orders-search.service';
 import {
   CreatePurchaseOrderDto,
   ConfirmReceiptDto,
   SetProductReorderParamsDto,
 } from './dto/purchase-order.dto';
+import { SearchRequestDto } from '@common/dto/filter.dto';
+import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from 'src/common/decorators/org-context.decorator';
 
 @Controller('purchase-orders')
+@UseGuards(JwtGuard)
 export class PurchaseOrdersController {
-  constructor(private readonly poService: PurchaseOrdersService) {}
+  constructor(
+    private readonly poService: PurchaseOrdersService,
+    private readonly poSearchService: PurchaseOrdersSearchService,
+  ) {}
 
   @Post()
   create(
@@ -100,5 +108,21 @@ export class PurchaseOrdersController {
     @Body() setDto: SetProductReorderParamsDto,
   ) {
     return this.poService.setProductReorderParams(organizationId, productId, setDto);
+  }
+
+  @Post('search')
+  async search(
+    @Body() query: SearchRequestDto,
+    @OrgContext() { organizationId }: any,
+  ) {
+    return this.poSearchService.search(organizationId, query);
+  }
+
+  @Get('filters/columns/:columnName')
+  async getColumnValues(
+    @Param('columnName') columnName: string,
+    @OrgContext() { organizationId }: any,
+  ) {
+    return this.poSearchService.getColumnValues(organizationId, columnName);
   }
 }

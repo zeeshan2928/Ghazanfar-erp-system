@@ -4,6 +4,7 @@ import { WarehousesModule } from './modules/warehouses/warehouses.module';
 import { ProductsModule } from './modules/products/products.module';
 import { CustomersModule } from './modules/customers/customers.module';
 import { BillsModule } from './modules/bills/bills.module';
+import { InventoryModule } from './modules/inventory/inventory.module';
 import { GatePassesModule } from './modules/gate-passes/gate-passes.module';
 import { WebsiteOrdersModule } from './modules/website-orders/website-orders.module';
 import { WarehouseTransfersModule } from './modules/warehouse-transfers/warehouse-transfers.module';
@@ -23,6 +24,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     ProductsModule,
     CustomersModule,
     BillsModule,
+    InventoryModule,
     GatePassesModule,
     WebsiteOrdersModule,
     WarehouseTransfersModule,

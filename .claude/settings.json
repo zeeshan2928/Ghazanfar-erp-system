@@ -58,7 +58,8 @@
       "PowerShell(New-Item -ItemType Directory -Path \"D:/ghazanfar-erp-backend/prisma/migrations/20260704005749_add_search_indexes\" -Force)",
       "Bash(npm test *)",
       "Bash(git commit -m 'feat\\(phase4\\): add FilterService and search infrastructure - Week 1 Day 1-2 *)",
-      "Bash(git commit -m 'feat\\(phase4\\): implement Bills search service - Week 1 Day 3 *)"
+      "Bash(git commit -m 'feat\\(phase4\\): implement Bills search service - Week 1 Day 3 *)",
+      "Bash(git commit -m 'feat\\(phase4\\): implement remaining search services - Week 1 Day 4-5 *)"
     ],
     "additionalDirectories": [
       "\\tmp",
