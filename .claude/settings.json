@@ -56,7 +56,9 @@
       "Bash(ls -la \"C:\\\\Users\\\\Bizzzking\\\\.claude\\\\projects\\\\d--ghazanfar-erp-backend\\\\\" | grep -v \"^d\")",
       "Read(//c/Users/Bizzzking/.claude/projects/**)",
       "PowerShell(New-Item -ItemType Directory -Path \"D:/ghazanfar-erp-backend/prisma/migrations/20260704005749_add_search_indexes\" -Force)",
-      "Bash(npm test *)"
+      "Bash(npm test *)",
+      "Bash(git commit -m 'feat\\(phase4\\): add FilterService and search infrastructure - Week 1 Day 1-2 *)",
+      "Bash(git commit -m 'feat\\(phase4\\): implement Bills search service - Week 1 Day 3 *)"
     ],
     "additionalDirectories": [
       "\\tmp",

@@ -1,13 +1,18 @@
 import { Controller, Post, Get, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { BillsService } from './services/bills.service';
+import { BillsSearchService } from './services/bills-search.service';
 import { CreateBillDto } from './dto/create-bill.dto';
+import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('bills')
 @UseGuards(JwtGuard)
 export class BillsController {
-  constructor(private billsService: BillsService) {}
+  constructor(
+    private billsService: BillsService,
+    private billsSearchService: BillsSearchService,
+  ) {}
 
   @Post()
   async create(
@@ -45,6 +50,25 @@ export class BillsController {
     return this.billsService.findById(
       orgContext.organizationId,
       parseInt(billId, 10),
+    );
+  }
+
+  @Post('search')
+  async search(
+    @Body() query: SearchRequestDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsSearchService.search(orgContext.organizationId, query);
+  }
+
+  @Get('filters/columns/:columnName')
+  async getColumnValues(
+    @Param('columnName') columnName: string,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsSearchService.getColumnValues(
+      orgContext.organizationId,
+      columnName,
     );
   }
 }
