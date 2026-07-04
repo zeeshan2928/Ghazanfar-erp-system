@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { usePaginationShortcuts } from '../hooks/usePaginationShortcuts';
 
 interface PaginationProps {
@@ -7,7 +7,11 @@ interface PaginationProps {
   onPageChange: (page: number) => void;
   itemsPerPage?: number;
   totalItems?: number;
+  onItemsPerPageChange?: (itemsPerPage: number) => void;
+  allowCustomPageSize?: boolean;
 }
+
+const PAGE_SIZE_OPTIONS = [10, 20, 50, 100];
 
 export function Pagination({
   currentPage,
@@ -15,7 +19,19 @@ export function Pagination({
   onPageChange,
   itemsPerPage = 20,
   totalItems,
+  onItemsPerPageChange,
+  allowCustomPageSize = true,
 }: PaginationProps) {
+  const [pageSize, setPageSize] = useState(itemsPerPage);
+
+  const handlePageSizeChange = (newSize: number) => {
+    setPageSize(newSize);
+    if (onItemsPerPageChange) {
+      onItemsPerPageChange(newSize);
+      // Reset to first page when changing page size
+      onPageChange(1);
+    }
+  };
   const handleNext = () => {
     if (currentPage < totalPages) {
       onPageChange(currentPage + 1);
@@ -120,6 +136,24 @@ export function Pagination({
         </button>
       </div>
 
+      {/* Results Per Page Selector */}
+      {allowCustomPageSize && (
+        <div style={styles.pageSizeControl}>
+          <label style={styles.pageSizeLabel}>📊 Show per page:</label>
+          <select
+            value={pageSize}
+            onChange={(e) => handlePageSizeChange(parseInt(e.target.value))}
+            style={styles.pageSizeSelect}
+          >
+            {PAGE_SIZE_OPTIONS.map((size) => (
+              <option key={size} value={size}>
+                {size} items
+              </option>
+            ))}
+          </select>
+        </div>
+      )}
+
       {/* Shortcuts Legend */}
       <div style={styles.shortcuts}>
         <span style={styles.shortcutLabel}>⌨️ Shortcuts:</span>
@@ -186,5 +220,28 @@ const styles = {
     backgroundColor: '#e8e8e8',
     borderRadius: '3px',
     fontFamily: 'monospace',
+  },
+  pageSizeControl: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    justifyContent: 'center',
+    padding: '8px 0',
+    borderTop: '1px solid #eee',
+  },
+  pageSizeLabel: {
+    fontSize: '13px',
+    fontWeight: 500 as const,
+    color: '#555',
+  },
+  pageSizeSelect: {
+    padding: '6px 10px',
+    border: '1px solid #ddd',
+    borderRadius: '4px',
+    backgroundColor: '#fff',
+    fontSize: '13px',
+    cursor: 'pointer',
+    fontFamily: 'inherit',
+    transition: 'border-color 0.2s',
   },
 };

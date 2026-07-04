@@ -34,7 +34,7 @@ export function ProductsScreen() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
   const [skip, setSkip] = useState(0);
-  const [take] = useState(20);
+  const [take, setTake] = useState(20);
 
   const [primaryFilter, setPrimaryFilter] = useState<FilterOperatorDto | undefined>();
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
@@ -54,7 +54,7 @@ export function ProductsScreen() {
 
   useEffect(() => {
     fetchProducts();
-  }, [primaryFilter, columnFilters, skip]);
+  }, [primaryFilter, columnFilters, skip, take]);
 
   async function preloadColumnValues() {
     try {
@@ -175,6 +175,8 @@ export function ProductsScreen() {
             totalItems={total}
             itemsPerPage={take}
             onPageChange={(page) => setSkip((page - 1) * take)}
+            onItemsPerPageChange={(newTake) => setTake(newTake)}
+            allowCustomPageSize={true}
           />
         </>
       )}
