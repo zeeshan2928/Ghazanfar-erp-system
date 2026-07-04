@@ -1,0 +1,6 @@
+po_number,vendor_name,expected_delivery_date,status,notes
+PO-2026-00001,Premium Textile Mills,2026-07-15,SENT,Raw material purchase for production
+PO-2026-00002,Advanced Packaging,2026-07-08,SENT,Packaging materials for Q3 delivery
+PO-2026-00003,Quality Steel Suppliers,2026-07-20,DRAFT,Under approval for machinery components
+PO-2026-00004,Carton Box Factory,2026-07-05,PARTIAL_RECEIVED,Partial shipment received
+PO-2026-00005,Industrial Equipment Co,2026-08-15,SENT,Equipment maintenance order

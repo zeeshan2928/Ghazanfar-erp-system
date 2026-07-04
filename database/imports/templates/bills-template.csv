@@ -1,0 +1,5 @@
+bill_number,bill_date,customer_email,channel,subtotal,total_amount,payment_method,status,notes
+BILL-2026-070001,2026-07-01,acme@wholesale.com,COUNTER,100000,117000,BANK_TRANSFER,APPROVED,Sample bill for wholesale customer
+BILL-2026-070002,2026-07-02,makki@retail.com,COUNTER,50000,58500,CASH,APPROVED,Retail sale
+BILL-2026-070003,2026-07-03,global@wholesale.com,WHOLESALE,200000,234000,BANK_TRANSFER,PENDING_APPROVAL,Large wholesale order
+BILL-2026-070004,2026-07-04,quick@retail.com,COUNTER,75000,87750,BANK_TRANSFER,DRAFT,Draft bill pending items

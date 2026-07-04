@@ -2162,3 +2162,5 @@
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:32:44"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:32:48"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:49:01"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 19:07:00"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 19:18:57"}

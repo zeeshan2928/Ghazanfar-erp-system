@@ -1,0 +1,6 @@
+name,email,phone,customerType,isActive,notes
+New Wholesale Trader,newtrader@wholesale.com,+92-300-1234567,WHOLESALE,true,New wholesale customer from Karachi
+Local Retail Shop,localshop@retail.com,+92-321-2345678,RETAIL,true,Small retail outlet in Lahore
+Corporate Buyer,corporate@buyers.com,+92-345-3456789,WHOLESALE,true,Corporate bulk purchasing agreement
+Online Merchant,online@merchant.com,+92-300-4567890,RETAIL,true,E-commerce retailer
+Premium Distributor,premium@dist.com,+92-321-5678901,WHOLESALE,true,Premium distribution partner

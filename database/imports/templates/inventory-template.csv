@@ -1,0 +1,11 @@
+product_code,warehouse_name,quantity,notes
+MCR-001,Main Distribution Center,150,Ceramic plates stock level
+GCS-001,Main Distribution Center,200,Glass cups in main warehouse
+SSB-001,Regional Storage,75,Stainless steel bowls at secondary location
+CVS-001,Main Distribution Center,50,Ceramic vases low stock
+DTR-001,Regional Storage,120,Decorative trays distributed
+CTP-001,Main Distribution Center,30,Tea pots - limited stock
+MLD-001,Main Distribution Center,250,Melamine dishes full stock
+PDS-001,Regional Storage,20,Porcelain dinner sets
+SSC-001,Main Distribution Center,100,Stainless steel cutlery
+GSJ-001,Regional Storage,85,Glass storage jars
