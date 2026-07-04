@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SearchBox } from '../filters/SearchBox';
 import { FilterPanel } from '../filters/FilterPanel';
 import { FilterSummary } from '../filters/FilterSummary';
+import { Pagination } from '../Pagination';
 import {
   FilterOperator,
   DataType,
@@ -168,13 +169,13 @@ export function ProductsScreen() {
               </tbody>
             </table>
           </div>
-          <div style={styles.pagination}>
-            <div style={styles.info}>Showing {skip + 1} to {Math.min(skip + take, total)} of {total}</div>
-            <div style={styles.buttons}>
-              <button onClick={() => setSkip(Math.max(0, skip - take))} disabled={skip === 0} style={{...styles.btn, ...(skip === 0 ? styles.disabled : {})}}>← Previous</button>
-              <button onClick={() => setSkip(skip + take)} disabled={skip + take >= total} style={{...styles.btn, ...(skip + take >= total ? styles.disabled : {})}}>Next →</button>
-            </div>
-          </div>
+          <Pagination
+            currentPage={Math.floor(skip / take) + 1}
+            totalPages={Math.ceil(total / take)}
+            totalItems={total}
+            itemsPerPage={take}
+            onPageChange={(page) => setSkip((page - 1) * take)}
+          />
         </>
       )}
     </div>
@@ -197,9 +198,4 @@ const styles: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse', backgroundColor: 'white' },
   th: { padding: '12px', backgroundColor: '#f5f5f5', borderBottom: '2px solid #ddd', textAlign: 'left', fontSize: '12px', fontWeight: '600' },
   td: { padding: '10px 12px', fontSize: '13px', borderBottom: '1px solid #eee' },
-  pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee' },
-  info: { fontSize: '12px', color: '#666' },
-  buttons: { display: 'flex', gap: '8px' },
-  btn: { padding: '8px 16px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' },
-  disabled: { backgroundColor: '#ccc', cursor: 'not-allowed' },
 };
