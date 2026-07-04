@@ -8,9 +8,14 @@ import { ProductsScreen } from './components/screens/ProductsScreen';
 import { InventoryScreen } from './components/screens/InventoryScreen';
 import { CustomersScreen } from './components/screens/CustomersScreen';
 import { PurchaseOrdersScreen } from './components/screens/PurchaseOrdersScreen';
+import { BillsManagement } from './components/screens/BillsManagement';
+import { PurchaseOrdersManagement } from './components/screens/PurchaseOrdersManagement';
+import { ReportsAnalytics } from './components/screens/ReportsAnalytics';
+import { ExportImport } from './components/screens/ExportImport';
+import { UserManagement } from './components/screens/UserManagement';
 
 export function App() {
-  const [view, setView] = useState<'dashboard' | 'gate-pass' | 'reporting' | 'bills' | 'products' | 'inventory' | 'customers' | 'orders' | 'login'>('login');
+  const [view, setView] = useState<'dashboard' | 'gate-pass' | 'reporting' | 'bills' | 'bills-mgmt' | 'products' | 'inventory' | 'customers' | 'orders' | 'orders-mgmt' | 'reports-analytics' | 'export-import' | 'users' | 'login'>('login');
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [token, setToken] = useState<string>('');
 
@@ -112,6 +117,51 @@ export function App() {
                 <button
                   style={{
                     ...styles.navBtn,
+                    ...(view === 'bills-mgmt' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('bills-mgmt')}
+                >
+                  💼 Bills Mgmt
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'orders-mgmt' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('orders-mgmt')}
+                >
+                  📦 POs Mgmt
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'reports-analytics' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('reports-analytics')}
+                >
+                  📈 Analytics
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'export-import' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('export-import')}
+                >
+                  ↔️ Import/Export
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'users' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('users')}
+                >
+                  🔑 Users
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
                     ...(view === 'reporting' ? styles.navBtnActive : {}),
                   }}
                   onClick={() => setView('reporting')}
@@ -131,10 +181,15 @@ export function App() {
               <GatePassDashboard warehouseId={warehouseId} />
             )}
             {view === 'bills' && <BillsScreen />}
+            {view === 'bills-mgmt' && <BillsManagement />}
             {view === 'products' && <ProductsScreen />}
             {view === 'inventory' && <InventoryScreen />}
             {view === 'customers' && <CustomersScreen />}
             {view === 'orders' && <PurchaseOrdersScreen />}
+            {view === 'orders-mgmt' && <PurchaseOrdersManagement />}
+            {view === 'reports-analytics' && <ReportsAnalytics />}
+            {view === 'export-import' && <ExportImport />}
+            {view === 'users' && <UserManagement />}
             {view === 'reporting' && <ReportingDashboard />}
           </main>
         </div>
