@@ -30,17 +30,19 @@ export class ProductsController {
   @Post('search')
   async search(
     @Body() query: SearchRequestDto,
+    @OrgContext() orgContext: any,
   ) {
-    return this.productsSearchService.search(2, query);
+    return this.productsSearchService.search(orgContext.organizationId, query);
   }
 
   @Public()
   @Get('filters/columns/:columnName')
   async getColumnValues(
     @Param('columnName') columnName: string,
+    @OrgContext() orgContext: any,
   ) {
     return this.productsSearchService.getColumnValues(
-      2,
+      orgContext.organizationId,
       columnName,
     );
   }
