@@ -59,8 +59,9 @@ export class BillsSearchService {
       filters.push(...request.columnFilters);
     }
 
+    const whereBase = this.buildWhereClauses(filters);
     const where = {
-      ...this.filterService.buildWhereClause(filters),
+      ...whereBase,
       organizationId,
     };
 
@@ -269,6 +270,151 @@ export class BillsSearchService {
       value: `${u.firstName} ${u.lastName}`.trim(),
       label: `${u.firstName} ${u.lastName}`.trim(),
     }));
+  }
+
+  /**
+   * Build where clauses with field name mapping
+   * Maps filter field names to actual database column names
+   */
+  private buildWhereClauses(filters: any[]): any {
+    if (!filters || filters.length === 0) {
+      return {};
+    }
+
+    const where: any = {};
+
+    for (const filter of filters) {
+      switch (filter.field) {
+        case 'amount':
+          // Map amount to total_amount field
+          const amountCondition = this.buildCondition(filter);
+          if (amountCondition) {
+            where.total_amount = amountCondition;
+          }
+          break;
+
+        case 'customer_name':
+          // Filter by customer relationship
+          const customerCondition = this.buildCustomerNameCondition(filter);
+          if (customerCondition) {
+            where.customer = { is: customerCondition };
+          }
+          break;
+
+        case 'employee_name':
+          // Filter by created_by_user relationship
+          const employeeCondition = this.buildEmployeeNameCondition(filter);
+          if (employeeCondition) {
+            where.created_by_user = { is: employeeCondition };
+          }
+          break;
+
+        default:
+          // Direct field mapping for other fields
+          const condition = this.buildCondition(filter);
+          if (condition) {
+            where[filter.field] = condition;
+          }
+      }
+    }
+
+    return where;
+  }
+
+  /**
+   * Build a single filter condition
+   */
+  private buildCondition(filter: any): any {
+    const { operator, value } = filter;
+
+    switch (operator) {
+      case 'equals':
+        return { equals: value };
+      case 'doesNotEqual':
+        return { not: value };
+      case 'contains':
+        return { contains: value, mode: 'insensitive' };
+      case 'doesNotContain':
+        return { not: { contains: value, mode: 'insensitive' } };
+      case 'beginsWith':
+        return { startsWith: value, mode: 'insensitive' };
+      case 'endsWith':
+        return { endsWith: value, mode: 'insensitive' };
+      case 'in':
+        return { in: Array.isArray(value) ? value : [value] };
+      case 'notIn':
+        return { notIn: Array.isArray(value) ? value : [value] };
+      case 'gt':
+        return { gt: Number(value) };
+      case 'gte':
+        return { gte: Number(value) };
+      case 'lt':
+        return { lt: Number(value) };
+      case 'lte':
+        return { lte: Number(value) };
+      case 'between':
+        if (Array.isArray(value) && value.length === 2) {
+          return { gte: Number(value[0]), lte: Number(value[1]) };
+        }
+        break;
+      case 'isLike':
+        // Fuzzy match - treat as contains search
+        return { contains: (value as string), mode: 'insensitive' };
+      case 'isNotLike':
+        // Fuzzy match negation
+        return { not: { contains: (value as string), mode: 'insensitive' } };
+    }
+    return null;
+  }
+
+  /**
+   * Build condition for customer name filtering
+   */
+  private buildCustomerNameCondition(filter: any): any {
+    const condition = this.buildCondition(filter);
+    if (condition && filter.field === 'customer_name') {
+      return { name: condition };
+    }
+    return condition;
+  }
+
+  /**
+   * Build condition for employee name filtering
+   */
+  private buildEmployeeNameCondition(filter: any): any {
+    const value = filter.value || '';
+    const operator = filter.operator;
+
+    // For employee names, match firstName or lastName
+    const condition = this.buildCondition(filter);
+
+    if (!condition) return null;
+
+    if (operator === 'in') {
+      return {
+        OR: [
+          { firstName: { in: value } },
+          { lastName: { in: value } },
+        ],
+      };
+    }
+
+    if (operator === 'notIn') {
+      return {
+        AND: [
+          { firstName: { notIn: value } },
+          { lastName: { notIn: value } },
+        ],
+      };
+    }
+
+    // For contains/like operators
+    return {
+      OR: [
+        { firstName: condition },
+        { lastName: condition },
+      ],
+    };
   }
 
   /**

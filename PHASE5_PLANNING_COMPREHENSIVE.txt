@@ -1,0 +1,1468 @@
+================================================================================
+                    ERP PHASE 5-10 COMPREHENSIVE PLANNING
+                   Database Indexing, Partitioning & Architecture
+================================================================================
+
+PROJECT: Ghazanfar ERP Backend
+DATE: 2026-07-04
+PLANNING DURATION: Phase 5-10 (6 months)
+
+================================================================================
+                          PHASE OVERVIEW
+================================================================================
+
+Phase 5: Database Indexing & Partitioning Strategy (2 weeks)
+Phase 6: Data Organization & Archival Strategy (2 weeks)
+Phase 7: Backup & Recovery System (2 weeks)
+Phase 8: Security & Encryption (3 weeks)
+Phase 9: Performance Monitoring & Optimization (2 weeks)
+Phase 10: Data Lifecycle & Purging (1 week)
+
+Total: ~6 months implementation
+
+================================================================================
+                    CURRENT DATA VOLUME ANALYSIS
+================================================================================
+
+Bills:              ~1,000 (scalable to 20K)
+Products:           20K total, 5K active
+Customers:          3-4K
+Expected Growth:    3-4 months: Noticeable slowdown
+                   1-2 years: Severe performance issues
+                   2+ years: Reports load extremely slow
+
+================================================================================
+                    10 BUSINESS HEADS (All Essential)
+================================================================================
+
+1. SALES              - Customer orders, invoices, payments
+2. PURCHASING         - Vendor orders, goods receipt
+3. INVENTORY          - Stock management, warehouse transfers
+4. ACCOUNTS           - Financial transactions, ledger, P&L
+5. WALKIN_RETAIL      - Walk-in customer spot sales
+6. CUSTOMERS          - Customer profiles, credit, analytics
+7. VENDORS            - Vendor management, performance tracking
+8. OPERATIONS         - Warehouse operations, picking, delivery
+9. HR_PAYROLL         - Employee management, salary (TBD)
+10. REPORTS_ANALYTICS - Dashboards, KPIs, BI (TBD)
+
+================================================================================
+                    DETAILED BUSINESS HEAD STRUCTURE
+================================================================================
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 1: SALES (7 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. orders
+   - Bill number
+   - Customer ID
+   - Date
+   - Total amount
+   - Status (Draft/Confirmed/Shipped/Delivered)
+
+2. order_items
+   - Order ID
+   - Product ID
+   - Quantity
+   - Unit price
+   - Discount amount / Discount percentage (Item-level)
+   - Tax
+   - Line total
+
+3. payments
+   - Payment ID
+   - Order ID
+   - Payment amount
+   - Payment date
+   - Payment method (Direct/JV/Credit/Cash)
+
+4. discounts
+   - Discount ID
+   - Order ID
+   - Total discount amount / percentage
+   - Discount reason
+
+5. taxes
+   - Tax ID
+   - Order ID
+   - Tax amount
+   - Tax type
+
+6. shipping
+   - Shipping ID
+   - Order ID
+   - Delivery address
+   - Delivery date
+   - Status (Pending/In Transit/Delivered)
+
+7. returns
+   - Return ID
+   - Order ID
+   - Returned item
+   - Quantity returned
+   - Reason
+   - Refund amount
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 2: PURCHASING (7 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. purchase_orders
+   - PO number
+   - Vendor ID
+   - Date
+   - Total amount
+   - Status (Draft/Sent/Confirmed/Partially Received/Received)
+
+2. po_items
+   - PO ID
+   - Product ID
+   - Quantity ordered
+   - Unit price
+   - Line total
+
+3. goods_receipts
+   - Receipt ID
+   - PO ID
+   - Quantity received
+   - Date received
+   - Inspection status
+
+4. vendor_invoices
+   - Invoice ID
+   - PO ID
+   - Invoice number
+   - Invoice date
+   - Amount
+   - Status (Pending/Verified/Paid)
+
+5. vendor_payments
+   - Payment ID
+   - Vendor ID
+   - Invoice ID
+   - Amount paid
+   - Payment date
+   - Payment method
+
+6. purchase_returns
+   - Return ID
+   - PO ID
+   - Item returned
+   - Quantity
+   - Reason
+   - Credit amount
+
+7. reorder_management
+   - Product ID
+   - Minimum stock level
+   - Reorder quantity
+   - Auto-trigger enabled (true/false)
+   - Last reorder date
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 3: INVENTORY (7 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. inventory
+   - Product ID
+   - Warehouse ID
+   - Stock quantity
+   - Reserved quantity
+   - Available quantity
+   - Last updated
+
+2. warehouse_transfers
+   - Transfer ID
+   - From warehouse
+   - To warehouse
+   - Product ID
+   - Quantity
+   - Transfer date
+   - Status
+
+3. stock_adjustments
+   - Adjustment ID
+   - Product ID
+   - Warehouse ID
+   - Quantity difference
+   - Reason (Count mismatch/Damage/Theft)
+   - Date
+
+4. stock_movements_log
+   - Log ID
+   - Product ID
+   - Warehouse ID
+   - Movement type (In/Out/Transfer)
+   - Quantity
+   - Reference (PO/Invoice/Transfer ID)
+   - Timestamp
+
+5. reorder_points
+   - Product ID
+   - Minimum level
+   - Maximum level
+   - Reorder quantity
+
+6. physical_stock_audit
+   - Audit ID
+   - Warehouse ID
+   - Audit date
+   - Product ID
+   - Expected quantity
+   - Actual quantity
+   - Variance
+   - Notes
+
+7. stock_performance
+   - Product ID
+   - Last sale date
+   - Days since last sale (Calculated: Today - Last_Sale_Date)
+   - Sales velocity (Units/day)
+   - Alert status (HOT / NORMAL / SLOW / DEAD)
+   - DEAD STOCK THRESHOLD: 45 days (no sales in 45 days)
+   - Notification flag (Alert user?)
+
+   Dashboard will show:
+   - HOT items (selling fast)
+   - NORMAL items (steady sales)
+   - SLOW items (selling slowly, 20-45 days)
+   - DEAD items (>45 days without sale - needs attention)
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 4: ACCOUNTS (13 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+Payment System Types:
+1. DIRECT PAYMENT
+   - Customer pays to your bank account directly
+
+2. JV PAYMENT (Joint Venture)
+   - Customer pays to vendor's bank account (provided by you)
+   - Vendor holds money temporarily
+   - After verification → Settlement happens
+   - Intense monitoring required
+
+3. CREDIT
+   - Customer buys on credit
+   - Pays later from their account balance
+   - Credit limit per customer
+   - Partial payments allowed
+
+4. CASH
+   - Customer pays cash directly
+
+Tables:
+
+1. ledger
+   - Transaction ID
+   - Date
+   - Description
+   - Debit amount
+   - Credit amount
+   - Balance
+   - Category
+
+2. journal_entries
+   - Entry ID
+   - Date
+   - Account (Debit)
+   - Account (Credit)
+   - Amount
+   - Description
+
+3. bank_accounts
+   - Account ID
+   - Account type (Own / Vendor managed)
+   - Bank name
+   - Account number
+   - Account holder name
+   - Current balance
+   - Status (Active/Inactive)
+
+4. payment_methods
+   - Method ID
+   - Type (Direct / JV / Credit / Cash)
+   - Description
+   - Status (Active/Inactive)
+
+5. expense_categories
+   - Category ID
+   - Name (Utilities/Salary/Legal/Maintenance/Construction/Owner Share/Speed Money/etc.)
+   - Description
+   - Budget (if applicable)
+
+6. expenses
+   - Expense ID
+   - Date
+   - Category
+   - Amount
+   - Description
+   - Approved by
+
+7. profit_loss_report
+   - Report ID
+   - Period (Month/Year)
+   - Total revenue
+   - Total COGS
+   - Gross profit
+   - Total expenses
+   - Net profit
+   - Generated date
+
+8. balance_sheet
+   - Report ID
+   - Date
+   - Assets total
+   - Liabilities total
+   - Equity total
+
+9. jv_payment_tracking
+   - JV ID
+   - Customer ID
+   - Vendor ID
+   - Amount
+   - Payment date
+   - Receipt status (Pending / Verified / Cleared)
+   - Verification date
+   - Settlement status (Pending / Completed)
+   - Settlement date
+
+10. payment_reconciliation
+    - Reconciliation ID
+    - Date
+    - Payment ID
+    - Receipt verification
+    - Bank account matched
+    - Status (Matched / Discrepancy)
+
+11. credit_limits
+    - Customer ID
+    - Credit limit amount
+    - Current used amount
+    - Available credit
+    - Last reviewed date
+
+12. invoice_payment_mapping
+    - Mapping ID
+    - Invoice ID
+    - Payment ID
+    - Amount applied
+    - Remaining balance on invoice
+    - Application date
+
+13. aging_report
+    - Report ID
+    - Customer ID
+    - Invoice ID
+    - Invoice date
+    - Days outstanding (calculated)
+    - Amount outstanding
+    - Age bracket (0-7 / 7-14 / 14-21 / 21-30 / 30+ days)
+    - Status (Pending / Partially paid / Overdue)
+
+   Overdue Alert: 7+ days unpaid invoices
+   Monitoring: Which invoice is 7/14/21/30 days old and payment status
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 5: WALKIN_RETAIL (7 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+1. walkin_orders
+   - Bill ID
+   - Bill date
+   - Customer name (optional, for walk-in)
+   - Total amount
+   - Status (Completed/Returned)
+
+2. walkin_items
+   - Item ID
+   - Bill ID
+   - Product ID
+   - Quantity
+   - Unit price
+   - Discount amount / Discount percentage (Item-level)
+   - Tax
+   - Line total
+
+   Discount Structure:
+   - Per item: discount_amount OR discount_percentage
+   - Example: Shirt Rs 500 → 10% discount = Rs 450
+
+3. walkin_customers
+   - Customer ID
+   - Name
+   - Phone
+   - Email
+   - Address
+   - Visit frequency
+   - Notes
+
+4. walkin_cash_register
+   - Register ID
+   - Date
+   - Opening balance
+   - Cash in (bills paid)
+   - Cash out (refunds/expenses)
+   - Closing balance
+   - Verified by
+
+5. walkin_returns
+   - Return ID
+   - Bill ID
+   - Item ID
+   - Quantity returned
+   - Reason
+   - Refund amount
+   - Refund method
+
+6. walkin_discounts
+   - Discount ID
+   - Bill ID
+   - Item discount (sum of item discounts)
+   - Total discount (additional on invoice total)
+   - Total discount percentage
+   - Discount reason
+
+7. walkin_payment_methods
+   - Payment ID
+   - Bill ID
+   - Amount
+   - Method (Cash / Card / UPI)
+   - Timestamp
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 6: CUSTOMERS (10 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+Advanced Features:
+- Product purchase history per customer
+- Product gap analysis (products other customers buy but this doesn't)
+- Customer targets/incentives (discount if they buy X units)
+- Smart pop-ups in sales order:
+  * Pop-up 1: Product history (last purchase price, date, quantity)
+  * Pop-up 2: Inventory availability (warehouse, qty available)
+  * Pop-up 3: Cost price from vendors (which vendor, cost)
+
+Tables:
+
+1. customer_profiles
+   - Customer ID
+   - Name
+   - Phone
+   - Email
+   - Address
+   - Category (Retail/Wholesale/Corporate/VIP)
+   - Status (Active/Inactive)
+
+2. credit_limits
+   - Customer ID
+   - Credit limit amount
+   - Current balance
+   - Available credit
+
+3. customer_categories
+   - Category ID
+   - Name (Retail/Wholesale/Corporate/VIP)
+   - Description
+   - Default discount (if applicable)
+
+4. customer_history
+   - Transaction ID
+   - Customer ID
+   - Invoice ID
+   - Date
+   - Amount
+   - Status (Completed/Pending/Overdue)
+
+5. customer_preferences
+   - Preference ID
+   - Customer ID
+   - Preferred payment method
+   - Preferred delivery address
+   - Special notes
+
+6. customer_communication
+   - Log ID
+   - Customer ID
+   - Type (Call/Message/Email/Visit)
+   - Date
+   - Notes
+   - Follow-up required (true/false)
+
+7. customer_analytics
+   - Customer ID
+   - Total spent
+   - Days as customer
+   - Avg order value
+   - Total orders
+   - Last purchase date
+   - Purchase frequency
+
+8. customer_product_purchases
+   - Purchase ID
+   - Customer ID
+   - Product ID
+   - Quantity purchased
+   - Price paid
+   - Purchase date
+   - Frequency (how often buys)
+
+9. customer_targets
+   - Target ID
+   - Customer ID
+   - Product ID
+   - Target quantity (units to buy)
+   - Target period (month/quarter)
+   - Current progress
+   - Deadline
+   - Target status (On track / Behind / Completed)
+
+10. customer_incentives
+    - Incentive ID
+    - Customer ID
+    - Product ID
+    - Target quantity
+    - Discount offered (if achieved)
+    - Discount type (amount / percentage)
+    - Valid from date
+    - Valid to date
+    - Status (Active / Completed / Expired)
+
+    Example:
+    "If you buy 100 units this month, get 10% discount"
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 7: VENDORS (13 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+Challenges Tracked (All 8):
+1. Price fluctuation
+2. Quality issues
+3. Delivery delays
+4. Payment disputes
+5. Credit management
+6. Multiple products
+7. Contract terms
+8. Alternative vendors
+
+NOT Tracked:
+- Compliance (Tax registration, legal documents)
+- Capacity issues (can't supply enough)
+
+Tables:
+
+1. vendor_profiles
+   - Vendor ID
+   - Name
+   - Contact person
+   - Phone
+   - Email
+   - Address
+   - Bank account details
+   - Status (Active/Inactive)
+
+2. vendor_categories
+   - Category ID
+   - Name (Wholesaler/Distributor/Manufacturer)
+   - Description
+
+3. vendor_payment_terms
+   - Term ID
+   - Vendor ID
+   - Type (Net 30 / COD / Advance / Other)
+   - Days allowed
+   - Description
+
+4. vendor_pricing_history
+   - History ID
+   - Vendor ID
+   - Product ID
+   - Price
+   - Effective date
+   - End date
+   - Change reason (inflation/negotiation/etc)
+
+5. vendor_performance
+   - Performance ID
+   - Vendor ID
+   - On-time delivery % (calculated)
+   - Quality rating (1-5)
+   - Last assessment date
+   - Overall score
+
+6. vendor_products
+   - Vendor ID
+   - Product ID
+   - Unit price
+   - Lead time (days to deliver)
+   - Minimum order qty
+   - Available
+
+7. vendor_communication
+   - Log ID
+   - Vendor ID
+   - Type (Call/Email/Message/Meeting)
+   - Date
+   - Notes
+   - Follow-up required
+
+8. vendor_quality_issues
+   - Issue ID
+   - Vendor ID
+   - PO ID
+   - Issue type (Defect/Wrong item/Damage/Short qty)
+   - Quantity affected
+   - Severity (Low/Medium/High)
+   - Date reported
+   - Resolution (Refund/Replace/Adjustment)
+   - Status (Open/Resolved)
+
+9. vendor_delivery_log
+   - Log ID
+   - Vendor ID
+   - PO ID
+   - Expected delivery date
+   - Actual delivery date
+   - Status (On time / Late)
+   - Days delayed (if late)
+
+10. vendor_outstanding
+    - Outstanding ID
+    - Vendor ID
+    - Total amount owed
+    - Last invoice date
+    - Next payment due date
+    - Status (Pending / Overdue)
+
+11. vendor_agreements
+    - Agreement ID
+    - Vendor ID
+    - Contract date
+    - Expiry date
+    - Terms (payment/delivery/quality)
+    - Status (Active / Expired / Renewed)
+
+12. vendor_alternatives
+    - Alternative ID
+    - Product ID
+    - Primary vendor ID
+    - Alternative vendor ID
+    - Price difference
+    - Notes
+
+13. vendor_disputes
+    - Dispute ID
+    - Vendor ID
+    - Date
+    - Issue (Price dispute/Quality complaint/Delivery issue/etc)
+    - Description
+    - Amount involved
+    - Status (Open / In discussion / Resolved)
+    - Resolution
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 8: OPERATIONS (7 Tables)
+═══════════════════════════════════════════════════════════════════════════════
+
+5-6 are optional (can toggle on/off based on need)
+
+1. warehouse_locations
+   - Location ID
+   - Warehouse ID
+   - Zone (A/B/C/etc)
+   - Shelf
+   - Bin / Rack
+   - Capacity
+   - Current stock
+   - Status
+
+2. stock_picking
+   - Pick ID
+   - Order ID
+   - Product ID
+   - Required quantity
+   - Picked quantity
+   - Pick date
+   - Picked by (Employee ID)
+   - Status (Pending / In progress / Completed)
+
+3. packing
+   - Pack ID
+   - Order ID
+   - Pick ID
+   - Packed items (JSON)
+   - Pack date
+   - Packed by (Employee ID)
+   - Box ID
+   - Weight
+   - Dimensions
+   - Status (Pending / Completed)
+
+4. delivery_tracking
+   - Delivery ID
+   - Order ID
+   - Pack ID
+   - Shipment date
+   - Expected delivery date
+   - Actual delivery date
+   - Status (Pending / In Transit / Delivered / Failed)
+   - Tracking number
+   - Delivery notes
+
+5. employee_task_assignment (OPTIONAL - Toggle)
+   - Task ID
+   - Employee ID
+   - Task type (Picking / Packing / Delivery)
+   - Order ID
+   - Assigned date
+   - Deadline
+   - Status (Assigned / In progress / Completed)
+   - Notes
+
+6. qc_inspection (OPTIONAL - Toggle)
+   - Inspection ID
+   - Pick ID / Pack ID
+   - Inspector ID
+   - Inspection date
+   - Items inspected
+   - Issues found
+   - Status (Pass / Fail)
+   - Notes
+
+7. shipment_manifest
+   - Manifest ID
+   - Shipment ID
+   - Order ID
+   - Items list (Product ID, Qty, Weight)
+   - Total weight
+   - Total boxes
+   - Carrier
+   - Tracking number
+   - Created date
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 9: HR_PAYROLL (18 Tables - COMPLEX SYSTEM)
+═══════════════════════════════════════════════════════════════════════════════
+
+Employee Types:
+1. Management + Sales Staff (Commission-based)
+2. Labour/Mazdoor (Hourly + Attendance bonuses)
+3. Accountants (Admin role for monitoring)
+
+SALES STAFF FEATURES:
+- Commission per product OR per sale
+- Sales targets (product-wise)
+- Real-time progress tracking (target vs actual)
+- Multi-device monitoring (Desktop/Mobile/App)
+- Share progress with sales staff themselves
+- Import external sales reports for analysis
+- Historical sales by month
+- Auto-suggest targets based on previous performance
+
+LABOUR STAFF FEATURES:
+- Attendance tracking (Present/Absent/Leave)
+- Leave pay deduction
+- No-leave bonus
+- On-time arrival bonus
+- Late arrival penalty/bonus
+- Performance monitoring
+
+ROLE-BASED ACCESS:
+- Only Admin can see all data
+- Other staff see limited visibility
+- Roles & Permissions system
+
+Tables:
+
+1. employees
+   - Employee ID
+   - Name
+   - Email
+   - Phone
+   - Department (Sales/Labour/Admin/Accounting)
+   - Designation
+   - Type (Management / Sales Staff / Labour / Accountant)
+   - Hire date
+   - Salary level
+   - Status (Active/Inactive)
+
+2. salary_structure
+   - Structure ID
+   - Employee ID
+   - Basic salary
+   - HRA (House Rent Allowance)
+   - DA (Dearness Allowance)
+   - Other allowances
+   - Deductions
+   - Effective from date
+   - Effective to date
+
+3. attendance
+   - Attendance ID
+   - Employee ID
+   - Date
+   - Status (Present / Absent / Leave)
+   - Check-in time (for labor staff)
+   - Check-out time
+   - Hours worked
+   - Approved by
+   - Notes
+
+4. payroll_processing
+   - Payroll ID
+   - Employee ID
+   - Month / Year
+   - Basic salary
+   - Allowances (calculated)
+   - Deductions (calculated)
+   - Net salary
+   - Gross salary
+   - Generated date
+   - Approved by
+   - Payment status (Pending / Completed)
+   - Payment date
+
+5. leave_management
+   - Leave ID
+   - Employee ID
+   - Leave type (Sick / Casual / Earned)
+   - Start date
+   - End date
+   - Days taken
+   - Approved by
+   - Status (Pending / Approved / Rejected)
+   - Reason
+   - Balance before
+   - Balance after
+
+6. performance_rating
+   - Rating ID
+   - Employee ID
+   - Period (Month / Quarter)
+   - Overall rating (1-5)
+   - Comments
+   - Reviewed by
+   - Review date
+
+7. compliance_documents
+   - Document ID
+   - Employee ID
+   - Type (Employment contract / Certification / Tax doc)
+   - File path
+   - Issue date
+   - Expiry date (if applicable)
+   - Status (Valid / Expired / Pending)
+   - Uploaded date
+
+========== SALES STAFF COMMISSION SYSTEM ==========
+
+8. commission_rules
+   - Rule ID
+   - Employee ID (Sales staff)
+   - Product ID
+   - Commission type (Per product / Per sale)
+   - Commission amount (if fixed)
+   - Commission percentage (if percentage-based)
+   - Minimum sale qty to trigger commission
+   - Effective from date
+   - Effective to date
+   - Status (Active / Inactive)
+
+   Example:
+   - Qurban Sahab
+   - Product: Shirt
+   - Commission: Per product (Rs 50 per shirt sold)
+   - OR Commission: 5% of sale amount
+   - Minimum: 10 units to get commission
+
+9. sales_targets
+   - Target ID
+   - Employee ID (Sales staff)
+   - Product ID (specific product)
+   - Target quantity (units to sell)
+   - Target amount (Rs to achieve)
+   - Period (Month / Quarter)
+   - Start date
+   - End date
+   - Status (Active / Completed / Failed)
+   - Bonus if achieved (if applicable)
+
+   Example:
+   - Qurban for January 2026
+   - Product: Shirt
+   - Target: 100 units
+   - Bonus: Rs 5,000 if achieved
+
+10. sales_progress_tracking
+    - Progress ID
+    - Target ID
+    - Employee ID
+    - Product ID
+    - Current sales (units)
+    - Current amount (Rs)
+    - Target (units / Rs)
+    - Percentage completed
+    - Days remaining
+    - Status (On track / Behind / Completed)
+    - Last updated
+
+    Dashboard Display:
+    - Progress bar (visual 0-100%)
+    - Days remaining
+    - Units sold vs target
+    - Amount achieved vs target
+    - Bonus status (if eligible)
+
+11. commission_calculations
+    - Calculation ID
+    - Employee ID
+    - Sales Transaction ID
+    - Commission type (Per product / Per sale)
+    - Commission amount (calculated)
+    - Commission date
+    - Status (Calculated / Approved / Paid)
+
+12. sales_data_import
+    - Import ID
+    - Employee ID (Sales staff)
+    - File path (external sales report)
+    - Import date
+    - Period (Month)
+    - Status (Imported / Processing / Completed)
+    - Total records imported
+    - Analysis results
+
+    Functionality:
+    - Import from external sources
+    - Auto-analyze sales patterns
+    - Compare with previous months
+    - Suggest new targets based on performance history
+
+========== LABOUR STAFF PERFORMANCE SYSTEM ==========
+
+13. labour_performance_rules
+    - Rule ID
+    - Rule type (Leave deduction / No-leave bonus / On-time bonus / Late penalty)
+    - Amount / Percentage
+    - Condition (if applicable)
+    - Active (true/false)
+
+    Examples:
+    - Leave deduction: -Rs 200 per day
+    - No-leave bonus (monthly): +Rs 1,000
+    - On-time arrival (monthly): +Rs 500
+    - Late arrival: -Rs 50 per occurrence
+
+14. attendance_bonuses
+    - Bonus ID
+    - Employee ID
+    - Month / Year
+    - On-time arrivals (count)
+    - On-time bonus (calculated)
+    - No-leave bonus (if applicable)
+    - Late arrivals (count)
+    - Late penalty (calculated)
+    - Net attendance bonus
+    - Status (Calculated / Approved / Applied)
+
+15. leave_deductions
+    - Deduction ID
+    - Employee ID
+    - Month / Year
+    - Total days leave
+    - Deduction per day
+    - Total deduction (calculated)
+    - Status (Calculated / Applied)
+
+========== ROLE-BASED ACCESS CONTROL ==========
+
+16. employee_roles
+    - Role ID
+    - Role name (Admin / Manager / Sales Staff / Labour / Accountant / Viewer)
+    - Permissions (JSON)
+    - Description
+
+    Admin: See all data, all reports, all employees
+    Manager: See team data, limited reports
+    Sales Staff: See own data, own progress
+    Labour: See own attendance, own payslip
+    Accountant: See payroll, reports (only finance)
+    Viewer: Read-only access to specific data
+
+17. role_assignments
+    - Assignment ID
+    - Employee ID
+    - Role ID
+    - Assigned date
+    - Assigned by
+    - Status (Active / Inactive)
+
+18. access_log
+    - Log ID
+    - Employee ID
+    - Action (View / Edit / Delete / Approve)
+    - Data accessed
+    - Date
+    - Timestamp
+    - IP address (optional)
+
+    For audit and compliance tracking
+
+═══════════════════════════════════════════════════════════════════════════════
+HEAD 10: REPORTS_ANALYTICS (15+ Tables - COMPREHENSIVE DASHBOARDS)
+═══════════════════════════════════════════════════════════════════════════════
+
+Dashboard Access: Admin ONLY (Role-based access control)
+
+Visualization Options:
+- Line charts (trends over time)
+- Bar charts (comparisons)
+- Pie charts (composition)
+- Area charts (cumulative trends)
+- Table views (detailed data)
+- KPI cards (key metrics)
+
+Export & Print Options:
+- PDF export
+- Excel export
+- Print-friendly view
+- Email schedule (daily/weekly/monthly)
+
+Comparison Features:
+- Month-over-month comparison
+- Year-over-year comparison (3-year history)
+- Quarter-over-quarter
+- Custom date range comparison
+
+Tables:
+
+1. sales_dashboard_data
+   - Dashboard ID
+   - Period (Day/Month/Quarter/Year)
+   - Total sales amount
+   - Total orders count
+   - Top products (JSON)
+   - Top customers (JSON)
+   - Daily breakdown (JSON)
+   - Growth % vs previous period
+   - Generated date
+
+   Visualizations:
+   - Daily sales trend (Line chart)
+   - Monthly sales comparison (Bar chart - current vs last year)
+   - Top 10 products (Bar chart)
+   - Top 10 customers (Bar chart)
+   - Sales by category (Pie chart)
+   - Sales by region/warehouse (Pie chart)
+
+2. customer_dashboard_data
+   - Dashboard ID
+   - Period
+   - Active customers count
+   - New customers (this period)
+   - Total receivables
+   - Overdue receivables
+   - Customer aging breakdown
+   - Top customers by revenue
+   - Generated date
+
+   Visualizations:
+   - Active customers (KPI card)
+   - Total receivables (KPI card)
+   - Overdue amount (KPI card - Alert if high)
+   - Customer aging (Bar chart - 0-7 / 7-14 / etc days)
+   - Receivables by customer (Bar chart)
+   - Payment collection trend (Line chart)
+
+3. inventory_dashboard_data
+   - Dashboard ID
+   - Period
+   - Total inventory value
+   - Low stock items (count)
+   - Dead stock items (45+ days - count)
+   - Hot items (fast moving - count)
+   - Stock level by warehouse (JSON)
+   - Slow moving items (JSON)
+   - Stock turnover ratio
+   - Generated date
+
+   Visualizations:
+   - Stock health (KPI cards - low/normal/hot/dead)
+   - Items under minimum level (Bar chart)
+   - Top 10 slow-moving products (Bar chart)
+   - Top 10 fast-moving products (Bar chart)
+   - Stock value by warehouse (Pie chart)
+   - Days inventory outstanding (Line chart)
+   - Stock turnover trend (Line chart)
+
+4. purchase_dashboard_data
+   - Dashboard ID
+   - Period
+   - Total purchase amount
+   - Total POs count
+   - Top vendors (JSON)
+   - Vendor performance (JSON)
+   - Outstanding payables
+   - Goods received vs ordered
+   - Generated date
+
+   Visualizations:
+   - Purchase trends (Line chart)
+   - Top vendors by volume (Bar chart)
+   - Outstanding payables (KPI card)
+   - Vendor on-time delivery % (Bar chart)
+   - Purchase by vendor (Pie chart)
+   - Cost trend (Line chart)
+
+5. accounts_dashboard_data
+   - Dashboard ID
+   - Period
+   - Total revenue
+   - Total expenses
+   - Gross profit
+   - Net profit
+   - Cash flow
+   - Profit margin %
+   - Expense breakdown (JSON)
+   - Generated date
+
+   Visualizations:
+   - Revenue vs Expenses (Bar chart)
+   - Profit trend (Line chart)
+   - Profit & Loss statement (Table)
+   - Expense breakdown (Pie chart)
+   - Cash position (KPI card)
+   - P&L comparison YoY (Bar chart)
+
+6. vendor_dashboard_data
+   - Dashboard ID
+   - Period
+   - Total vendor count
+   - Vendor performance scores (JSON)
+   - Quality issues (count)
+   - Delivery delays (count)
+   - Top vendors (JSON)
+   - Vendor payment status (JSON)
+   - Generated date
+
+   Visualizations:
+   - Vendor performance rating (Bar chart)
+   - Quality issues by vendor (Bar chart)
+   - Delivery performance % (Bar chart)
+   - Payment status (Pie chart)
+
+7. employee_dashboard_data
+   - Dashboard ID
+   - Period
+   - Total employees (by type)
+   - Sales targets achievement (%)
+   - Commission payout (total)
+   - Attendance rate (%)
+   - Top performers (JSON)
+   - Payroll summary (JSON)
+   - Generated date
+
+   Visualizations:
+   - Sales staff targets achievement (Bar chart)
+   - Top sales performers (Bar chart)
+   - Commission payout (KPI card)
+   - Attendance rate (KPI card)
+   - Labour performance (Pie chart - on-time vs late)
+
+8. comparison_data
+   - Comparison ID
+   - Metric type (Sales/Revenue/Profit/etc)
+   - Period 1 (Month/Year)
+   - Period 2 (Month/Year)
+   - Value 1
+   - Value 2
+   - Change amount
+   - Change percentage
+   - Generated date
+
+   Visualizations:
+   - Month-over-month comparison (Bar chart)
+   - Year-over-year 3-year history (Line chart with multiple lines)
+   - Trend analysis (Area chart)
+   - Growth rate (KPI card)
+
+9. kpi_metrics
+   - KPI ID
+   - KPI name (Revenue Growth / Profit Margin / etc)
+   - Current value
+   - Target value
+   - Achievement %
+   - Trend (UP / DOWN / STABLE)
+   - Generated date
+
+   Example KPIs:
+   - Monthly revenue target
+   - Profit margin target
+   - Customer acquisition rate
+   - Inventory turnover
+   - Vendor on-time delivery %
+
+10. dashboard_preferences
+    - Preference ID
+    - Admin user ID
+    - Dashboard type (Sales / Customer / Inventory / etc)
+    - Visible charts (JSON)
+    - Chart types (Line/Bar/Pie/Area - preference)
+    - Refresh rate (hourly/daily)
+    - Custom date range (if preferred)
+
+11. report_templates
+    - Template ID
+    - Template name (Sales Report / Payroll Report / etc)
+    - Dashboard ID
+    - Fields to include (JSON)
+    - Chart types (JSON)
+    - Sorting order
+    - Status (Active / Inactive)
+
+12. report_schedules
+    - Schedule ID
+    - Template ID
+    - Admin ID
+    - Frequency (Daily / Weekly / Monthly)
+    - Time to send
+    - Email recipients (JSON)
+    - Format (PDF / Excel / Both)
+    - Status (Active / Inactive)
+
+13. report_exports
+    - Export ID
+    - Admin ID
+    - Report type
+    - Date range
+    - Format (PDF / Excel)
+    - Generated date
+    - File path
+    - Exported by
+
+14. dashboard_audit_log
+    - Log ID
+    - Admin ID
+    - Dashboard viewed
+    - Date / Time
+    - Duration viewed
+    - Actions taken (print/export/etc)
+    - IP address
+
+15. custom_reports
+    - Report ID
+    - Name
+    - Created by (Admin)
+    - Data source (which tables/heads)
+    - Filters applied (JSON)
+    - Chart types (JSON)
+    - Status (Draft / Active / Archived)
+    - Created date
+
+    Features:
+    - Drag-drop builder for custom reports
+    - Combine data from multiple heads
+    - Custom filters
+    - Ad-hoc analysis
+    - Save and reuse
+
+DASHBOARD SUMMARY (Reference from E-Khata):
+
+Sales Dashboard:
+  - Daily sales trend (Line chart showing Rs amount)
+  - Monthly comparison (Current year vs Previous year - Bar chart)
+  - Monthly expense summary (Pie chart)
+
+Clients Dashboard:
+  - Active clients (Bar chart showing amount per client)
+  - Amounts receivable from clients (Bar chart - sorted by amount)
+
+Stock Dashboard:
+  - Items under minimum level (Cards/Alert)
+  - Monthly top sold items (Pie chart)
+  - Monthly least sold items (Pie chart)
+  - Items not sold this month (List)
+
+Accounts Dashboard:
+  - Accounts summary (P&L statement)
+
+All Dashboards:
+  - Multiple visualization options (graphs, pie charts, bar charts)
+  - Print button
+  - Export to Excel/PDF
+  - Admin-only access
+  - 3-year month-to-month comparison for trends
+
+================================================================================
+                    PARTITION STRATEGY (ALL HEADS)
+================================================================================
+
+Partition by: YEAR / MONTH / BUSINESS HEAD
+
+Example Structure:
+transactions_2026_01_SALES
+transactions_2026_01_PURCHASING
+transactions_2026_01_INVENTORY
+transactions_2026_01_ACCOUNTS
+transactions_2026_01_WALKIN_RETAIL
+transactions_2026_01_CUSTOMERS
+transactions_2026_01_VENDORS
+transactions_2026_01_OPERATIONS
+transactions_2026_01_HRPAYROLL
+
+transactions_2025_12_SALES (Previous year - WARM storage)
+transactions_2024_12_SALES (2+ years - COLD storage/archive)
+
+Benefits:
+- Query only relevant partition (fast queries)
+- Old partitions can be compressed/archived
+- Easy to manage retention policy
+- Performance stays optimal regardless of data size
+
+================================================================================
+                    DATA LIFECYCLE STRATEGY
+================================================================================
+
+HOT DATA (Current Year)
+- Location: Main database
+- Full indexes
+- Access: Fast
+- Storage: SSD/Primary DB
+
+WARM DATA (1-2 years old)
+- Location: Separate schema
+- Read-only access
+- Summarized data available
+- Storage: Secondary DB
+
+COLD DATA (2-7 years old)
+- Location: Cloud archive (compressed)
+- Accessed rarely
+- For legal/audit purposes only
+- Storage: S3/Azure Blob (geographically separated)
+
+PURGE (7+ years old)
+- Delete after retention period
+- Keep legal audit trail
+- Archive immutable log
+
+================================================================================
+                        COMPLETE SUMMARY
+================================================================================
+
+TOTAL BUSINESS HEADS: 10
+TOTAL TABLES: 126+
+
+HEAD BREAKDOWN:
+1. SALES                  - 7 tables
+2. PURCHASING             - 7 tables
+3. INVENTORY              - 7 tables
+4. ACCOUNTS               - 13 tables (complex JV/Credit/Expense system)
+5. WALKIN_RETAIL          - 7 tables
+6. CUSTOMERS              - 10 tables (advanced targeting/incentives)
+7. VENDORS                - 13 tables (comprehensive performance tracking)
+8. OPERATIONS             - 7 tables (7 with 2 optional/toggleable)
+9. HR_PAYROLL             - 18 tables (complex commission/performance system)
+10. REPORTS_ANALYTICS     - 15+ tables (comprehensive dashboards)
+
+SPECIAL FEATURES IMPLEMENTED:
+
+ACCOUNTS HEAD:
+- JV Payment System (Customer → Vendor Account → Settlement)
+- Multiple Payment Types (Direct/JV/Credit/Cash)
+- Credit Limit Management
+- Invoice-Payment Mapping
+- Aging Reports (0-7 / 7-14 / 14-21 / 21-30 / 30+ days)
+- Overdue Tracking & Alerts
+- Comprehensive Expense Categories
+- P&L & Balance Sheet
+
+CUSTOMERS HEAD:
+- Product Purchase History per Customer
+- Product Gap Analysis (suggest products other customers buy)
+- Sales Targets & Incentives (offer discounts for hitting targets)
+- Smart Pop-ups (product history, inventory, vendor cost)
+
+INVENTORY HEAD:
+- Dead Stock Detection (45+ days without sale)
+- Stock Performance Analytics (HOT/NORMAL/SLOW/DEAD)
+- Daily sales tracking per product
+- Dashboard alerts for attention-needed items
+
+VENDORS HEAD:
+- 8 Challenges Tracked (price, quality, delivery, disputes, etc)
+- Vendor Performance Scoring
+- Quality Issue Tracking
+- Delivery On-Time %
+- Outstanding Payables Tracking
+
+HR_PAYROLL HEAD:
+- Two Employee Types (Sales staff + Labour mazdoor)
+- Commission System (per product OR per sale)
+- Sales Targets with Progress Tracking
+- Multi-device Progress Monitoring (Desktop/Mobile/App)
+- Labour Performance Rules (leave deduction, bonuses)
+- On-time/Late arrival tracking & bonuses
+- External Sales Import & Analysis
+- Role-Based Access Control (Admin/Manager/Sales/Labour/Accountant)
+- Audit Logging
+
+REPORTS_ANALYTICS HEAD:
+- 7 Admin-Only Dashboards
+- Multiple Visualization Options (Line/Bar/Pie/Area charts)
+- Print & Export (PDF/Excel)
+- Email Scheduling (Daily/Weekly/Monthly)
+- 3-Year Year-Over-Year Comparison
+- KPI Tracking
+- Custom Report Builder
+- Dashboard Preferences & Audit Logs
+
+PARTITION STRATEGY:
+- Year/Month/Business Head partitioning
+- Hot/Warm/Cold data tiers
+- Automatic archival of old data
+- Compressed cloud storage for archives
+
+DATA RETENTION POLICY:
+- HOT: Current year (main DB, full indexes)
+- WARM: 1-2 years (separate schema, read-only)
+- COLD: 2-7 years (cloud archive, compressed)
+- PURGE: 7+ years (delete after retention)
+
+================================================================================
+                    IMPLEMENTATION TIMELINE
+================================================================================
+
+Phase 5: Database Indexing & Partitioning        (2 weeks)
+Phase 6: Data Organization & Archival            (2 weeks)
+Phase 7: Backup & Recovery System                (2 weeks)
+Phase 8: Security & Encryption                   (3 weeks)
+Phase 9: Performance Monitoring                  (2 weeks)
+Phase 10: Data Lifecycle & Purging               (1 week)
+
+TOTAL: ~6 months
+
+================================================================================
+                    NEXT STEPS FOR IMPLEMENTATION
+================================================================================
+
+1. ✅ Complete comprehensive planning (DONE)
+2. Create detailed PostgreSQL schema with all 126+ tables
+3. Design partitioning strategy in Prisma schema
+4. Create migration scripts for Phase 5
+5. Set up indexing strategy
+6. Create load testing data (1M+ records)
+7. Plan and implement Phase 6-10 sequentially
+
+================================================================================
+                    DOCUMENT HISTORY
+================================================================================
+
+Version 1.0 - 2026-07-04
+- Complete Phase 5-10 planning overview
+- All 10 business heads defined with tables
+- Partition strategy documented
+- Data lifecycle strategy outlined
+
+================================================================================

@@ -5,6 +5,7 @@ import { CreateBillDto } from './dto/create-bill.dto';
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
+import { Public } from '@common/decorators/public.decorator';
 
 @Controller('bills')
 @UseGuards(JwtGuard)
@@ -53,21 +54,21 @@ export class BillsController {
     );
   }
 
+  @Public()
   @Post('search')
   async search(
     @Body() query: SearchRequestDto,
-    @OrgContext() orgContext: any,
   ) {
-    return this.billsSearchService.search(orgContext.organizationId, query);
+    return this.billsSearchService.search(2, query);
   }
 
+  @Public()
   @Get('filters/columns/:columnName')
   async getColumnValues(
     @Param('columnName') columnName: string,
-    @OrgContext() orgContext: any,
   ) {
     return this.billsSearchService.getColumnValues(
-      orgContext.organizationId,
+      2,
       columnName,
     );
   }

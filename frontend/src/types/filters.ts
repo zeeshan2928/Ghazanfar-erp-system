@@ -17,11 +17,11 @@ export enum FilterOperator {
 }
 
 export enum DataType {
-  TEXT = 'TEXT',
-  NUMERIC = 'NUMERIC',
-  DATE = 'DATE',
-  ENUM = 'ENUM',
-  BOOLEAN = 'BOOLEAN',
+  TEXT = 'text',
+  NUMERIC = 'numeric',
+  DATE = 'date',
+  ENUM = 'enum',
+  BOOLEAN = 'boolean',
 }
 
 export interface FilterOperatorDto {

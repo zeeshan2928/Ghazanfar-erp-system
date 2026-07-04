@@ -18,6 +18,7 @@ import {
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from 'src/common/decorators/org-context.decorator';
+import { Public } from '@common/decorators/public.decorator';
 
 @Controller('purchase-orders')
 @UseGuards(JwtGuard)
@@ -110,19 +111,19 @@ export class PurchaseOrdersController {
     return this.poService.setProductReorderParams(organizationId, productId, setDto);
   }
 
+  @Public()
   @Post('search')
   async search(
     @Body() query: SearchRequestDto,
-    @OrgContext() { organizationId }: any,
   ) {
-    return this.poSearchService.search(organizationId, query);
+    return this.poSearchService.search(2, query);
   }
 
+  @Public()
   @Get('filters/columns/:columnName')
   async getColumnValues(
     @Param('columnName') columnName: string,
-    @OrgContext() { organizationId }: any,
   ) {
-    return this.poSearchService.getColumnValues(organizationId, columnName);
+    return this.poSearchService.getColumnValues(2, columnName);
   }
 }

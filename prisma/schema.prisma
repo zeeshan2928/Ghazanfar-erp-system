@@ -7,47 +7,866 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum UserRole {
-  ADMIN
-  SALESMAN
-  WAREHOUSE
-  ACCOUNTANT
-  MANAGER
-  DATA_ENTRY
+// ================================================================================
+//                          MASTER TABLES (Shared)
+// ================================================================================
+
+model Organization {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  // Relations
+  users                    User[]
+  orders                   Order[]
+  purchaseOrders           PurchaseOrder[]
+  inventory                Inventory[]
+  customers                Customer[]
+  vendors                  Vendor[]
+  employees                Employee[]
+  bankAccounts             BankAccount[]
+  ledgerEntries            Ledger[]
+
+  @@index([isActive])
 }
 
-enum CustomerType {
-  INDIVIDUAL
-  RETAIL
-  WHOLESALE
-  CORPORATE
-  VIP
+model EmployeeRole {
+  id          Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  permissions Json?
+  createdAt   DateTime @default(now())
+
+  users User[]
 }
 
-enum Channel {
-  COUNTER
-  WEBSITE
-  PHONE
-  BULK
+model User {
+  id             Int      @id @default(autoincrement())
+  email          String   @unique
+  password       String
+  firstName      String?
+  lastName       String?
+  organizationId Int
+  roleId         Int?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  role         EmployeeRole? @relation(fields: [roleId], references: [id])
+
+  @@index([organizationId])
+  @@index([email])
 }
 
-enum OrderStatus {
-  PENDING_APPROVAL
-  APPROVED
-  REJECTED
-  FULFILLED
-  CANCELLED
+// ================================================================================
+//                        HEAD 1: SALES (7 Tables)
+// ================================================================================
+
+model Order {
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  billNumber     String
+  customerId     Int?
+  billDate       DateTime
+  totalAmount    Decimal   @default(0) @db.Decimal(15, 2)
+  status         String    @default("DRAFT")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer?      @relation(fields: [customerId], references: [id])
+  items        OrderItem[]
+  payments     Payment[]
+  discounts    Discount[]
+  taxes        Tax[]
+  shipping     Shipping[]
+  returns      Return[]
+
+  @@index([organizationId, billDate])
+  @@index([organizationId, customerId])
 }
 
-enum TransferStatus {
-  PENDING
-  IN_TRANSIT
-  RECEIVED
-  REJECTED
+model OrderItem {
+  id               Int     @id @default(autoincrement())
+  organizationId   Int
+  orderId          Int
+  productId        Int?
+  quantity         Int
+  unitPrice        Decimal @db.Decimal(12, 2)
+  discountAmount   Decimal @default(0) @db.Decimal(10, 2)
+  discountType     String?
+  taxAmount        Decimal @default(0) @db.Decimal(10, 2)
+  lineTotal        Decimal @default(0) @db.Decimal(15, 2)
+  createdAt        DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
 }
 
-enum GatePassStatus {
-  PENDING
+model Payment {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  orderId         Int
+  paymentAmount   Decimal @db.Decimal(15, 2)
+  paymentDate     DateTime
+  paymentMethod   String?
+  bankAccountId   Int?
+  status          String  @default("PENDING")
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([orderId])
+}
+
+model Discount {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  orderId         Int
+  discountAmount  Decimal? @db.Decimal(10, 2)
+  discountPercentage Decimal? @db.Decimal(5, 2)
+  discountReason  String?
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Tax {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  orderId        Int
+  taxAmount      Decimal @db.Decimal(10, 2)
+  taxType        String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Shipping {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  orderId        Int
+  deliveryAddress String?
+  deliveryDate   DateTime?
+  status         String  @default("PENDING")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+model Return {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  orderId        Int
+  returnedItem   String?
+  quantity       Int?
+  reason         String?
+  refundAmount   Decimal? @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  order        Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+}
+
+// ================================================================================
+//                      HEAD 2: PURCHASING (7 Tables)
+// ================================================================================
+
+model PurchaseOrder {
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  poNumber       String
+  vendorId       Int?
+  poDate         DateTime
+  totalAmount    Decimal   @default(0) @db.Decimal(15, 2)
+  status         String    @default("DRAFT")
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
+
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor         Vendor?         @relation(fields: [vendorId], references: [id])
+  items          POItem[]
+  goodsReceipts  GoodsReceipt[]
+  invoices       VendorInvoice[]
+  returns        PurchaseReturn[]
+
+  @@index([organizationId, poDate])
+  @@index([organizationId, vendorId])
+}
+
+model POItem {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  poId           Int
+  productId      Int?
+  quantityOrdered Int
+  unitPrice      Decimal? @db.Decimal(12, 2)
+  lineTotal      Decimal @default(0) @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+
+  @@index([poId])
+}
+
+model GoodsReceipt {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  poId           Int
+  quantityReceived Int
+  receivedDate   DateTime
+  inspectionStatus String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  po           PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
+}
+
+model VendorInvoice {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  poId           Int?
+  vendorId       Int?
+  invoiceNumber  String
+  invoiceDate    DateTime
+  amount         Decimal? @db.Decimal(15, 2)
+  status         String  @default("PENDING")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  po           PurchaseOrder? @relation(fields: [poId], references: [id])
+  vendor       Vendor?        @relation(fields: [vendorId], references: [id])
+  payments     VendorPayment[]
+}
+
+model VendorPayment {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  vendorId       Int?
+  invoiceId      Int?
+  paymentAmount  Decimal @db.Decimal(15, 2)
+  paymentDate    DateTime
+  paymentMethod  String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor       Vendor?        @relation(fields: [vendorId], references: [id])
+  invoice      VendorInvoice? @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+}
+
+model PurchaseReturn {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  poId           Int?
+  itemReturned   String?
+  quantity       Int?
+  reason         String?
+  creditAmount   Decimal? @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  po           PurchaseOrder? @relation(fields: [poId], references: [id])
+}
+
+model ReorderManagement {
+  id                  Int     @id @default(autoincrement())
+  organizationId      Int
+  productId           Int?
+  minimumStockLevel   Int?
+  reorderQuantity     Int?
+  autoTriggerEnabled  Boolean @default(false)
+  lastReorderDate     DateTime?
+  createdAt           DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ================================================================================
+//                      HEAD 3: INVENTORY (7 Tables)
+// ================================================================================
+
+model Inventory {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  productId       Int?
+  warehouseId     Int?
+  physicalOnHand  Int     @default(0)
+  reserved        Int     @default(0)
+  available       Int     @default(0)
+  openingBalance  Int     @default(0)
+  updatedAt       DateTime @updatedAt
+
+  organization Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  movements       StockMovementLog[]
+  adjustments     StockAdjustment[]
+  transfers       WarehouseTransfer[]
+
+  @@unique([organizationId, productId, warehouseId])
+  @@index([organizationId, productId])
+  @@index([organizationId, warehouseId])
+}
+
+model WarehouseTransfer {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  fromWarehouseId Int?
+  toWarehouseId   Int?
+  productId       Int?
+  quantity        Int
+  transferDate    DateTime
+  status          String  @default("PENDING")
+  createdAt       DateTime @default(now())
+  inventoryId     Int?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventory       Inventory?  @relation(fields: [inventoryId], references: [id])
+}
+
+model StockAdjustment {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  productId       Int?
+  warehouseId     Int?
+  quantityDifference Int
+  reason          String?
+  adjustmentDate  DateTime
+  createdAt       DateTime @default(now())
+  inventoryId     Int?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventory       Inventory?  @relation(fields: [inventoryId], references: [id])
+}
+
+model StockMovementLog {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  productId       Int?
+  warehouseId     Int?
+  movementType    String?
+  quantity        Int
+  referenceId     Int?
+  referenceType   String?
+  timestamp       DateTime @default(now())
+  inventoryId     Int?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  inventory       Inventory?  @relation(fields: [inventoryId], references: [id])
+
+  @@index([productId, timestamp])
+}
+
+model ReorderPoint {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  productId       Int?
+  minimumLevel    Int?
+  maximumLevel    Int?
+  reorderQuantity Int?
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model PhysicalStockAudit {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  warehouseId     Int?
+  auditDate       DateTime
+  productId       Int?
+  expectedQuantity Int?
+  actualQuantity  Int?
+  variance        Int?
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model StockPerformance {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  productId       Int?
+  lastSaleDate    DateTime?
+  daysSinceLastSale Int?
+  salesVelocity   Decimal? @db.Decimal(10, 2)
+  alertStatus     String?
+  deadStockThreshold Int @default(45)
+  notificationFlag Boolean @default(false)
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, alertStatus])
+}
+
+// ================================================================================
+//                      HEAD 4: ACCOUNTS (13 Tables)
+// ================================================================================
+
+model BankAccount {
+  id                Int     @id @default(autoincrement())
+  organizationId    Int
+  accountType       String?
+  bankName          String?
+  accountNumber     String?
+  accountHolderName String?
+  currentBalance    Decimal @default(0) @db.Decimal(18, 2)
+  status            String  @default("ACTIVE")
+  createdAt         DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model PaymentMethod {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  type           String?
+  description    String?
+  status         String  @default("ACTIVE")
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model Ledger {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  ledgerDate     DateTime
+  description    String?
+  debitAmount    Decimal @default(0) @db.Decimal(15, 2)
+  creditAmount   Decimal @default(0) @db.Decimal(15, 2)
+  balance        Decimal? @db.Decimal(18, 2)
+  categoryId     Int?
+  referenceType  String?
+  referenceId    Int?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, ledgerDate])
+}
+
+model JournalEntry {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  entryDate      DateTime
+  debitAccount   Int?
+  creditAccount  Int?
+  amount         Decimal @db.Decimal(15, 2)
+  description    String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model ExpenseCategory {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  name           String
+  description    String?
+  budgetAmount   Decimal? @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  expenses     Expense[]
+}
+
+model Expense {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  expenseDate    DateTime
+  categoryId     Int?
+  amount         Decimal @db.Decimal(15, 2)
+  description    String?
+  approvedBy     Int?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  category     ExpenseCategory? @relation(fields: [categoryId], references: [id])
+}
+
+model JVPaymentTracking {
+  id               Int     @id @default(autoincrement())
+  organizationId   Int
+  customerId       Int?
+  vendorId         Int?
+  amount           Decimal @db.Decimal(15, 2)
+  paymentDate      DateTime
+  receiptStatus    String  @default("PENDING")
+  verificationDate DateTime?
+  settlementStatus String  @default("PENDING")
+  settlementDate   DateTime?
+  createdAt        DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, settlementStatus])
+}
+
+model PaymentReconciliation {
+  id                   Int     @id @default(autoincrement())
+  organizationId       Int
+  reconciliationDate   DateTime
+  paymentId            Int?
+  receiptVerified      Boolean @default(false)
+  bankAccountMatched   Boolean @default(false)
+  status               String?
+  notes                String?
+  createdAt            DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model CreditLimit {
+  id                  Int     @id @default(autoincrement())
+  organizationId      Int
+  customerId          Int?
+  creditLimitAmount   Decimal? @db.Decimal(15, 2)
+  currentUsedAmount   Decimal @default(0) @db.Decimal(15, 2)
+  availableCredit     Decimal? @db.Decimal(15, 2)
+  lastReviewedDate    DateTime?
+  createdAt           DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model InvoicePaymentMapping {
+  id                 Int     @id @default(autoincrement())
+  organizationId     Int
+  invoiceId          Int?
+  paymentId          Int?
+  amountApplied      Decimal @db.Decimal(15, 2)
+  remainingBalance   Decimal @db.Decimal(15, 2)
+  applicationDate    DateTime
+  createdAt          DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model AgingReport {
+  id                 Int     @id @default(autoincrement())
+  organizationId     Int
+  customerId         Int?
+  invoiceId          Int?
+  invoiceDate        DateTime?
+  daysOutstanding    Int?
+  amountOutstanding  Decimal @db.Decimal(15, 2)
+  ageBracket         String?
+  status             String?
+  createdAt          DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, customerId])
+}
+
+model ProfitLossReport {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  periodType     String?
+  periodDate     DateTime?
+  totalRevenue   Decimal? @db.Decimal(18, 2)
+  totalCOGS      Decimal? @db.Decimal(18, 2)
+  grossProfit    Decimal? @db.Decimal(18, 2)
+  totalExpenses  Decimal? @db.Decimal(18, 2)
+  netProfit      Decimal? @db.Decimal(18, 2)
+  generatedDate  DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model BalanceSheet {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  reportDate     DateTime?
+  assetsTotal    Decimal? @db.Decimal(18, 2)
+  liabilitiesTotal Decimal? @db.Decimal(18, 2)
+  equityTotal    Decimal? @db.Decimal(18, 2)
+  generatedDate  DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// ================================================================================
+//                    HEAD 5: WALKIN_RETAIL (7 Tables)
+// ================================================================================
+
+model WalkinOrder {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  billDate       DateTime
+  customerName   String?
+  totalAmount    Decimal @default(0) @db.Decimal(15, 2)
+  status         String  @default("COMPLETED")
+  createdAt      DateTime @default(now())
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  items          WalkinItem[]
+  returns        WalkinReturn[]
+  discounts      WalkinDiscount[]
+  payments       WalkinPaymentMethod[]
+
+  @@index([organizationId, billDate])
+}
+
+model WalkinItem {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  billId         Int
+  productId      Int?
+  quantity       Int
+  unitPrice      Decimal @db.Decimal(12, 2)
+  discountAmount Decimal @default(0) @db.Decimal(10, 2)
+  discountType   String?
+  taxAmount      Decimal @default(0) @db.Decimal(10, 2)
+  lineTotal      Decimal @default(0) @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         WalkinOrder  @relation(fields: [billId], references: [id], onDelete: Cascade)
+}
+
+model WalkinCustomer {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  name           String?
+  phone          String?
+  email          String?
+  address        String?
+  visitFrequency Int     @default(1)
+  notes          String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model WalkinCashRegister {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  registerDate    DateTime
+  openingBalance  Decimal @db.Decimal(15, 2)
+  cashIn          Decimal @default(0) @db.Decimal(15, 2)
+  cashOut         Decimal @default(0) @db.Decimal(15, 2)
+  closingBalance  Decimal @db.Decimal(15, 2)
+  verifiedBy      Int?
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model WalkinReturn {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  billId         Int?
+  itemId         Int?
+  quantity       Int?
+  reason         String?
+  refundAmount   Decimal? @db.Decimal(15, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         WalkinOrder? @relation(fields: [billId], references: [id])
+}
+
+model WalkinDiscount {
+  id                  Int     @id @default(autoincrement())
+  organizationId      Int
+  billId              Int?
+  itemDiscount        Decimal @default(0) @db.Decimal(10, 2)
+  totalDiscount       Decimal @default(0) @db.Decimal(10, 2)
+  totalDiscountPercentage Decimal @default(0) @db.Decimal(5, 2)
+  discountReason      String?
+  createdAt           DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         WalkinOrder? @relation(fields: [billId], references: [id])
+}
+
+model WalkinPaymentMethod {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  billId         Int?
+  amount         Decimal @db.Decimal(15, 2)
+  method         String?
+  timestamp      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         WalkinOrder? @relation(fields: [billId], references: [id])
+}
+
+// ================================================================================
+//                        HEAD 6: CUSTOMERS (10 Tables)
+// ================================================================================
+
+model Customer {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  name           String
+  phone          String?
+  email          String?
+  address        String?
+  customerType   String?
+  status         String  @default("ACTIVE")
+  creditLimit    Decimal? @db.Decimal(15, 2)
+  isActive       Boolean @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  orders         Order[]
+  creditLimits   CustomerCreditLimit[]
+  history        CustomerHistory[]
+  preferences    CustomerPreference[]
+  communication  CustomerCommunicationLog[]
+  analytics      CustomerAnalytic[]
+  productPurchases CustomerProductPurchase[]
+  targets        CustomerTarget[]
+  incentives     CustomerIncentive[]
+
+  @@index([organizationId])
+}
+
+model CustomerCategory {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  name           String?
+  description    String?
+  defaultDiscount Decimal? @db.Decimal(5, 2)
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+model CustomerCreditLimit {
+  id                  Int     @id @default(autoincrement())
+  organizationId      Int
+  customerId          Int
+  creditLimitAmount   Decimal? @db.Decimal(15, 2)
+  currentBalance      Decimal @default(0) @db.Decimal(15, 2)
+  availableCredit     Decimal? @db.Decimal(15, 2)
+  createdAt           DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerHistory {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  customerId     Int
+  invoiceId      Int?
+  transactionDate DateTime?
+  amount         Decimal? @db.Decimal(15, 2)
+  status         String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  @@index([customerId, transactionDate])
+}
+
+model CustomerPreference {
+  id                        Int     @id @default(autoincrement())
+  organizationId            Int
+  customerId                Int
+  preferredPaymentMethod    String?
+  preferredDeliveryAddress  String?
+  specialNotes              String?
+  createdAt                 DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerCommunicationLog {
+  id                  Int     @id @default(autoincrement())
+  organizationId      Int
+  customerId          Int
+  communicationType   String?
+  communicationDate   DateTime?
+  notes               String?
+  followUpRequired    Boolean @default(false)
+  createdAt           DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerAnalytic {
+  id               Int     @id @default(autoincrement())
+  organizationId   Int
+  customerId       Int
+  totalSpent       Decimal? @db.Decimal(18, 2)
+  daysAsCustomer   Int?
+  avgOrderValue    Decimal? @db.Decimal(15, 2)
+  totalOrders      Int?
+  lastPurchaseDate DateTime?
+  purchaseFrequency String?
+  updatedAt        DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerProductPurchase {
+  id             Int     @id @default(autoincrement())
+  organizationId Int
+  customerId     Int
+  productId      Int?
+  quantity       Int?
+  pricePaid      Decimal? @db.Decimal(12, 2)
+  purchaseDate   DateTime?
+  purchaseFrequency String?
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerTarget {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  customerId      Int
+  productId       Int?
+  targetQuantity  Int?
+  targetPeriod    String?
+  currentProgress Int     @default(0)
+  deadline        DateTime?
+  targetStatus    String?
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
+
+model CustomerIncentive {
+  id              Int     @id @default(autoincrement())
+  organizationId  Int
+  customerId      Int
+  productId       Int?
+  targetQuantity  Int?
+  discountOffered Decimal @db.Decimal(10, 2)
+  discountType    String?
+  validFrom       DateTime?
+  validTo         DateTime?
+  status          String  @default("ACTIVE")
+  createdAt       DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer     Customer     @relation(fields: [customerId], references: [id], onDelete: Cascade)
+}
   PICKED
   CONFIRMED
   REJECTED

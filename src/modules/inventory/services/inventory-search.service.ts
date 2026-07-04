@@ -46,7 +46,7 @@ export class InventorySearchService {
       }
     }
 
-    // Build where clause
+    // Build where clause with field mapping
     const filters = [];
     if (request.primaryFilter) {
       filters.push(request.primaryFilter);
@@ -55,15 +55,16 @@ export class InventorySearchService {
       filters.push(...request.columnFilters);
     }
 
+    const whereBase = this.buildWhereClauses(filters);
     const where = {
-      ...this.filterService.buildWhereClause(filters),
+      ...whereBase,
       organizationId,
     };
 
     // Build sort
-    let orderBy: any = { createdAt: 'desc' };
+    let orderBy: any = { updatedAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = ['quantity', 'date_received', 'createdAt'];
+      const allowedSortFields = ['quantity', 'date_received', 'updatedAt'];
       if (allowedSortFields.includes(request.sortBy)) {
         orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
       }
@@ -94,7 +95,7 @@ export class InventorySearchService {
       product_name: inv.product?.name || 'N/A',
       warehouse_name: inv.warehouse?.name || 'N/A',
       quantity: inv.quantity,
-      date_received: inv.createdAt.toISOString().split('T')[0],
+      date_received: inv.updatedAt.toISOString().split('T')[0],
     }));
 
     return this.filterService.buildPaginatedResponse(data, total, skip, take);
@@ -163,6 +164,107 @@ export class InventorySearchService {
       value: w.name,
       label: w.name,
     }));
+  }
+
+  /**
+   * Build where clauses with field name mapping
+   */
+  private buildWhereClauses(filters: any[]): any {
+    if (!filters || filters.length === 0) {
+      return {};
+    }
+
+    const where: any = {};
+
+    for (const filter of filters) {
+      switch (filter.field) {
+        case 'product_name':
+          // Filter by product relationship
+          const productCondition = this.buildCondition(filter);
+          if (productCondition) {
+            where.product = { is: { name: productCondition } };
+          }
+          break;
+
+        case 'warehouse':
+          // Filter by warehouse relationship
+          const warehouseCondition = this.buildCondition(filter);
+          if (warehouseCondition) {
+            where.warehouse = { is: { name: warehouseCondition } };
+          }
+          break;
+
+        case 'quantity':
+          // Map to available quantity
+          const quantityCondition = this.buildCondition(filter);
+          if (quantityCondition) {
+            where.available = quantityCondition;
+          }
+          break;
+
+        case 'date_received':
+          // Skip date_received as it's not a field on Inventory
+          continue;
+
+        case 'stock_id':
+          // Skip stock_id as it's generated (INV-{id})
+          continue;
+
+        default:
+          const condition = this.buildCondition(filter);
+          if (condition) {
+            where[filter.field] = condition;
+          }
+      }
+    }
+
+    return where;
+  }
+
+  /**
+   * Build a single filter condition
+   */
+  private buildCondition(filter: any): any {
+    const { operator, value } = filter;
+
+    switch (operator) {
+      case 'equals':
+        return { equals: value };
+      case 'doesNotEqual':
+        return { not: value };
+      case 'contains':
+        return { contains: value, mode: 'insensitive' };
+      case 'doesNotContain':
+        return { not: { contains: value, mode: 'insensitive' } };
+      case 'beginsWith':
+        return { startsWith: value, mode: 'insensitive' };
+      case 'endsWith':
+        return { endsWith: value, mode: 'insensitive' };
+      case 'in':
+        return { in: Array.isArray(value) ? value : [value] };
+      case 'notIn':
+        return { notIn: Array.isArray(value) ? value : [value] };
+      case 'gt':
+        return { gt: Number(value) };
+      case 'gte':
+        return { gte: Number(value) };
+      case 'lt':
+        return { lt: Number(value) };
+      case 'lte':
+        return { lte: Number(value) };
+      case 'between':
+        if (Array.isArray(value) && value.length === 2) {
+          return { gte: Number(value[0]), lte: Number(value[1]) };
+        }
+        break;
+      case 'isLike':
+        // Fuzzy match - treat as contains search
+        return { contains: (value as string), mode: 'insensitive' };
+      case 'isNotLike':
+        // Fuzzy match negation
+        return { not: { contains: (value as string), mode: 'insensitive' } };
+    }
+    return null;
   }
 
   private validateColumnName(columnName: string): void {
