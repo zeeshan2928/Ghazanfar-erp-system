@@ -1,7 +1,8 @@
-import { Controller, Post, Get, Param, Body, UseGuards, Query } from '@nestjs/common';
+import { Controller, Post, Get, Put, Delete, Patch, Param, Body, UseGuards, Query, Res, HttpStatus } from '@nestjs/common';
+import { Response } from 'express';
 import { BillsService } from './services/bills.service';
 import { BillsSearchService } from './services/bills-search.service';
-import { CreateBillDto } from './dto/create-bill.dto';
+import { CreateBillDto, UpdateBillDto, ChangeStatusDto } from './dto/create-bill.dto';
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
@@ -52,6 +53,60 @@ export class BillsController {
       orgContext.organizationId,
       parseInt(billId, 10),
     );
+  }
+
+  @Put(':billId')
+  async update(
+    @Param('billId') billId: string,
+    @Body() updateBillDto: UpdateBillDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsService.update(
+      orgContext.organizationId,
+      parseInt(billId, 10),
+      updateBillDto,
+    );
+  }
+
+  @Delete(':billId')
+  async delete(
+    @Param('billId') billId: string,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsService.delete(
+      orgContext.organizationId,
+      parseInt(billId, 10),
+    );
+  }
+
+  @Patch(':billId/status')
+  async changeStatus(
+    @Param('billId') billId: string,
+    @Body() changeStatusDto: ChangeStatusDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.billsService.changeStatus(
+      orgContext.organizationId,
+      parseInt(billId, 10),
+      changeStatusDto.status,
+    );
+  }
+
+  @Get(':billId/export-pdf')
+  async exportPDF(
+    @Param('billId') billId: string,
+    @OrgContext() orgContext: any,
+    @Res() res: Response,
+  ) {
+    const pdfBase64 = await this.billsService.exportPDF(
+      orgContext.organizationId,
+      parseInt(billId, 10),
+    );
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="bill-${billId}.pdf"`);
+    res.setHeader('Content-Transfer-Encoding', 'base64');
+    return res.status(HttpStatus.OK).send(Buffer.from(pdfBase64, 'base64'));
   }
 
   @Public()

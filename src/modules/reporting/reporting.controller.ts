@@ -67,4 +67,58 @@ export class ReportingController {
       orgContext.organizationId,
     );
   }
+
+  @Get('sales')
+  async getSalesReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.reportingService.getSalesReport(
+      orgContext.organizationId,
+      start,
+      end,
+    );
+  }
+
+  @Get('vendors')
+  async getVendorReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.reportingService.getVendorReport(
+      orgContext.organizationId,
+      start,
+      end,
+    );
+  }
+
+  @Get('inventory')
+  async getInventoryReport(
+    @OrgContext() orgContext?: any,
+  ) {
+    return this.reportingService.getInventoryReport(
+      orgContext.organizationId,
+    );
+  }
+
+  @Get('customers')
+  async getCustomerReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.reportingService.getCustomerReport(
+      orgContext.organizationId,
+      start,
+      end,
+    );
+  }
 }

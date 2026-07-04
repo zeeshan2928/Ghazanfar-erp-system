@@ -11,6 +11,7 @@ import { WarehouseTransfersModule } from './modules/warehouse-transfers/warehous
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { ImportExportModule } from './modules/import-export/import-export.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -31,6 +32,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     ReportingModule,
     VendorsModule,
     PurchaseOrdersModule,
+    ImportExportModule,
   ],
   controllers: [],
 })

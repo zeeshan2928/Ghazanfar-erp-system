@@ -2,6 +2,8 @@ import {
   Controller,
   Post,
   Get,
+  Put,
+  Delete,
   Param,
   Body,
   Query,
@@ -85,12 +87,37 @@ export class PurchaseOrdersController {
     return this.poService.getById(organizationId, poId);
   }
 
+  @Put(':id')
+  updatePO(
+    @OrgContext() { organizationId }: any,
+    @Param('id', ParseIntPipe) poId: number,
+    @Body() updateData: any,
+  ) {
+    return this.poService.updatePO(organizationId, poId, updateData);
+  }
+
+  @Delete(':id')
+  deletePO(
+    @OrgContext() { organizationId }: any,
+    @Param('id', ParseIntPipe) poId: number,
+  ) {
+    return this.poService.deletePO(organizationId, poId);
+  }
+
   @Post(':id/send')
   send(
     @OrgContext() { organizationId }: any,
     @Param('id', ParseIntPipe) poId: number,
   ) {
     return this.poService.send(organizationId, poId);
+  }
+
+  @Get('vendor/:vendorId/metrics')
+  getVendorMetrics(
+    @OrgContext() { organizationId }: any,
+    @Param('vendorId', ParseIntPipe) vendorId: number,
+  ) {
+    return this.poService.getVendorMetrics(organizationId, vendorId);
   }
 
   @Post(':id/confirm-receipt')

@@ -34,23 +34,75 @@ export class UsersService {
     return this.sanitizeUser(user);
   }
 
-  async findAll() {
-    const users = await this.prisma.user.findMany({
-      where: { isActive: true },
-    });
-    return users.map(user => this.sanitizeUser(user));
+  async findAll(organizationId?: number, skip = 0, take = 10, filters: any = {}) {
+    const where: any = { isActive: true };
+
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    if (filters.search) {
+      where.OR = [
+        { email: { contains: filters.search, mode: 'insensitive' } },
+        { firstName: { contains: filters.search, mode: 'insensitive' } },
+        { lastName: { contains: filters.search, mode: 'insensitive' } },
+      ];
+    }
+
+    const [users, total] = await Promise.all([
+      this.prisma.user.findMany({
+        where,
+        skip,
+        take,
+        orderBy: { createdAt: 'desc' },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          organizationId: true,
+          isActive: true,
+          createdAt: true,
+          updatedAt: true,
+        },
+      }),
+      this.prisma.user.count({ where }),
+    ]);
+
+    return {
+      data: users,
+      total,
+      page: Math.floor(skip / take) + 1,
+      pageSize: take,
+      hasMore: skip + take < total,
+    };
   }
 
-  async findById(id: number) {
-    const user = await this.prisma.user.findUnique({
-      where: { id },
+  async findById(id: number, organizationId?: number) {
+    const where: any = { id };
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    const user = await this.prisma.user.findFirst({
+      where,
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        lastName: true,
+        organizationId: true,
+        isActive: true,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
 
     if (!user) {
       throw new BadRequestException('User not found');
     }
 
-    return this.sanitizeUser(user);
+    return user;
   }
 
   async findByEmail(email: string) {
@@ -59,26 +111,94 @@ export class UsersService {
     });
   }
 
-  async update(id: number, updateData: Partial<CreateUserDto>) {
+  async update(id: number, updateData: Partial<CreateUserDto>, organizationId?: number) {
+    const where: any = { id };
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    const user = await this.prisma.user.findFirst({ where });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
     const data: any = { ...updateData };
 
     if (updateData.password) {
       data.password = await this.passwordService.hashPassword(updateData.password);
     }
 
-    const user = await this.prisma.user.update({
+    const updated = await this.prisma.user.update({
       where: { id },
       data,
     });
 
-    return this.sanitizeUser(user);
+    return this.sanitizeUser(updated);
   }
 
-  async remove(id: number) {
+  async remove(id: number, organizationId?: number) {
+    const where: any = { id };
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    const user = await this.prisma.user.findFirst({ where });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
     await this.prisma.user.update({
       where: { id },
       data: { isActive: false },
     });
+
+    return { message: 'User deleted successfully' };
+  }
+
+  async changePassword(userId: number, oldPassword: string, newPassword: string, organizationId?: number) {
+    const where: any = { id: userId };
+    if (organizationId) {
+      where.organizationId = organizationId;
+    }
+
+    const user = await this.prisma.user.findFirst({ where });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    // Verify old password
+    const isPasswordValid = await this.passwordService.validatePassword(oldPassword, user.password);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Old password is incorrect');
+    }
+
+    // Hash and set new password
+    const hashedPassword = await this.passwordService.hashPassword(newPassword);
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { password: hashedPassword },
+    });
+
+    return { message: 'Password changed successfully' };
+  }
+
+  async getStats(organizationId: number) {
+    const total = await this.prisma.user.count({
+      where: { organizationId, isActive: true },
+    });
+
+    const inactive = await this.prisma.user.count({
+      where: { organizationId, isActive: false },
+    });
+
+    const active = total - inactive;
+
+    return {
+      total,
+      active,
+      inactive,
+      timestamp: new Date(),
+    };
   }
 
   private sanitizeUser(user: any) {

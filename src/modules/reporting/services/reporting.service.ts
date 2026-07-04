@@ -269,4 +269,198 @@ export class ReportingService {
       items: inventory,
     };
   }
+
+  async getSalesReport(organizationId: number, startDate: Date, endDate: Date) {
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        billDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        customer: true,
+        lines: {
+          include: { product: true },
+        },
+      },
+      orderBy: { billDate: 'desc' },
+    });
+
+    const totalSales = bills.reduce((sum, bill) => sum + (bill.totalAmount || 0), 0);
+    const customerCount = new Set(bills.map((b) => b.customerId)).size;
+
+    // Group by date for monthly breakdown
+    const monthlyData = new Map<string, number>();
+    bills.forEach((bill) => {
+      const monthKey = bill.billDate.toISOString().slice(0, 7); // YYYY-MM
+      const current = monthlyData.get(monthKey) || 0;
+      monthlyData.set(monthKey, current + (bill.totalAmount || 0));
+    });
+
+    return {
+      period: { startDate, endDate },
+      totalSales: totalSales,
+      numberOfBills: bills.length,
+      numberOfCustomers: customerCount,
+      averageBillValue: bills.length > 0 ? totalSales / bills.length : 0,
+      monthlyBreakdown: Object.fromEntries(monthlyData),
+      topCustomers: this.getTopCustomers(bills, 5),
+    };
+  }
+
+  async getVendorReport(organizationId: number, startDate: Date, endDate: Date) {
+    const purchaseOrders = await this.prisma.purchaseOrder.findMany({
+      where: {
+        organizationId,
+        poDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        vendor: true,
+        items: true,
+        PurchaseOrderReceipt: true,
+      },
+      orderBy: { poDate: 'desc' },
+    });
+
+    const totalPurchases = purchaseOrders.reduce((sum: number, po: any) => sum + (Number(po.totalAmount) || 0), 0);
+    const vendorCount = new Set(purchaseOrders.map((po) => po.vendorId)).size;
+
+    // Calculate vendor performance scores
+    const vendorMetrics = new Map<number, any>();
+    purchaseOrders.forEach((po) => {
+      if (!po.vendorId) return;
+
+      const current = vendorMetrics.get(po.vendorId) || {
+        vendorId: po.vendorId,
+        vendorName: po.vendor?.name,
+        totalOrders: 0,
+        completedOrders: 0,
+        totalAmount: 0,
+      };
+
+      current.totalOrders++;
+      current.totalAmount += po.totalAmount || 0;
+      if (po.status === 'RECEIVED') {
+        current.completedOrders++;
+      }
+
+      vendorMetrics.set(po.vendorId, current);
+    });
+
+    const vendors = Array.from(vendorMetrics.values()).map((v) => ({
+      ...v,
+      performanceScore: v.totalOrders > 0 ? ((v.completedOrders / v.totalOrders) * 100).toFixed(2) : 0,
+    }));
+
+    return {
+      period: { startDate, endDate },
+      totalPurchases: totalPurchases,
+      numberOfPOs: purchaseOrders.length,
+      numberOfVendors: vendorCount,
+      averagePOValue: purchaseOrders.length > 0 ? totalPurchases / purchaseOrders.length : 0,
+      vendorPerformance: vendors.sort((a, b) => b.totalAmount - a.totalAmount).slice(0, 10),
+    };
+  }
+
+  async getInventoryReport(organizationId: number) {
+    const inventories = await this.prisma.inventory.findMany({
+      where: { organizationId },
+      include: {
+        warehouse: true,
+      },
+    });
+
+    let totalValue = 0;
+    let lowStockCount = 0;
+    const stockLevels: any[] = [];
+
+    inventories.forEach((inv) => {
+      const value = (inv.available + inv.reserved);
+      totalValue += value;
+
+      stockLevels.push({
+        productId: inv.productId,
+        warehouseId: inv.warehouseId,
+        warehouseName: inv.warehouse?.name,
+        quantity: inv.available + inv.reserved,
+      });
+    });
+
+    return {
+      timestamp: new Date(),
+      totalInventoryValue: totalValue,
+      numberOfProducts: new Set(inventories.map((i) => i.productId)).size,
+      numberOfWarehouses: new Set(inventories.map((i) => i.warehouseId)).size,
+      lowStockAlerts: lowStockCount,
+      stockLevels: stockLevels.sort((a, b) => b.quantity - a.quantity).slice(0, 50),
+    };
+  }
+
+  async getCustomerReport(organizationId: number, startDate: Date, endDate: Date) {
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        billDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        customer: true,
+        lines: true,
+      },
+      orderBy: { billDate: 'desc' },
+    });
+
+    // Group by customer
+    const customerMap = new Map<number, any>();
+    bills.forEach((bill) => {
+      if (!bill.customerId) return;
+
+      const current = customerMap.get(bill.customerId) || {
+        customerId: bill.customerId,
+        customerName: bill.customer?.name,
+        totalSales: 0,
+        numberOfOrders: 0,
+      };
+
+      current.numberOfOrders++;
+      current.totalSales += bill.totalAmount || 0;
+
+      customerMap.set(bill.customerId, current);
+    });
+
+    const customers = Array.from(customerMap.values());
+    const totalSales = customers.reduce((sum, c) => sum + c.totalSales, 0);
+
+    return {
+      period: { startDate, endDate },
+      totalSales: totalSales,
+      numberOfCustomers: customers.length,
+      repeatCustomers: customers.filter((c) => c.numberOfOrders > 1).length,
+      averageCustomerValue: customers.length > 0 ? totalSales / customers.length : 0,
+      topCustomers: customers
+        .sort((a, b) => b.totalSales - a.totalSales)
+        .slice(0, 10)
+        .map((c) => ({
+          ...c,
+          marketShare: ((c.totalSales / totalSales) * 100).toFixed(2),
+        })),
+    };
+  }
+
+  private getTopCustomers(bills: any[], limit: number) {
+    const customerMap = new Map<number, any>();
+
+    bills.forEach((bill) => {
+      if (!bill.customerId) return;
+      const current = customerMap.get(bill.customerId) || {
+        customerId: bill.customerId,
+        customerName: bill.customer?.name,
+        totalSales: 0,
+      };
+      current.totalSales += bill.totalAmount || 0;
+      customerMap.set(bill.customerId, current);
+    });
+
+    return Array.from(customerMap.values())
+      .sort((a, b) => b.totalSales - a.totalSales)
+      .slice(0, limit);
+  }
 }

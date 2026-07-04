@@ -232,4 +232,189 @@ export class BillsService {
 
     return bill;
   }
+
+  async update(organizationId: number, billId: number, updateData: any) {
+    const bill = await this.prisma.bill.findFirst({
+      where: {
+        id: billId,
+        organizationId,
+      },
+    });
+
+    if (!bill) {
+      throw new BadRequestException('Bill not found');
+    }
+
+    if (bill.status !== 'DRAFT') {
+      throw new BadRequestException('Can only update bills in DRAFT status');
+    }
+
+    return this.transactionService.run(async (tx) => {
+      // Update bill fields
+      let subtotal = 0;
+      let taxAmount = 0;
+
+      if (updateData.lines) {
+        // Delete existing lines
+        await tx.billLine.deleteMany({ where: { billId } });
+
+        // Create new lines
+        for (const line of updateData.lines) {
+          const lineTotal = line.quantity * line.unitPrice;
+          subtotal += lineTotal;
+        }
+
+        await tx.billLine.createMany({
+          data: updateData.lines.map((line: any) => ({
+            organizationId,
+            billId,
+            productId: line.productId,
+            warehouseId: line.warehouseId,
+            quantity: line.quantity,
+            unitPrice: line.unitPrice,
+            lineTotal: line.quantity * line.unitPrice,
+            remarks: line.remarks,
+          })),
+        });
+      } else {
+        // Calculate from existing lines if not updating
+        const existingLines = await tx.billLine.findMany({ where: { billId } });
+        subtotal = existingLines.reduce((sum, line) => sum + (line.lineTotal || 0), 0);
+      }
+
+      const discountAmount = updateData.discountAmount || bill.discountAmount || 0;
+      const totalAmount = subtotal - discountAmount + taxAmount;
+
+      return tx.bill.update({
+        where: { id: billId },
+        data: {
+          customerId: updateData.customerId || bill.customerId,
+          channel: updateData.channel || bill.channel,
+          paymentMethod: updateData.paymentMethod || bill.paymentMethod,
+          subtotal,
+          discountAmount,
+          taxAmount,
+          totalAmount,
+          remarks: updateData.remarks !== undefined ? updateData.remarks : bill.remarks,
+        },
+        include: {
+          lines: {
+            include: { product: true },
+          },
+          customer: true,
+        },
+      });
+    });
+  }
+
+  async delete(organizationId: number, billId: number) {
+    const bill = await this.prisma.bill.findFirst({
+      where: {
+        id: billId,
+        organizationId,
+      },
+    });
+
+    if (!bill) {
+      throw new BadRequestException('Bill not found');
+    }
+
+    // Soft delete
+    return this.prisma.bill.update({
+      where: { id: billId },
+      data: { isActive: false },
+    });
+  }
+
+  async changeStatus(organizationId: number, billId: number, newStatus: string) {
+    const bill = await this.prisma.bill.findFirst({
+      where: {
+        id: billId,
+        organizationId,
+      },
+    });
+
+    if (!bill) {
+      throw new BadRequestException('Bill not found');
+    }
+
+    // Validate status transition
+    const validStatuses = ['DRAFT', 'FINALIZED', 'PAID'];
+    if (!validStatuses.includes(newStatus)) {
+      throw new BadRequestException(`Invalid status: ${newStatus}`);
+    }
+
+    // Enforce workflow: DRAFT -> FINALIZED -> PAID
+    if (bill.status === 'DRAFT' && !['FINALIZED', 'DRAFT'].includes(newStatus)) {
+      throw new BadRequestException('Can only finalize a bill from DRAFT status');
+    }
+
+    if (bill.status === 'FINALIZED' && !['PAID', 'FINALIZED', 'DRAFT'].includes(newStatus)) {
+      throw new BadRequestException('Can only mark as PAID from FINALIZED status');
+    }
+
+    return this.prisma.bill.update({
+      where: { id: billId },
+      data: { status: newStatus },
+      include: {
+        lines: true,
+        customer: true,
+      },
+    });
+  }
+
+  async exportPDF(organizationId: number, billId: number): Promise<string> {
+    const bill = await this.findById(organizationId, billId);
+
+    if (!bill) {
+      throw new BadRequestException('Bill not found');
+    }
+
+    // Generate a simple text representation (can be enhanced with pdfkit library)
+    const pdfContent = this.generatePDFContent(bill);
+
+    // Return as base64 encoded string
+    return Buffer.from(pdfContent).toString('base64');
+  }
+
+  private generatePDFContent(bill: any): string {
+    let content = `
+====================================
+            BILL DOCUMENT
+====================================
+
+Bill Number: ${bill.billNumber}
+Date: ${bill.billDate.toISOString().split('T')[0]}
+Customer: ${bill.customer?.name || 'N/A'}
+
+------------------------------------
+BILL ITEMS:
+------------------------------------
+`;
+
+    bill.lines.forEach((line: any, index: number) => {
+      content += `
+${index + 1}. Product: ${line.product?.name || 'N/A'}
+   Quantity: ${line.quantity}
+   Unit Price: ${line.unitPrice}
+   Line Total: ${line.lineTotal}
+`;
+    });
+
+    content += `
+------------------------------------
+SUMMARY:
+------------------------------------
+Subtotal: ${bill.subtotal}
+Discount: ${bill.discountAmount}
+Tax: ${bill.taxAmount}
+TOTAL: ${bill.totalAmount}
+
+Status: ${bill.status}
+Remarks: ${bill.remarks || 'N/A'}
+====================================
+    `;
+
+    return content;
+  }
 }

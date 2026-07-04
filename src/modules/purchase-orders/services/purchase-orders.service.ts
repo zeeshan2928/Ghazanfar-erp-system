@@ -425,4 +425,130 @@ export class PurchaseOrdersService {
       createdPos: createdPOs,
     };
   }
+
+  async getVendorMetrics(organizationId: number, vendorId: number) {
+    const vendor = await this.prisma.vendor.findFirst({
+      where: { id: vendorId, organizationId },
+    });
+
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const pos = await this.prisma.purchaseOrder.findMany({
+      where: { vendorId, organizationId },
+      include: {
+        items: true,
+        PurchaseOrderReceipt: true,
+      },
+    });
+
+    const totalOrders = pos.length;
+    const completedOrders = pos.filter((p) => p.status === 'RECEIVED').length;
+    const totalValue = pos.reduce((sum: number, p: any) => sum + (Number(p.totalAmount) || 0), 0);
+
+    // Calculate average delivery days
+    let totalDeliveryDays = 0;
+    let deliveredCount = 0;
+    pos.forEach((po) => {
+      if (po.status === 'RECEIVED' && po.updatedAt && po.poDate) {
+        const days = Math.floor((po.updatedAt.getTime() - po.poDate.getTime()) / (1000 * 60 * 60 * 24));
+        totalDeliveryDays += days;
+        deliveredCount++;
+      }
+    });
+
+    const avgDeliveryDays = deliveredCount > 0 ? Math.round(totalDeliveryDays / deliveredCount) : 0;
+
+    return {
+      vendorId,
+      vendorName: vendor.name,
+      totalOrders,
+      completedOrders,
+      completionRate: totalOrders > 0 ? ((completedOrders / totalOrders) * 100).toFixed(2) : 0,
+      totalValue,
+      averageOrderValue: totalOrders > 0 ? totalValue / totalOrders : 0,
+      averageDeliveryDays: avgDeliveryDays,
+    };
+  }
+
+  async updatePO(organizationId: number, poId: number, updateData: any) {
+    const po = await this.prisma.purchaseOrder.findFirst({
+      where: { id: poId, organizationId },
+    });
+
+    if (!po) {
+      throw new NotFoundException('Purchase order not found');
+    }
+
+    if (po.status !== 'DRAFT') {
+      throw new BadRequestException('Can only update POs in DRAFT status');
+    }
+
+    return this.prisma.purchaseOrder.update({
+      where: { id: poId },
+      data: updateData,
+      include: {
+        vendor: true,
+        items: true,
+      },
+    });
+  }
+
+  async deletePO(organizationId: number, poId: number) {
+    const po = await this.prisma.purchaseOrder.findFirst({
+      where: { id: poId, organizationId },
+    });
+
+    if (!po) {
+      throw new NotFoundException('Purchase order not found');
+    }
+
+    if (po.status !== 'DRAFT') {
+      throw new BadRequestException('Can only delete POs in DRAFT status');
+    }
+
+    // Delete associated items first
+    await this.prisma.purchaseOrderItem.deleteMany({
+      where: { poId },
+    });
+
+    return this.prisma.purchaseOrder.delete({
+      where: { id: poId },
+    });
+  }
+
+  async findAll(organizationId: number, skip = 0, take = 10, filters: any = {}) {
+    const where: any = { organizationId };
+
+    if (filters.status) {
+      where.status = filters.status;
+    }
+
+    if (filters.vendorId) {
+      where.vendorId = filters.vendorId;
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.purchaseOrder.findMany({
+        where,
+        skip,
+        take,
+        include: {
+          vendor: true,
+          items: true,
+        },
+        orderBy: { poDate: 'desc' },
+      }),
+      this.prisma.purchaseOrder.count({ where }),
+    ]);
+
+    return {
+      data,
+      total,
+      page: Math.floor(skip / take) + 1,
+      pageSize: take,
+      hasMore: skip + take < total,
+    };
+  }
 }
