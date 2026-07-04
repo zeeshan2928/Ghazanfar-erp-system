@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LoginScreen } from './components/LoginScreen';
+import { DashboardScreen } from './components/screens/DashboardScreen';
 import { GatePassDashboard } from './components/GatePassDashboard';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { BillsScreen } from './components/screens/BillsScreen';
@@ -9,7 +10,7 @@ import { CustomersScreen } from './components/screens/CustomersScreen';
 import { PurchaseOrdersScreen } from './components/screens/PurchaseOrdersScreen';
 
 export function App() {
-  const [view, setView] = useState<'gate-pass' | 'reporting' | 'bills' | 'products' | 'inventory' | 'customers' | 'orders' | 'login'>('login');
+  const [view, setView] = useState<'dashboard' | 'gate-pass' | 'reporting' | 'bills' | 'products' | 'inventory' | 'customers' | 'orders' | 'login'>('login');
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [token, setToken] = useState<string>('');
 
@@ -24,7 +25,7 @@ export function App() {
 
   function handleLoginSuccess(token: string) {
     setToken(token);
-    setView('products');
+    setView('dashboard');
   }
 
   function handleLogout() {
@@ -45,6 +46,15 @@ export function App() {
             <div style={styles.headerContent}>
               <h1>🏭 ERP Warehouse Management System</h1>
               <div style={styles.nav}>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'dashboard' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('dashboard')}
+                >
+                  📊 Dashboard
+                </button>
                 <button
                   style={{
                     ...styles.navBtn,
@@ -116,6 +126,7 @@ export function App() {
           </header>
 
           <main style={styles.main}>
+            {view === 'dashboard' && <DashboardScreen />}
             {view === 'gate-pass' && warehouseId && (
               <GatePassDashboard warehouseId={warehouseId} />
             )}
