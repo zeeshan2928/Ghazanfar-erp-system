@@ -1873,3 +1873,4 @@
 {"context":"HTTP","duration":"38ms","level":"info","message":"POST /products/search 201","requestId":"b4a8097c-e8f2-417a-b0ff-d1da7b6ebc0d","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 17:23:00"}
 {"context":"HTTP","duration":"36ms","level":"info","message":"POST /products/search 201","requestId":"df5376d0-2d36-466f-8ebf-d54f81fb5b8c","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 17:23:00"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 17:31:41"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 17:31:42"}
