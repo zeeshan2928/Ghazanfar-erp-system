@@ -28,7 +28,7 @@ class ApiClient {
   // Authentication
   async login(credentials: { email: string; password: string }) {
     const response = await this.client.post<any>(
-      '/auth/login',
+      '/users/login',
       credentials
     );
     return response.data;
