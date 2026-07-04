@@ -9,7 +9,7 @@ const fs = require('fs');
 const { PrismaClient } = require('@prisma/client');
 
 const prisma = new PrismaClient();
-const ORGANIZATION_ID = 2;
+const ORGANIZATION_ID = 1;
 
 function parseCSV(filePath) {
   const content = fs.readFileSync(filePath, 'utf-8');
@@ -22,11 +22,33 @@ function parseCSV(filePath) {
 
   for (let i = 1; i < lines.length; i++) {
     const line = lines[i];
-    // Handle quoted fields with commas
-    const match = line.match(/"([^"]*)"|([^,]*)/g);
-    if (!match) continue;
+    const values = [];
+    let current = '';
+    let inQuotes = false;
 
-    const values = match.map(v => v.replace(/^"|"$/g, '').trim());
+    for (let j = 0; j < line.length; j++) {
+      const char = line[j];
+      const nextChar = line[j + 1];
+
+      if (char === '"') {
+        if (inQuotes && nextChar === '"') {
+          // Escaped quote
+          current += '"';
+          j++;
+        } else {
+          // Toggle quote state
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        // Field separator
+        values.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+    values.push(current.trim());
+
     const row = {};
     headers.forEach((header, idx) => {
       row[header] = values[idx] || '';

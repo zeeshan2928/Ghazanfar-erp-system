@@ -12,7 +12,7 @@ export class ReportingService {
     const gatePasses = await this.prisma.gatePass.findMany({
       where: {
         organizationId,
-        gate_pass_date: {
+        gatePassDate: {
           gte: startDate,
         },
       },
@@ -29,10 +29,10 @@ export class ReportingService {
 
     // Calculate average fulfillment time
     let avgFulfillmentTime = 0;
-    const confirmedGPs = gatePasses.filter((gp) => gp.confirmed_date && gp.createdAt);
+    const confirmedGPs = gatePasses.filter((gp) => gp.confirmedDate && gp.createdAt);
     if (confirmedGPs.length > 0) {
       const totalTime = confirmedGPs.reduce((sum, gp) => {
-        return sum + (gp.confirmed_date.getTime() - gp.createdAt.getTime());
+        return sum + (gp.confirmedDate.getTime() - gp.createdAt.getTime());
       }, 0);
       avgFulfillmentTime = totalTime / confirmedGPs.length / (1000 * 60); // minutes
     }
@@ -64,7 +64,7 @@ export class ReportingService {
       include: {
         gatePasses: {
           where: {
-            gate_pass_date: {
+            gatePassDate: {
               gte: startDate,
             },
           },
@@ -74,7 +74,7 @@ export class ReportingService {
         },
         transfersFrom: {
           where: {
-            transfer_date: {
+            transferDate: {
               gte: startDate,
             },
           },
@@ -84,7 +84,7 @@ export class ReportingService {
         },
         transfersTo: {
           where: {
-            transfer_date: {
+            transferDate: {
               gte: startDate,
             },
           },
@@ -102,7 +102,7 @@ export class ReportingService {
 
       const itemsShipped = wh.gatePasses
         .filter((gp) => gp.status === 'CONFIRMED')
-        .reduce((sum, gp) => sum + gp.items.reduce((s, item) => s + item.picked_quantity, 0), 0);
+        .reduce((sum, gp) => sum + gp.items.reduce((s, item) => s + item.pickedQuantity, 0), 0);
 
       const itemsReceived = wh.transfersTo.reduce((sum, t) => {
         if (t.status === 'RECEIVED') {
@@ -136,7 +136,7 @@ export class ReportingService {
     const bills = await this.prisma.bill.findMany({
       where: {
         organizationId,
-        bill_date: {
+        billDate: {
           gte: startDate,
         },
       },
@@ -153,8 +153,8 @@ export class ReportingService {
     const movements = bills
       .flatMap((bill) =>
         bill.lines.map((line) => ({
-          date: bill.bill_date,
-          billNumber: bill.bill_number,
+          date: bill.billDate,
+          billNumber: bill.billNumber,
           productId: line.productId,
           productName: line.product.name,
           productCode: line.product.code,
@@ -193,7 +193,7 @@ export class ReportingService {
     const bills = await this.prisma.bill.findMany({
       where: {
         organizationId,
-        bill_date: {
+        billDate: {
           gte: startDate,
         },
       },
@@ -204,9 +204,9 @@ export class ReportingService {
     });
 
     const totalBills = bills.length;
-    const totalAmount = bills.reduce((sum, b) => sum + b.total_amount, 0);
+    const totalAmount = bills.reduce((sum, b) => sum + b.totalAmount, 0);
     const avgBillAmount = totalBills > 0 ? totalAmount / totalBills : 0;
-    const totalDiscount = bills.reduce((sum, b) => sum + b.discount_amount, 0);
+    const totalDiscount = bills.reduce((sum, b) => sum + b.discountAmount, 0);
 
     const byChannel = {};
     bills.forEach((b) => {
@@ -214,7 +214,7 @@ export class ReportingService {
         byChannel[b.channel] = { count: 0, amount: 0 };
       }
       byChannel[b.channel].count++;
-      byChannel[b.channel].amount += b.total_amount;
+      byChannel[b.channel].amount += b.totalAmount;
     });
 
     return {
@@ -233,7 +233,6 @@ export class ReportingService {
     const inventory = await this.prisma.inventory.findMany({
       where: { organizationId },
       include: {
-        product: true,
         warehouse: true,
       },
     });
@@ -247,7 +246,7 @@ export class ReportingService {
     };
 
     inventory.forEach((item) => {
-      summary.totalPhysicalStock += item.physical_on_hand;
+      summary.totalPhysicalStock += item.physicalOnHand;
       summary.totalReservedStock += item.reserved;
       summary.totalAvailableStock += item.available;
 
@@ -260,7 +259,7 @@ export class ReportingService {
         };
       }
 
-      summary.byWarehouse[item.warehouse.id].physical += item.physical_on_hand;
+      summary.byWarehouse[item.warehouse.id].physical += item.physicalOnHand;
       summary.byWarehouse[item.warehouse.id].reserved += item.reserved;
       summary.byWarehouse[item.warehouse.id].available += item.available;
     });

@@ -19,24 +19,24 @@ export class ProductsService {
         organizationId,
         productId,
       },
-      orderBy: { po_date: 'desc' },
+      orderBy: { poDate: 'desc' },
       take: limit,
       select: {
         id: true,
-        vendor_name: true,
-        po_number: true,
-        po_date: true,
-        quantity_purchased: true,
-        cost_price: true,
+        vendorName: true,
+        poNumber: true,
+        poDate: true,
+        quantityPurchased: true,
+        costPrice: true,
       },
     });
 
     return purchases.map((p) => ({
-      vendor: p.vendor_name,
-      poNumber: p.po_number,
-      poDate: p.po_date,
-      quantity: p.quantity_purchased,
-      costPrice: p.cost_price,
+      vendor: p.vendorName,
+      poNumber: p.poNumber,
+      poDate: p.poDate,
+      quantity: p.quantityPurchased,
+      costPrice: p.costPrice,
     }));
   }
 }

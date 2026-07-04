@@ -34,7 +34,7 @@ export class GatePassesService {
             },
           },
         },
-        orderBy: { gate_pass_date: 'desc' },
+        orderBy: { gatePassDate: 'desc' },
         skip,
         take,
       }),
@@ -141,7 +141,7 @@ export class GatePassesService {
         await tx.gatePassItem.update({
           where: { id: item.id },
           data: {
-            picked_quantity: pickedItem.pickedQuantity,
+            pickedQuantity: pickedItem.pickedQuantity,
           },
         });
       }
@@ -151,8 +151,8 @@ export class GatePassesService {
         where: { id: gatePassId },
         data: {
           status: 'CONFIRMED',
-          confirmed_by: userId,
-          confirmed_date: new Date(),
+          confirmedBy: userId,
+          confirmedDate: new Date(),
           remarks: confirmDto.remarks,
         },
         include: {
@@ -173,7 +173,7 @@ export class GatePassesService {
         },
       });
 
-      // Update inventory: deduct from physical_on_hand and reserved
+      // Update inventory: deduct from physicalOnHand and reserved
       for (const item of confirmed.items) {
         await tx.inventory.update({
           where: {
@@ -184,8 +184,8 @@ export class GatePassesService {
             },
           },
           data: {
-            physical_on_hand: {
-              decrement: item.picked_quantity,
+            physicalOnHand: {
+              decrement: item.pickedQuantity,
             },
             reserved: {
               decrement: item.quantity,
@@ -251,8 +251,8 @@ export class GatePassesService {
         where: { id: gatePassId },
         data: {
           status: 'REJECTED',
-          confirmed_by: userId,
-          confirmed_date: new Date(),
+          confirmedBy: userId,
+          confirmedDate: new Date(),
           remarks: rejectDto.reason,
         },
         include: {

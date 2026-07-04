@@ -2,7 +2,6 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { PasswordService } from './password.service';
-import { UserRole } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -28,7 +27,6 @@ export class UsersService {
         password: hashedPassword,
         firstName: createUserDto.firstName,
         lastName: createUserDto.lastName,
-        role: createUserDto.role || UserRole.SALESMAN,
         organizationId: createUserDto.organizationId || 1,
       },
     });

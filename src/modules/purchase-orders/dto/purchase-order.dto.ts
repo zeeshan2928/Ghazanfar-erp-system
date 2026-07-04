@@ -19,7 +19,7 @@ export class CreatePurchaseOrderDto {
 
   @IsOptional()
   @IsDateString()
-  expected_delivery_date?: string;
+  expectedDeliveryDate?: string;
 
   @IsOptional()
   @IsString()
@@ -31,7 +31,7 @@ export class PurchaseOrderItemDto {
   productId: number;
 
   @IsNumber()
-  quantity_ordered: number;
+  quantityOrdered: number;
 }
 
 export class ReceiveItemDto {
@@ -39,10 +39,10 @@ export class ReceiveItemDto {
   productId: number;
 
   @IsNumber()
-  quantity_received: number;
+  quantityReceived: number;
 
   @IsNumber()
-  warehouse_id: number;
+  warehouseId: number;
 }
 
 export class ConfirmReceiptDto {
@@ -58,12 +58,12 @@ export class ConfirmReceiptDto {
 
 export class SetProductReorderParamsDto {
   @IsNumber()
-  minimum_quantity: number;
+  minimumQuantity: number;
 
   @IsNumber()
-  reorder_quantity: number;
+  reorderQuantity: number;
 
   @IsNumber()
   @IsOptional()
-  primary_vendor_id?: number;
+  primaryVendorId?: number;
 }

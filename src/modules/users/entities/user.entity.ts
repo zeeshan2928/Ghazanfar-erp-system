@@ -1,12 +1,11 @@
 import { Exclude } from 'class-transformer';
-import { UserRole } from '@prisma/client';
 
 export class UserEntity {
   id: number;
   email: string;
   firstName: string;
   lastName: string;
-  role: UserRole;
+  organizationId: number;
   isActive: boolean;
   createdAt: Date;
   updatedAt: Date;

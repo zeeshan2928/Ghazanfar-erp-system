@@ -17,17 +17,17 @@ export class BillsService {
     const lastBill = await this.prisma.bill.findFirst({
       where: {
         organizationId,
-        bill_number: {
+        billNumber: {
           startsWith: `BILL-${year}-`,
         },
       },
-      orderBy: { bill_number: 'desc' },
-      select: { bill_number: true },
+      orderBy: { billNumber: 'desc' },
+      select: { billNumber: true },
     });
 
     let sequence = 1;
     if (lastBill) {
-      const parts = lastBill.bill_number.split('-');
+      const parts = lastBill.billNumber.split('-');
       sequence = parseInt(parts[2], 10) + 1;
     }
 
@@ -41,17 +41,17 @@ export class BillsService {
     const lastGatePass = await this.prisma.gatePass.findFirst({
       where: {
         organizationId,
-        gate_pass_number: {
+        gatePassNumber: {
           startsWith: `GP-${year}-`,
         },
       },
-      orderBy: { gate_pass_number: 'desc' },
-      select: { gate_pass_number: true },
+      orderBy: { gatePassNumber: 'desc' },
+      select: { gatePassNumber: true },
     });
 
     let sequence = 1;
     if (lastGatePass) {
-      const parts = lastGatePass.gate_pass_number.split('-');
+      const parts = lastGatePass.gatePassNumber.split('-');
       sequence = parseInt(parts[2], 10) + 1;
     }
 
@@ -68,40 +68,41 @@ export class BillsService {
     }
 
     return this.transactionService.run(async (tx) => {
-      const bill_number = await this.generateBillNumber(organizationId);
+      const billNumber = await this.generateBillNumber(organizationId);
 
       let subtotal = 0;
-      let tax_amount = 0;
+      let taxAmount = 0;
 
       for (const line of createBillDto.lines) {
-        const lineTotal = line.quantity * line.unit_price;
+        const lineTotal = line.quantity * line.unitPrice;
         subtotal += lineTotal;
       }
 
-      const discount_amount = createBillDto.discount_amount || 0;
-      const total_amount = subtotal - discount_amount + tax_amount;
+      const discountAmount = createBillDto.discountAmount || 0;
+      const totalAmount = subtotal - discountAmount + taxAmount;
 
       const bill = await tx.bill.create({
         data: {
           organizationId,
-          bill_number,
+          billNumber,
           customerId: createBillDto.customerId,
           channel: createBillDto.channel,
-          payment_method: createBillDto.payment_method,
-          created_by: userId,
+          paymentMethod: createBillDto.paymentMethod,
+          createdBy: userId,
           subtotal,
-          discount_amount,
-          tax_amount,
-          total_amount,
+          discountAmount,
+          taxAmount,
+          totalAmount,
           remarks: createBillDto.remarks,
           status: 'APPROVED',
           lines: {
             create: createBillDto.lines.map((line) => ({
+              organizationId,
               productId: line.productId,
               warehouseId: line.warehouseId,
               quantity: line.quantity,
-              unit_price: line.unit_price,
-              line_total: line.quantity * line.unit_price,
+              unitPrice: line.unitPrice,
+              lineTotal: line.quantity * line.unitPrice,
               remarks: line.remarks,
             })),
           },
@@ -157,12 +158,13 @@ export class BillsService {
         await tx.gatePass.create({
           data: {
             organizationId,
-            gate_pass_number: gatePassNumber,
+            gatePassNumber,
             billId: bill.id,
             warehouseId,
             status: 'PENDING',
             items: {
               create: warehouseLines.map((line) => ({
+                organizationId,
                 billLineId: line.id,
                 productId: line.productId,
                 quantity: line.quantity,
@@ -182,12 +184,12 @@ export class BillsService {
         where: { organizationId, isActive: true },
         include: {
           customer: true,
-          created_by_user: {
+          createdByUser: {
             select: { firstName: true, lastName: true },
           },
           lines: true,
         },
-        orderBy: { bill_date: 'desc' },
+        orderBy: { billDate: 'desc' },
         skip,
         take,
       }),
@@ -218,7 +220,7 @@ export class BillsService {
           },
         },
         customer: true,
-        created_by_user: {
+        createdByUser: {
           select: { firstName: true, lastName: true, email: true },
         },
       },

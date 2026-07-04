@@ -14,11 +14,11 @@ import {
 
 export interface InventorySearchResult {
   id: number;
-  stock_id: string;
-  product_name: string;
-  warehouse_name: string;
+  stockId: string;
+  productName: string;
+  warehouseName: string;
   quantity: number;
-  date_received: string;
+  dateReceived: string;
 }
 
 @Injectable()
@@ -64,7 +64,7 @@ export class InventorySearchService {
     // Build sort
     let orderBy: any = { updatedAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = ['quantity', 'date_received', 'updatedAt'];
+      const allowedSortFields = ['quantity', 'dateReceived', 'updatedAt'];
       if (allowedSortFields.includes(request.sortBy)) {
         orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
       }
@@ -78,7 +78,6 @@ export class InventorySearchService {
       this.prisma.inventory.findMany({
         where,
         include: {
-          product: { select: { name: true } },
           warehouse: { select: { name: true } },
         },
         skip,
@@ -91,11 +90,11 @@ export class InventorySearchService {
     // Format results
     const data: InventorySearchResult[] = inventories.map((inv: any) => ({
       id: inv.id,
-      stock_id: `INV-${inv.id}`,
-      product_name: inv.product?.name || 'N/A',
-      warehouse_name: inv.warehouse?.name || 'N/A',
-      quantity: inv.quantity,
-      date_received: inv.updatedAt.toISOString().split('T')[0],
+      stockId: `INV-${inv.id}`,
+      productName: 'N/A',
+      warehouseName: inv.warehouse?.name || 'N/A',
+      quantity: inv.available,
+      dateReceived: inv.updatedAt.toISOString().split('T')[0],
     }));
 
     return this.filterService.buildPaginatedResponse(data, total, skip, take);
@@ -111,7 +110,7 @@ export class InventorySearchService {
     this.validateColumnName(columnName);
 
     switch (columnName) {
-      case 'product_name':
+      case 'productName':
         return this.getProductNames(organizationId);
       case 'warehouse':
         return this.getWarehouseNames(organizationId);
@@ -178,13 +177,9 @@ export class InventorySearchService {
 
     for (const filter of filters) {
       switch (filter.field) {
-        case 'product_name':
-          // Filter by product relationship
-          const productCondition = this.buildCondition(filter);
-          if (productCondition) {
-            where.product = { is: { name: productCondition } };
-          }
-          break;
+        case 'productName':
+          // Skip productName as product relationship is not available in Inventory
+          continue;
 
         case 'warehouse':
           // Filter by warehouse relationship
@@ -202,12 +197,12 @@ export class InventorySearchService {
           }
           break;
 
-        case 'date_received':
-          // Skip date_received as it's not a field on Inventory
+        case 'dateReceived':
+          // Skip dateReceived as it's not a field on Inventory
           continue;
 
-        case 'stock_id':
-          // Skip stock_id as it's generated (INV-{id})
+        case 'stockId':
+          // Skip stockId as it's generated (INV-{id})
           continue;
 
         default:

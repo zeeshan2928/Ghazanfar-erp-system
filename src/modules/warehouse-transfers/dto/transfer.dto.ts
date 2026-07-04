@@ -11,10 +11,10 @@ export class TransferItemDto {
 
 export class CreateWarehouseTransferDto {
   @IsNumber()
-  from_warehouse_id: number;
+  fromWarehouseId: number;
 
   @IsNumber()
-  to_warehouse_id: number;
+  toWarehouseId: number;
 
   @IsArray()
   @ValidateNested({ each: true })
@@ -42,7 +42,7 @@ export class ReceiveItemDto {
   productId: number;
 
   @IsNumber()
-  quantity_received: number;
+  quantityReceived: number;
 }
 
 export class RejectTransferDto {

@@ -21,7 +21,11 @@ export class VendorsService {
     return this.prisma.vendor.create({
       data: {
         organizationId,
-        ...createDto,
+        name: createDto.name,
+        email: createDto.email,
+        phone: createDto.phone,
+        contactPerson: createDto.contact_person,
+        address: createDto.address,
       },
       include: {
         products: true,
@@ -36,9 +40,7 @@ export class VendorsService {
         skip,
         take,
         include: {
-          products: {
-            include: { product: true },
-          },
+          products: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -59,19 +61,7 @@ export class VendorsService {
     const vendor = await this.prisma.vendor.findFirst({
       where: { id: vendorId, organizationId },
       include: {
-        products: {
-          include: {
-            product: {
-              select: {
-                id: true,
-                code: true,
-                name: true,
-                minimum_quantity: true,
-                reorder_quantity: true,
-              },
-            },
-          },
-        },
+        products: true,
         purchaseOrders: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -132,9 +122,9 @@ export class VendorsService {
       return this.prisma.productVendor.update({
         where: { id: existing.id },
         data: {
-          unit_price: addDto.unit_price,
-          lead_time_days: addDto.lead_time_days || 7,
-          last_purchase_date: new Date(),
+          unitPrice: addDto.unit_price,
+          leadTimeDays: addDto.lead_time_days || 7,
+          lastPurchaseDate: new Date(),
         },
       });
     }
@@ -142,13 +132,11 @@ export class VendorsService {
     // Create new relationship
     return this.prisma.productVendor.create({
       data: {
+        organizationId,
         productId: addDto.productId,
         vendorId: vendorId,
-        unit_price: addDto.unit_price,
-        lead_time_days: addDto.lead_time_days || 7,
-      },
-      include: {
-        product: true,
+        unitPrice: addDto.unit_price,
+        leadTimeDays: addDto.lead_time_days || 7,
       },
     });
   }

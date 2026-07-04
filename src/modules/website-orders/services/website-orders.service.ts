@@ -91,31 +91,32 @@ export class WebsiteOrdersService {
       const items = itemsData as Array<{
         productId: number;
         quantity: number;
-        unit_price: number;
+        unitPrice: number;
       }>;
 
       // Create bill from website order
       const bill = await tx.bill.create({
         data: {
           organizationId,
-          bill_number: await this.generateBillNumber(organizationId, tx),
+          billNumber: await this.generateBillNumber(organizationId, tx),
           customerId: approveDto.customerId,
           channel: 'WEBSITE',
-          website_order_id: orderId,
-          created_by: userId,
-          subtotal: items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
-          discount_amount: 0,
-          tax_amount: 0,
-          total_amount: items.reduce((sum, item) => sum + item.quantity * item.unit_price, 0),
+          websiteOrderId: orderId,
+          createdBy: userId,
+          subtotal: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+          discountAmount: 0,
+          taxAmount: 0,
+          totalAmount: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
           remarks: approveDto.remarks,
           status: 'APPROVED',
           lines: {
             create: items.map((item) => ({
+              organizationId,
               productId: item.productId,
               warehouseId: approveDto.warehouseId,
               quantity: item.quantity,
-              unit_price: item.unit_price,
-              line_total: item.quantity * item.unit_price,
+              unitPrice: item.unitPrice,
+              lineTotal: item.quantity * item.unitPrice,
             })),
           },
         },
@@ -159,12 +160,13 @@ export class WebsiteOrdersService {
       await tx.gatePass.create({
         data: {
           organizationId,
-          gate_pass_number: gatePassNumber,
+          gatePassNumber,
           billId: bill.id,
           warehouseId: approveDto.warehouseId,
           status: 'PENDING',
           items: {
             create: billLines.map((line) => ({
+              organizationId,
               billLineId: line.id,
               productId: line.productId,
               quantity: line.quantity,
@@ -178,9 +180,9 @@ export class WebsiteOrdersService {
         where: { id: orderId },
         data: {
           status: 'APPROVED',
-          approval_by: userId,
-          approval_date: new Date(),
-          synced_to_erp_bill_id: bill.id,
+          approvalBy: userId,
+          approvalDate: new Date(),
+          syncedToErpBillId: bill.id,
         },
       });
 
@@ -218,9 +220,9 @@ export class WebsiteOrdersService {
       where: { id: orderId },
       data: {
         status: 'REJECTED',
-        approval_by: userId,
-        approval_date: new Date(),
-        rejection_reason: rejectDto.reason,
+        approvalBy: userId,
+        approvalDate: new Date(),
+        rejectionReason: rejectDto.reason,
       },
     });
   }
@@ -232,17 +234,17 @@ export class WebsiteOrdersService {
     const lastBill = await tx.bill.findFirst({
       where: {
         organizationId,
-        bill_number: {
+        billNumber: {
           startsWith: `BILL-${year}-`,
         },
       },
-      orderBy: { bill_number: 'desc' },
-      select: { bill_number: true },
+      orderBy: { billNumber: 'desc' },
+      select: { billNumber: true },
     });
 
     let sequence = 1;
     if (lastBill) {
-      const parts = lastBill.bill_number.split('-');
+      const parts = lastBill.billNumber.split('-');
       sequence = parseInt(parts[2], 10) + 1;
     }
 
@@ -256,17 +258,17 @@ export class WebsiteOrdersService {
     const lastGatePass = await tx.gatePass.findFirst({
       where: {
         organizationId,
-        gate_pass_number: {
+        gatePassNumber: {
           startsWith: `GP-${year}-`,
         },
       },
-      orderBy: { gate_pass_number: 'desc' },
-      select: { gate_pass_number: true },
+      orderBy: { gatePassNumber: 'desc' },
+      select: { gatePassNumber: true },
     });
 
     let sequence = 1;
     if (lastGatePass) {
-      const parts = lastGatePass.gate_pass_number.split('-');
+      const parts = lastGatePass.gatePassNumber.split('-');
       sequence = parseInt(parts[2], 10) + 1;
     }
 

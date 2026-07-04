@@ -32,7 +32,7 @@ export class PurchaseOrdersService {
 
   async create(
     organizationId: number,
-    userId: number,
+    _userId: number,
     createDto: CreatePurchaseOrderDto,
   ) {
     const vendor = await this.prisma.vendor.findFirst({
@@ -43,7 +43,7 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Vendor not found');
     }
 
-    const po_number = await this.generatePoNumber(organizationId);
+    const poNumber = await this.generatePoNumber(organizationId);
 
     const products = await this.prisma.product.findMany({
       where: {
@@ -59,28 +59,23 @@ export class PurchaseOrdersService {
     const purchaseOrder = await this.prisma.purchaseOrder.create({
       data: {
         organizationId,
-        po_number,
+        poNumber,
         vendorId: createDto.vendorId,
         status: 'DRAFT',
-        expected_delivery_date: createDto.expected_delivery_date
-          ? new Date(createDto.expected_delivery_date)
-          : null,
-        created_by: userId,
-        remarks: createDto.remarks,
+        poDate: new Date(),
         items: {
           createMany: {
             data: createDto.items.map((item) => ({
+              organizationId,
               productId: item.productId,
-              quantity_ordered: item.quantity_ordered,
+              quantityOrdered: item.quantityOrdered,
             })),
           },
         },
       },
       include: {
         vendor: true,
-        items: {
-          include: { product: true },
-        },
+        items: true,
       },
     });
 
@@ -95,7 +90,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: { include: { product: true } },
+          items: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -118,8 +113,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: { include: { product: true } },
-          receipts: true,
+          items: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -142,8 +136,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: { include: { product: true } },
-          receipts: true,
+          items: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -160,8 +153,8 @@ export class PurchaseOrdersService {
       where: { id: poId, organizationId },
       include: {
         vendor: true,
-        items: { include: { product: true } },
-        receipts: true,
+        items: true,
+        PurchaseOrderReceipt: true,
       },
     });
 
@@ -189,11 +182,10 @@ export class PurchaseOrdersService {
       where: { id: poId },
       data: {
         status: 'SENT',
-        expected_delivery_date: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       },
       include: {
         vendor: true,
-        items: { include: { product: true } },
+        items: true,
       },
     });
   }
@@ -230,30 +222,21 @@ export class PurchaseOrdersService {
           );
         }
 
-        if (receiveItem.quantity_received > poItem.quantity_ordered) {
+        if (receiveItem.quantityReceived > poItem.quantityOrdered) {
           throw new BadRequestException(
             `Received quantity exceeds ordered quantity for product ${receiveItem.productId}`,
           );
         }
 
-        // Update PO item quantity received
-        await tx.purchaseOrderItem.update({
-          where: { id: poItem.id },
-          data: {
-            quantity_received: {
-              increment: receiveItem.quantity_received,
-            },
-          },
-        });
-
         // Create receipt record
         await tx.purchaseOrderReceipt.create({
           data: {
+            organizationId,
             poId,
             productId: receiveItem.productId,
-            quantity_received: receiveItem.quantity_received,
-            warehouse_id: receiveItem.warehouse_id,
-            received_by: userId,
+            quantityReceived: receiveItem.quantityReceived,
+            warehouseId: receiveItem.warehouseId,
+            receivedBy: userId,
             remarks: confirmDto.remarks,
           },
         });
@@ -262,7 +245,7 @@ export class PurchaseOrdersService {
         let inventory = await tx.inventory.findFirst({
           where: {
             productId: receiveItem.productId,
-            warehouseId: receiveItem.warehouse_id,
+            warehouseId: receiveItem.warehouseId,
             organizationId,
           },
         });
@@ -272,8 +255,8 @@ export class PurchaseOrdersService {
             data: {
               organizationId,
               productId: receiveItem.productId,
-              warehouseId: receiveItem.warehouse_id,
-              physical_on_hand: receiveItem.quantity_received,
+              warehouseId: receiveItem.warehouseId,
+              physicalOnHand: receiveItem.quantityReceived,
               reserved: 0,
             },
           });
@@ -281,17 +264,24 @@ export class PurchaseOrdersService {
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
-              physical_on_hand: {
-                increment: receiveItem.quantity_received,
+              physicalOnHand: {
+                increment: receiveItem.quantityReceived,
               },
             },
           });
         }
       }
 
-      // Check if all items received
+      // Check if all items received by comparing receipts with orders
       const allItems = await tx.purchaseOrderItem.findMany({ where: { poId } });
-      const allReceived = allItems.every((i) => i.quantity_received === i.quantity_ordered);
+      const receipts = await tx.purchaseOrderReceipt.findMany({ where: { poId } });
+
+      const allReceived = allItems.every((item) => {
+        const totalReceived = receipts
+          .filter(r => r.productId === item.productId)
+          .reduce((sum, r) => sum + (r as any).quantity_received, 0);
+        return totalReceived >= (item as any).quantity_ordered;
+      });
 
       const newStatus = allReceived ? 'RECEIVED' : 'PARTIAL_RECEIVED';
 
@@ -299,7 +289,6 @@ export class PurchaseOrdersService {
         where: { id: poId },
         data: {
           status: newStatus,
-          actual_delivery_date: newStatus === 'RECEIVED' ? new Date() : null,
         },
       });
     });
@@ -320,9 +309,9 @@ export class PurchaseOrdersService {
       throw new NotFoundException('Product not found');
     }
 
-    if (setDto.primary_vendor_id) {
+    if (setDto.primaryVendorId) {
       const vendor = await this.prisma.vendor.findFirst({
-        where: { id: setDto.primary_vendor_id, organizationId },
+        where: { id: setDto.primaryVendorId, organizationId },
       });
 
       if (!vendor) {
@@ -333,9 +322,9 @@ export class PurchaseOrdersService {
     return this.prisma.product.update({
       where: { id: productId },
       data: {
-        minimum_quantity: setDto.minimum_quantity,
-        reorder_quantity: setDto.reorder_quantity,
-        primary_vendor_id: setDto.primary_vendor_id,
+        minimumQuantity: setDto.minimumQuantity,
+        reorderQuantity: setDto.reorderQuantity,
+        primaryVendorId: setDto.primaryVendorId,
       },
     });
   }
@@ -345,32 +334,38 @@ export class PurchaseOrdersService {
       where: {
         organizationId,
         isActive: true,
-        minimum_quantity: { gt: 0 },
+        minimumQuantity: { gt: 0 },
       },
       include: {
-        inventory: {
-          where: { organizationId },
-        },
         primaryVendor: true,
+      },
+    });
+
+    // Fetch inventory data separately
+    const inventoryData = await this.prisma.inventory.findMany({
+      where: {
+        organizationId,
+        productId: { in: lowStockProducts.map((p) => p.id) },
       },
     });
 
     const alerts = lowStockProducts
       .map((product) => {
-        const totalAvailable = product.inventory.reduce((sum, inv) => sum + inv.available, 0);
+        const productInventory = inventoryData.filter((inv) => inv.productId === product.id);
+        const totalAvailable = productInventory.reduce((sum, inv) => sum + inv.available, 0);
 
-        if (totalAvailable <= product.minimum_quantity) {
+        if (totalAvailable <= (product as any).minimum_quantity) {
           return {
             productId: product.id,
             productCode: product.code,
             productName: product.name,
-            minimum_quantity: product.minimum_quantity,
-            current_available: totalAvailable,
-            shortage: product.minimum_quantity - totalAvailable,
-            reorder_quantity: product.reorder_quantity,
-            primaryVendorId: product.primary_vendor_id,
+            minimumQuantity: (product as any).minimum_quantity,
+            currentAvailable: totalAvailable,
+            shortage: (product as any).minimum_quantity - totalAvailable,
+            reorderQuantity: (product as any).reorder_quantity,
+            primaryVendorId: (product as any).primary_vendor_id,
             primaryVendor: product.primaryVendor,
-            inventory_by_warehouse: product.inventory,
+            inventoryByWarehouse: productInventory,
           };
         }
 
@@ -379,17 +374,17 @@ export class PurchaseOrdersService {
       .filter((a) => a !== null);
 
     return {
-      total_alerts: alerts.length,
+      totalAlerts: alerts.length,
       alerts,
-      can_auto_generate_po: alerts.length > 0,
+      canAutoGeneratePo: alerts.length > 0,
     };
   }
 
-  async autoCreatePOsForLowStock(organizationId: number, userId: number) {
+  async autoCreatePOsForLowStock(organizationId: number, _userId: number) {
     const alerts = await this.getLowStockAlerts(organizationId);
 
     if (alerts.alerts.length === 0) {
-      return { message: 'No low stock items', created_pos: [] };
+      return { message: 'No low stock items', createdPos: [] };
     }
 
     const createdPOs = [];
@@ -399,26 +394,26 @@ export class PurchaseOrdersService {
         continue; // Skip if no vendor assigned
       }
 
-      const po_number = await this.generatePoNumber(organizationId);
+      const poNumber = await this.generatePoNumber(organizationId);
 
       const po = await this.prisma.purchaseOrder.create({
         data: {
           organizationId,
-          po_number,
+          poNumber,
           vendorId: alert.primaryVendorId,
           status: 'DRAFT',
-          created_by: userId,
-          remarks: `Auto-created for low stock: ${alert.productCode}`,
+          poDate: new Date(),
           items: {
             create: {
+              organizationId,
               productId: alert.productId,
-              quantity_ordered: alert.reorder_quantity || alert.shortage * 2,
+              quantityOrdered: alert.reorderQuantity || alert.shortage * 2,
             },
           },
         },
         include: {
           vendor: true,
-          items: { include: { product: true } },
+          items: true,
         },
       });
 
@@ -427,7 +422,7 @@ export class PurchaseOrdersService {
 
     return {
       message: `Auto-created ${createdPOs.length} purchase orders`,
-      created_pos: createdPOs,
+      createdPos: createdPOs,
     };
   }
 }

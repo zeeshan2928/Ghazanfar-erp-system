@@ -14,13 +14,13 @@ import {
 
 export interface BillSearchResult {
   id: number;
-  bill_number: string;
-  customer_name: string;
+  billNumber: string;
+  customerName: string;
   amount: number;
-  bill_date: string;
+  billDate: string;
   status: string;
-  payment_method: string;
-  employee_name: string;
+  paymentMethod: string;
+  employeeName: string;
   remarks: string;
 }
 
@@ -33,7 +33,7 @@ export class BillsSearchService {
 
   /**
    * Search bills with filters
-   * Supports primary search (bill_number) + column filters
+   * Supports primary search (billNumber) + column filters
    */
   async search(
     organizationId: number,
@@ -69,9 +69,9 @@ export class BillsSearchService {
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
       const allowedSortFields = [
-        'bill_number',
-        'bill_date',
-        'total_amount',
+        'billNumber',
+        'billDate',
+        'totalAmount',
         'status',
         'createdAt',
       ];
@@ -89,7 +89,7 @@ export class BillsSearchService {
         where,
         include: {
           customer: { select: { name: true } },
-          created_by_user: { select: { firstName: true, lastName: true } },
+          createdByUser: { select: { firstName: true, lastName: true } },
         },
         skip,
         take,
@@ -101,13 +101,13 @@ export class BillsSearchService {
     // Format results
     const data: BillSearchResult[] = bills.map((bill: any) => ({
       id: bill.id,
-      bill_number: bill.bill_number,
-      customer_name: bill.customer?.name || 'N/A',
-      amount: bill.total_amount,
-      bill_date: bill.bill_date.toISOString().split('T')[0],
+      billNumber: bill.billNumber,
+      customerName: bill.customer?.name || 'N/A',
+      amount: bill.totalAmount,
+      billDate: bill.billDate.toISOString().split('T')[0],
       status: bill.status,
-      payment_method: bill.payment_method || 'N/A',
-      employee_name: `${bill.created_by_user?.firstName || ''} ${bill.created_by_user?.lastName || ''}`.trim(),
+      paymentMethod: bill.paymentMethod || 'N/A',
+      employeeName: `${bill.createdByUser?.firstName || ''} ${bill.createdByUser?.lastName || ''}`.trim(),
       remarks: bill.remarks || '',
     }));
 
@@ -124,15 +124,15 @@ export class BillsSearchService {
     this.validateColumnName(columnName);
 
     switch (columnName) {
-      case 'customer_name':
+      case 'customerName':
         return this.getCustomerValues(organizationId);
-      case 'employee_name':
+      case 'employeeName':
         return this.getEmployeeValues(organizationId);
-      case 'bill_number':
+      case 'billNumber':
         return this.getBillNumberValues(organizationId);
       case 'status':
         return this.getStatusValues(organizationId);
-      case 'payment_method':
+      case 'paymentMethod':
         return this.getPaymentMethodValues(organizationId);
       default:
         return [];
@@ -147,17 +147,17 @@ export class BillsSearchService {
   ): Promise<ColumnValueDto[]> {
     const results = await this.prisma.bill.findMany({
       where: { organizationId },
-      select: { bill_number: true },
-      distinct: ['bill_number'],
-      orderBy: { bill_number: 'asc' },
+      select: { billNumber: true },
+      distinct: ['billNumber'],
+      orderBy: { billNumber: 'asc' },
       take: 100,
     });
 
     return results
-      .filter((r: any) => r.bill_number != null)
+      .filter((r: any) => r.billNumber != null)
       .map((r: any) => ({
-        value: r.bill_number,
-        label: r.bill_number,
+        value: r.billNumber,
+        label: r.billNumber,
       }));
   }
 
@@ -189,18 +189,18 @@ export class BillsSearchService {
     organizationId: number,
   ): Promise<ColumnValueDto[]> {
     const results = await this.prisma.bill.findMany({
-      where: { organizationId, payment_method: { not: null } },
-      select: { payment_method: true },
-      distinct: ['payment_method'],
-      orderBy: { payment_method: 'asc' },
+      where: { organizationId, paymentMethod: { not: null } },
+      select: { paymentMethod: true },
+      distinct: ['paymentMethod'],
+      orderBy: { paymentMethod: 'asc' },
       take: 100,
     });
 
     return results
-      .filter((r: any) => r.payment_method != null)
+      .filter((r: any) => r.paymentMethod != null)
       .map((r: any) => ({
-        value: r.payment_method,
-        label: r.payment_method,
+        value: r.paymentMethod,
+        label: r.paymentMethod,
       }));
   }
 
@@ -246,14 +246,14 @@ export class BillsSearchService {
   ): Promise<ColumnValueDto[]> {
     const distinctEmployees = await this.prisma.bill.findMany({
       where: { organizationId },
-      select: { created_by: true },
-      distinct: ['created_by'],
-      orderBy: { created_by: 'asc' },
+      select: { createdBy: true },
+      distinct: ['createdBy'],
+      orderBy: { createdBy: 'asc' },
       take: 100,
     });
 
     const userIds = distinctEmployees
-      .map((r: any) => r.created_by)
+      .map((r: any) => r.createdBy)
       .filter(Boolean);
 
     if (userIds.length === 0) {
@@ -286,14 +286,14 @@ export class BillsSearchService {
     for (const filter of filters) {
       switch (filter.field) {
         case 'amount':
-          // Map amount to total_amount field
+          // Map amount to totalAmount field
           const amountCondition = this.buildCondition(filter);
           if (amountCondition) {
-            where.total_amount = amountCondition;
+            where.totalAmount = amountCondition;
           }
           break;
 
-        case 'customer_name':
+        case 'customerName':
           // Filter by customer relationship
           const customerCondition = this.buildCustomerNameCondition(filter);
           if (customerCondition) {
@@ -301,11 +301,11 @@ export class BillsSearchService {
           }
           break;
 
-        case 'employee_name':
-          // Filter by created_by_user relationship
+        case 'employeeName':
+          // Filter by createdByUser relationship
           const employeeCondition = this.buildEmployeeNameCondition(filter);
           if (employeeCondition) {
-            where.created_by_user = { is: employeeCondition };
+            where.createdByUser = { is: employeeCondition };
           }
           break;
 
@@ -372,7 +372,7 @@ export class BillsSearchService {
    */
   private buildCustomerNameCondition(filter: any): any {
     const condition = this.buildCondition(filter);
-    if (condition && filter.field === 'customer_name') {
+    if (condition && filter.field === 'customerName') {
       return { name: condition };
     }
     return condition;

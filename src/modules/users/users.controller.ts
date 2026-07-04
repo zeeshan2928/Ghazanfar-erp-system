@@ -7,7 +7,6 @@ import { JwtGuard } from '@common/guards/jwt.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
 import { Roles } from '@common/decorators/roles.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
-import { UserRole } from '@prisma/client';
 
 @Controller('users')
 export class UsersController {
@@ -45,7 +44,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles('ADMIN')
   @Patch(':id')
   async update(
     @Param('id') id: string,
@@ -55,7 +54,7 @@ export class UsersController {
   }
 
   @UseGuards(JwtGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles('ADMIN')
   @Delete(':id')
   async remove(@Param('id') id: string) {
     return this.usersService.remove(parseInt(id, 10));

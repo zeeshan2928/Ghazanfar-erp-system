@@ -1,6 +1,5 @@
-import { IsNumber, IsString, IsEnum, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
+import { IsNumber, IsString, IsOptional, IsArray, ValidateNested, Min } from 'class-validator';
 import { Type } from 'class-transformer';
-import { Channel } from '@prisma/client';
 
 export class CreateBillLineDto {
   @IsNumber()
@@ -12,7 +11,7 @@ export class CreateBillLineDto {
 
   @IsNumber()
   @Min(0)
-  unit_price: number;
+  unitPrice: number;
 
   @IsNumber()
   warehouseId: number;
@@ -26,16 +25,16 @@ export class CreateBillDto {
   @IsNumber()
   customerId: number;
 
-  @IsEnum(Channel)
-  channel: Channel;
+  @IsString()
+  channel: string;
 
   @IsOptional()
   @IsString()
-  payment_method?: string;
+  paymentMethod?: string;
 
   @IsOptional()
   @IsNumber()
-  discount_amount?: number;
+  discountAmount?: number;
 
   @IsOptional()
   @IsString()

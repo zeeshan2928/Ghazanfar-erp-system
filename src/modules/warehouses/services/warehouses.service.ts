@@ -16,7 +16,6 @@ export class WarehousesService {
           select: {
             id: true,
             name: true,
-            slug: true,
           },
         },
       },
@@ -25,10 +24,9 @@ export class WarehousesService {
     return inventory.map((inv) => ({
       warehouseId: inv.warehouseId,
       warehouseName: inv.warehouse.name,
-      warehouseSlug: inv.warehouse.slug,
-      physicalOnHand: inv.physical_on_hand,
+      physicalOnHand: inv.physicalOnHand,
       reserved: inv.reserved,
-      available: inv.physical_on_hand - inv.reserved,
+      available: inv.physicalOnHand - inv.reserved,
     }));
   }
 

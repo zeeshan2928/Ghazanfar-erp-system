@@ -32,19 +32,19 @@ export class CustomersService {
           },
         },
       },
-      orderBy: { bill_date: 'desc' },
+      orderBy: { billDate: 'desc' },
       take: limit,
     });
 
     return bills.map((bill) => ({
-      date: bill.bill_date,
-      billNumber: bill.bill_number,
+      date: bill.billDate,
+      billNumber: bill.billNumber,
       items: bill.lines.map((line) => ({
         code: line.product.code,
         name: line.product.name,
         quantity: line.quantity,
       })),
-      amount: bill.total_amount,
+      amount: bill.totalAmount,
       channel: bill.channel,
     }));
   }

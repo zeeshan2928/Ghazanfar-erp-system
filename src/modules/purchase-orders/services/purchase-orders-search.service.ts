@@ -14,12 +14,12 @@ import {
 
 export interface PurchaseOrderSearchResult {
   id: number;
-  po_number: string;
-  vendor_name: string;
+  poNumber: string;
+  vendorName: string;
   status: string;
-  created_date: string;
+  createdDate: string;
   amount: number;
-  expected_delivery_date: string;
+  expectedDeliveryDate: string;
 }
 
 @Injectable()
@@ -69,7 +69,7 @@ export class PurchaseOrdersSearchService {
     // Build sort
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = ['po_number', 'status', 'createdAt'];
+      const allowedSortFields = ['poNumber', 'status', 'createdAt'];
       if (allowedSortFields.includes(request.sortBy)) {
         orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
       }
@@ -95,13 +95,13 @@ export class PurchaseOrdersSearchService {
     // Format results
     const data: PurchaseOrderSearchResult[] = pos.map((po: any) => ({
       id: po.id,
-      po_number: po.po_number,
-      vendor_name: po.vendor?.name || 'N/A',
+      poNumber: po.poNumber,
+      vendorName: po.vendor?.name || 'N/A',
       status: po.status,
-      created_date: po.createdAt.toISOString().split('T')[0],
+      createdDate: po.createdAt.toISOString().split('T')[0],
       amount: 0,
-      expected_delivery_date: po.expected_delivery_date
-        ? po.expected_delivery_date.toISOString().split('T')[0]
+      expectedDeliveryDate: po.expectedDeliveryDate
+        ? po.expectedDeliveryDate.toISOString().split('T')[0]
         : 'N/A',
     }));
 
@@ -118,9 +118,9 @@ export class PurchaseOrdersSearchService {
     this.validateColumnName(columnName);
 
     switch (columnName) {
-      case 'po_number':
+      case 'poNumber':
         return this.getPoNumbers(organizationId);
-      case 'vendor_name':
+      case 'vendorName':
         return this.getVendorNames(organizationId);
       case 'status':
         return this.getStatuses(organizationId);
@@ -132,15 +132,15 @@ export class PurchaseOrdersSearchService {
   private async getPoNumbers(organizationId: number): Promise<ColumnValueDto[]> {
     const results = await this.prisma.purchaseOrder.findMany({
       where: { organizationId },
-      select: { po_number: true },
-      distinct: ['po_number'],
-      orderBy: { po_number: 'asc' },
+      select: { poNumber: true },
+      distinct: ['poNumber'],
+      orderBy: { poNumber: 'asc' },
       take: 100,
     });
 
     return results.map((r: any) => ({
-      value: r.po_number,
-      label: r.po_number,
+      value: r.poNumber,
+      label: r.poNumber,
     }));
   }
 
@@ -187,7 +187,7 @@ export class PurchaseOrdersSearchService {
 
     for (const filter of filters) {
       switch (filter.field) {
-        case 'vendor_name':
+        case 'vendorName':
           // Filter by vendor relationship
           const vendorCondition = this.buildCondition(filter);
           if (vendorCondition) {
@@ -195,7 +195,7 @@ export class PurchaseOrdersSearchService {
           }
           break;
 
-        case 'created_date':
+        case 'createdDate':
           // Map to createdAt field
           const dateCondition = this.buildCondition(filter);
           if (dateCondition) {
