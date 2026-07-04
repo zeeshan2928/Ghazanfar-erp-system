@@ -1,5 +1,6 @@
 import axios, { AxiosInstance } from 'axios';
 import { GatePass, WarehouseTransfer, ApiResponse } from '../types/api';
+import { SearchRequestDto, FilterResponseDto } from '../types/filters';
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
@@ -125,6 +126,82 @@ class ApiClient {
 
   async getInventorySnapshot() {
     const response = await this.client.get('/reports/inventory-snapshot');
+    return response.data;
+  }
+
+  // Search APIs
+  async searchBills(request: SearchRequestDto) {
+    const response = await this.client.post<FilterResponseDto<any>>(
+      '/bills/search',
+      request
+    );
+    return response.data;
+  }
+
+  async getBillColumnValues(columnName: string) {
+    const response = await this.client.get<any[]>(
+      `/bills/filters/columns/${columnName}`
+    );
+    return response.data;
+  }
+
+  async searchProducts(request: SearchRequestDto) {
+    const response = await this.client.post<FilterResponseDto<any>>(
+      '/products/search',
+      request
+    );
+    return response.data;
+  }
+
+  async getProductColumnValues(columnName: string) {
+    const response = await this.client.get<any[]>(
+      `/products/filters/columns/${columnName}`
+    );
+    return response.data;
+  }
+
+  async searchInventory(request: SearchRequestDto) {
+    const response = await this.client.post<FilterResponseDto<any>>(
+      '/inventory/search',
+      request
+    );
+    return response.data;
+  }
+
+  async getInventoryColumnValues(columnName: string) {
+    const response = await this.client.get<any[]>(
+      `/inventory/filters/columns/${columnName}`
+    );
+    return response.data;
+  }
+
+  async searchCustomers(request: SearchRequestDto) {
+    const response = await this.client.post<FilterResponseDto<any>>(
+      '/customers/search',
+      request
+    );
+    return response.data;
+  }
+
+  async getCustomerColumnValues(columnName: string) {
+    const response = await this.client.get<any[]>(
+      `/customers/filters/columns/${columnName}`
+    );
+    return response.data;
+  }
+
+  async searchPurchaseOrders(request: SearchRequestDto) {
+    const response = await this.client.post<FilterResponseDto<any>>(
+      '/purchase-orders/search',
+      request
+    );
+    return response.data;
+  }
+
+  async getPurchaseOrderColumnValues(columnName: string) {
+    const response = await this.client.get<any[]>(
+      `/purchase-orders/filters/columns/${columnName}`
+    );
     return response.data;
   }
 }

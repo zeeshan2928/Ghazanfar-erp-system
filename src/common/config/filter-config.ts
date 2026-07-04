@@ -125,6 +125,14 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.CONTAINS,
       FilterOperator.EQUALS,
     ],
+    quantity: [
+      FilterOperator.EQUALS,
+      FilterOperator.GT,
+      FilterOperator.GTE,
+      FilterOperator.LT,
+      FilterOperator.LTE,
+      FilterOperator.BETWEEN,
+    ],
   },
 
   // Customers Screen

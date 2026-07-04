@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { GatePassDashboard } from './components/GatePassDashboard';
 import { ReportingDashboard } from './components/ReportingDashboard';
+import { BillsScreen } from './components/screens/BillsScreen';
+import { ProductsScreen } from './components/screens/ProductsScreen';
+import { InventoryScreen } from './components/screens/InventoryScreen';
+import { CustomersScreen } from './components/screens/CustomersScreen';
+import { PurchaseOrdersScreen } from './components/screens/PurchaseOrdersScreen';
 
 export function App() {
-  const [view, setView] = useState<'gate-pass' | 'reporting' | 'login'>('login');
+  const [view, setView] = useState<'gate-pass' | 'reporting' | 'bills' | 'products' | 'inventory' | 'customers' | 'orders' | 'login'>('login');
   const [warehouseId, setWarehouseId] = useState<number | null>(null);
   const [token, setToken] = useState<string>('');
 
@@ -62,6 +67,51 @@ export function App() {
                 <button
                   style={{
                     ...styles.navBtn,
+                    ...(view === 'bills' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('bills')}
+                >
+                  📄 Bills
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'products' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('products')}
+                >
+                  📦 Products
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'inventory' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('inventory')}
+                >
+                  📊 Inventory
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'customers' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('customers')}
+                >
+                  👥 Customers
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
+                    ...(view === 'orders' ? styles.navBtnActive : {}),
+                  }}
+                  onClick={() => setView('orders')}
+                >
+                  📋 Purchase Orders
+                </button>
+                <button
+                  style={{
+                    ...styles.navBtn,
                     ...(view === 'reporting' ? styles.navBtnActive : {}),
                   }}
                   onClick={() => setView('reporting')}
@@ -79,6 +129,11 @@ export function App() {
             {view === 'gate-pass' && warehouseId && (
               <GatePassDashboard warehouseId={warehouseId} />
             )}
+            {view === 'bills' && <BillsScreen />}
+            {view === 'products' && <ProductsScreen />}
+            {view === 'inventory' && <InventoryScreen />}
+            {view === 'customers' && <CustomersScreen />}
+            {view === 'orders' && <PurchaseOrdersScreen />}
             {view === 'reporting' && <ReportingDashboard />}
           </main>
         </div>

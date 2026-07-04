@@ -59,7 +59,12 @@
       "Bash(npm test *)",
       "Bash(git commit -m 'feat\\(phase4\\): add FilterService and search infrastructure - Week 1 Day 1-2 *)",
       "Bash(git commit -m 'feat\\(phase4\\): implement Bills search service - Week 1 Day 3 *)",
-      "Bash(git commit -m 'feat\\(phase4\\): implement remaining search services - Week 1 Day 4-5 *)"
+      "Bash(git commit -m 'feat\\(phase4\\): implement remaining search services - Week 1 Day 4-5 *)",
+      "Read(//d//**)",
+      "Bash(bash test-runner.sh)",
+      "Bash(npm install *)",
+      "PowerShell(Checkpoint-Computer -Description \"Phase 4 Complete - Search System with 16 operators\" -RestorePointType \"MODIFY_SETTINGS\" -ErrorAction SilentlyContinue)",
+      "PowerShell(if \\($?\\) { \"? Restore point created successfully\" } else { \"??  Restore point creation may require admin privileges\" })"
     ],
     "additionalDirectories": [
       "\\tmp",
