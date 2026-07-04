@@ -67,9 +67,15 @@ export class ProductsSearchService {
     // Build sort
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = ['name', 'code', 'cost_price', 'createdAt'];
-      if (allowedSortFields.includes(request.sortBy)) {
-        orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
+      const fieldMap: any = {
+        'name': 'name',
+        'code': 'code',
+        'cost_price': 'costPrice',
+        'createdAt': 'createdAt'
+      };
+      const dbField = fieldMap[request.sortBy];
+      if (dbField) {
+        orderBy = { [dbField]: request.sortOrder || 'asc' };
       }
     }
 
@@ -94,7 +100,7 @@ export class ProductsSearchService {
       code: product.code,
       brand_name: 'N/A',
       category_name: 'N/A',
-      cost_price: product.cost_price,
+      cost_price: product.costPrice,
       stock_level: this.getStockLevel(0), // TODO: fetch from inventory
     }));
 
