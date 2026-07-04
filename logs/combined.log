@@ -1787,3 +1787,4 @@
 {"context":"HTTP","duration":"2ms","level":"info","message":"GET /bills/filters/columns/status 200","requestId":"cc46ff0e-4678-4225-b598-83f5ffcd20ce","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 17:07:24"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 17:08:43"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 17:10:36"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 17:10:41"}

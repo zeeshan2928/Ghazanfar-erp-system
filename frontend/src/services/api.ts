@@ -25,6 +25,15 @@ class ApiClient {
     });
   }
 
+  // Authentication
+  async login(credentials: { email: string; password: string }) {
+    const response = await this.client.post<any>(
+      '/auth/login',
+      credentials
+    );
+    return response.data;
+  }
+
   // Gate Passes
   async getGatePasses(warehouseId: number, skip = 0, take = 10) {
     const response = await this.client.get<ApiResponse<GatePass[]>>(

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { LoginScreen } from './components/LoginScreen';
 import { GatePassDashboard } from './components/GatePassDashboard';
 import { ReportingDashboard } from './components/ReportingDashboard';
 import { BillsScreen } from './components/screens/BillsScreen';
@@ -14,27 +15,16 @@ export function App() {
 
   useEffect(() => {
     const savedToken = localStorage.getItem('auth_token');
-    const savedWarehouseId = localStorage.getItem('warehouse_id');
 
-    if (savedToken && savedWarehouseId) {
+    if (savedToken) {
       setToken(savedToken);
-      setWarehouseId(parseInt(savedWarehouseId));
-      setView('gate-pass');
+      setView('products');
     }
   }, []);
 
-  function handleLogin(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    const formData = new FormData(e.currentTarget);
-    const token = formData.get('token') as string;
-    const whId = parseInt(formData.get('warehouseId') as string);
-
-    localStorage.setItem('auth_token', token);
-    localStorage.setItem('warehouse_id', whId.toString());
-
+  function handleLoginSuccess(token: string) {
     setToken(token);
-    setWarehouseId(whId);
-    setView('gate-pass');
+    setView('products');
   }
 
   function handleLogout() {
@@ -48,7 +38,7 @@ export function App() {
   return (
     <div style={styles.app}>
       {view === 'login' ? (
-        <LoginForm onSubmit={handleLogin} />
+        <LoginScreen onLoginSuccess={handleLoginSuccess} />
       ) : (
         <div>
           <header style={styles.header}>
