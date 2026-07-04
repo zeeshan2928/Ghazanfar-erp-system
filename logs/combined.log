@@ -2158,3 +2158,6 @@
 {"context":"HTTP","duration":"3ms","level":"info","message":"GET /reports/bill-analytics?days=30 200","requestId":"e65f264c-0400-4729-b068-713143336acf","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 18:12:51"}
 {"context":"HTTP","duration":"5ms","level":"info","message":"GET /reports/inventory-snapshot 200","requestId":"649a1eac-3228-4afd-8c36-7712ec663110","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 18:12:51"}
 {"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:22:20"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:23:03"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:32:44"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 18:32:48"}

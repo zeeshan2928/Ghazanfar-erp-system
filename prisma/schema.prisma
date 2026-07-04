@@ -213,6 +213,17 @@ model Organization {
   PurchaseOrderItem       PurchaseOrderItem[]
   PurchaseOrderReceipt    PurchaseOrderReceipt[]
 
+  // ADVANCED FEATURES
+  notifications           Notification[]
+  notificationTemplates   NotificationTemplate[]
+  notificationLogs        NotificationLog[]
+  notificationPreferences NotificationPreference[]
+  auditLogs               AuditLog[]
+  emailTemplates          EmailTemplate[]
+  emailLogs               EmailLog[]
+  userRoleAssignments     UserRoleAssignment[]
+  fieldPermissions        FieldPermission[]
+
   @@index([isActive])
 }
 
@@ -2124,4 +2135,223 @@ model PurchaseOrderReceipt {
 
   @@index([poId, productId])
   @@index([warehouseId])
+}
+
+// ================================================================================
+//                  ADVANCED FEATURES: NOTIFICATIONS
+// ================================================================================
+
+enum NotificationType {
+  BILL_APPROVED
+  BILL_PAID
+  BILL_PAYMENT_DUE
+  PO_APPROVED
+  PO_RECEIVED
+  PO_DELAYED
+  INVENTORY_LOW
+  INVENTORY_CRITICAL
+  USER_INVITE
+  ROLE_CHANGED
+  CUSTOM
+}
+
+model Notification {
+  id              Int              @id @default(autoincrement())
+  organizationId  Int
+  userId          Int
+  type            NotificationType
+  title           String
+  message         String
+  data            Json?
+  isRead          Boolean          @default(false)
+  readAt          DateTime?
+  createdAt       DateTime         @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, isRead, createdAt])
+  @@index([userId, createdAt])
+}
+
+model NotificationTemplate {
+  id          Int              @id @default(autoincrement())
+  organizationId Int
+  type        NotificationType @unique
+  emailSubject String
+  emailBody   String
+  smsTemplate String?
+  isActive    Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, type])
+}
+
+model NotificationLog {
+  id            Int      @id @default(autoincrement())
+  organizationId Int
+  userId        Int
+  type          String
+  status        String   @default("SENT") // SENT, FAILED, PENDING
+  recipient     String   // Email or phone
+  channel       String   @default("EMAIL") // EMAIL, SMS, IN_APP
+  sentAt        DateTime @default(now())
+  errorMessage  String?
+  retryCount    Int      @default(0)
+  maxRetries    Int      @default(3)
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, sentAt])
+  @@index([status, retryCount])
+}
+
+model NotificationPreference {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  billApprovalEmail Boolean @default(true)
+  billPaidEmail   Boolean  @default(true)
+  paymentDueEmail Boolean  @default(true)
+  poApprovalEmail Boolean  @default(true)
+  poReceivedEmail Boolean  @default(true)
+  poDelayedEmail  Boolean  @default(true)
+  inventoryLowEmail Boolean @default(true)
+  inventoryLowSMS Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, userId])
+}
+
+// ================================================================================
+//                    ADVANCED FEATURES: AUDIT LOGGING
+// ================================================================================
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  STATUS_CHANGE
+  EXPORT
+  IMPORT
+}
+
+model AuditLog {
+  id             Int         @id @default(autoincrement())
+  organizationId Int
+  userId         Int?
+  entity         String      // "Bill", "PurchaseOrder", "User", etc.
+  entityId       Int
+  action         AuditAction
+  changes        Json?       // {field: {oldValue, newValue}}
+  oldData        Json?
+  newData        Json?
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime    @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, entity, entityId, createdAt])
+  @@index([organizationId, userId, createdAt])
+  @@index([organizationId, action, createdAt])
+  @@index([entity, entityId])
+}
+
+// ================================================================================
+//                  ADVANCED FEATURES: EMAIL TEMPLATES
+// ================================================================================
+
+enum EmailTemplateType {
+  INVOICE
+  PAYMENT_REMINDER
+  PO_CONFIRMATION
+  SHIPMENT_NOTIFICATION
+  DELIVERY_CONFIRMATION
+  USER_INVITE
+  BILL_APPROVAL
+  PO_APPROVAL
+}
+
+model EmailTemplate {
+  id          Int               @id @default(autoincrement())
+  organizationId Int?
+  type        EmailTemplateType @unique
+  subject     String
+  htmlBody    String
+  textBody    String?
+  variables   String[]          @default([]) // ["billNumber", "customerName", "dueDate"]
+  isActive    Boolean           @default(true)
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+
+  organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
+
+  @@index([type, isActive])
+}
+
+model EmailLog {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  templateType   EmailTemplateType?
+  to             String
+  subject        String
+  status         String   @default("SENT") // SENT, FAILED, BOUNCED
+  sentAt         DateTime @default(now())
+  errorMessage   String?
+  attachments    String[] @default([])
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, sentAt])
+  @@index([to, status])
+}
+
+// ================================================================================
+//                ADVANCED FEATURES: PERMISSIONS & ROLES
+// ================================================================================
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  STAFF
+  VIEWER
+}
+
+model UserRoleAssignment {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  role           UserRole
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, userId])
+  @@index([organizationId, role])
+}
+
+model FieldPermission {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  entity         String   // "Bill", "PurchaseOrder", etc.
+  field          String   // "billAmount", "costPrice", etc.
+  role           UserRole
+  canRead        Boolean  @default(true)
+  canWrite       Boolean  @default(true)
+  maskSensitiveData Boolean @default(false)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, entity, field, role])
+  @@index([organizationId, entity, role])
 }

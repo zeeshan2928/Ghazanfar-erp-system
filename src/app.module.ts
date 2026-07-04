@@ -15,6 +15,11 @@ import { ImportExportModule } from './modules/import-export/import-export.module
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { AuditModule } from './modules/audit/audit.module';
+import { EmailModule } from './modules/email/email.module';
+import { WebSocketModule } from './modules/websocket/websocket.module';
+import { PermissionsModule } from './modules/permissions/permissions.module';
 
 @Module({
   imports: [
@@ -33,6 +38,11 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     VendorsModule,
     PurchaseOrdersModule,
     ImportExportModule,
+    NotificationsModule,
+    AuditModule,
+    EmailModule,
+    WebSocketModule,
+    PermissionsModule,
   ],
   controllers: [],
 })
