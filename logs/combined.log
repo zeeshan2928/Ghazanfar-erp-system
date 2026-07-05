@@ -2237,3 +2237,20 @@
 {"context":"HTTP","duration":"6ms","level":"info","message":"GET /reports/bill-analytics?days=90 200","requestId":"b45cc2cb-ba1c-47dc-9260-f5f7ea4ca376","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 19:29:57"}
 {"context":"HTTP","level":"info","message":"GET /reports/bill-analytics?days=90","query":{"days":"90"},"requestId":"d369be65-a3d0-41dd-ba12-5ce1a36b449e","service":"erp-backend","timestamp":"2026-07-04 19:29:57"}
 {"context":"HTTP","duration":"4ms","level":"info","message":"GET /reports/bill-analytics?days=90 200","requestId":"d369be65-a3d0-41dd-ba12-5ce1a36b449e","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 19:29:57"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 19:46:29"}
+{"context":"HTTP","level":"info","message":"POST /products/search","requestId":"11920598-a684-44bd-9f4c-9027f65bce03","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","level":"info","message":"GET /products/filters/columns/stock_level","params":{"columnName":"stock_level"},"requestId":"5a1f6c06-7ff6-4d7b-a134-212867960c42","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"2ms","level":"info","message":"GET /products/filters/columns/stock_level 200","requestId":"5a1f6c06-7ff6-4d7b-a134-212867960c42","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","level":"info","message":"POST /products/search","requestId":"413744a6-d42c-48ec-8d1a-b8d300b7abff","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","level":"info","message":"POST /products/search","requestId":"b19686a3-4006-41ac-87d2-914719d09c4b","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","level":"info","message":"POST /products/search","requestId":"8302ac3c-3691-458b-a206-9f5da2e13fce","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","level":"info","message":"GET /products/filters/columns/stock_level","params":{"columnName":"stock_level"},"requestId":"c1db88d8-1526-42b5-a1e3-f6f1b8a4bcd3","service":"erp-backend","timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"5ms","level":"info","message":"GET /products/filters/columns/stock_level 200","requestId":"c1db88d8-1526-42b5-a1e3-f6f1b8a4bcd3","service":"erp-backend","statusCode":200,"timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"104ms","level":"info","message":"POST /products/search 201","requestId":"11920598-a684-44bd-9f4c-9027f65bce03","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"99ms","level":"info","message":"POST /products/search 201","requestId":"b19686a3-4006-41ac-87d2-914719d09c4b","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"95ms","level":"info","message":"POST /products/search 201","requestId":"8302ac3c-3691-458b-a206-9f5da2e13fce","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 20:42:29"}
+{"context":"HTTP","duration":"160ms","level":"info","message":"POST /products/search 201","requestId":"413744a6-d42c-48ec-8d1a-b8d300b7abff","service":"erp-backend","statusCode":201,"timestamp":"2026-07-04 20:42:29"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 22:11:58"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 22:12:00"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 22:12:56"}
+{"context":"Bootstrap","level":"info","message":"Application is running on: http://localhost:3000","service":"erp-backend","timestamp":"2026-07-04 22:13:01"}
