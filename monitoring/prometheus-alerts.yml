@@ -1,0 +1,315 @@
+# Prometheus Alerts Configuration
+# For: Ghazanfar ERP - Phase 2 Production Deployment
+# Purpose: Monitor critical metrics and alert on anomalies
+# Usage: Include this in your Prometheus configuration
+
+groups:
+  - name: ghazanfar_erp_alerts
+    interval: 30s
+    rules:
+
+      # ============================================================================
+      # API & Application Alerts
+      # ============================================================================
+
+      - alert: HighErrorRate
+        expr: rate(http_requests_total{status=~"5.."}[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "High error rate detected ({{ $value | humanizePercentage }})"
+          description: "Error rate for {{ $labels.instance }} has exceeded 5% for 5 minutes"
+          dashboard: "http://monitoring.example.com/grafana/d/api-health"
+
+      - alert: HighResponseTime
+        expr: histogram_quantile(0.99, rate(http_request_duration_seconds_bucket[5m])) > 0.5
+        for: 5m
+        labels:
+          severity: warning
+          service: api
+        annotations:
+          summary: "High P99 response time ({{ $value | humanizeDuration }})"
+          description: "P99 response time for {{ $labels.instance }} exceeds 500ms"
+          dashboard: "http://monitoring.example.com/grafana/d/api-latency"
+
+      - alert: APIDown
+        expr: up{job="ghazanfar-erp"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: api
+        annotations:
+          summary: "API instance down"
+          description: "{{ $labels.instance }} has been down for 2 minutes"
+          action: "Check Docker container status, view logs, trigger rollback if needed"
+
+      # ============================================================================
+      # Database Alerts
+      # ============================================================================
+
+      - alert: DatabaseConnectionPoolExhausted
+        expr: mysql_global_status_threads_connected / mysql_global_variables_max_connections > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "Database connection pool nearly exhausted ({{ $value | humanizePercentage }})"
+          description: "Connection pool usage for {{ $labels.instance }} exceeds 80%"
+          action: "Investigate slow queries, increase connection pool, check for connection leaks"
+
+      - alert: DatabaseHighQueryTime
+        expr: mysql_global_status_queries / 60 > 10000
+        for: 5m
+        labels:
+          severity: warning
+          service: database
+        annotations:
+          summary: "High database query rate ({{ $value | humanize }}/sec)"
+          description: "Query rate exceeds 10,000/sec on {{ $labels.instance }}"
+          action: "Check for slow queries, optimize indexes, review recent deployments"
+
+      - alert: ReplicationLagHigh
+        expr: mysql_slave_status_seconds_behind_master > 10
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "High database replication lag ({{ $value | humanizeDuration }})"
+          description: "Replication lag on {{ $labels.instance }} exceeds 10 seconds"
+          action: "Check replication status, investigate network latency, restart replication if needed"
+
+      - alert: DatabaseDown
+        expr: up{job="mysql-exporter"} == 0
+        for: 2m
+        labels:
+          severity: critical
+          service: database
+        annotations:
+          summary: "Database instance down"
+          description: "{{ $labels.instance }} has been unreachable for 2 minutes"
+          action: "Emergency: Trigger failover, notify database team, prepare rollback"
+
+      - alert: DiskSpaceLow
+        expr: node_filesystem_avail_bytes{fstype=~"ext4|xfs"} / node_filesystem_size_bytes < 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Disk space low ({{ $value | humanizePercentage }})"
+          description: "Only {{ $value | humanizePercentage }} free space on {{ $labels.device }}"
+          action: "Clean up logs, archive data, add disk space"
+
+      # ============================================================================
+      # System Resource Alerts
+      # ============================================================================
+
+      - alert: HighMemoryUsage
+        expr: (1 - (node_memory_MemAvailable_bytes / node_memory_MemTotal_bytes)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High memory usage ({{ $value | humanizePercentage }})"
+          description: "Memory usage on {{ $labels.instance }} exceeds 80%"
+          action: "Check for memory leaks, increase container memory, restart service"
+
+      - alert: HighCPUUsage
+        expr: (1 - avg(rate(node_cpu_seconds_total{mode="idle"}[5m])) by (instance)) > 0.8
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High CPU usage ({{ $value | humanizePercentage }})"
+          description: "CPU usage on {{ $labels.instance }} exceeds 80%"
+          action: "Check for CPU-intensive queries, optimize code, scale horizontally"
+
+      - alert: HighDiskIO
+        expr: rate(node_disk_io_time_seconds_total[5m]) > 0.7
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High disk I/O ({{ $value | humanizePercentage }})"
+          description: "Disk I/O on {{ $labels.instance }} is high"
+          action: "Check for slow disk, optimize database indexes, add SSD cache"
+
+      # ============================================================================
+      # Business Logic Alerts
+      # ============================================================================
+
+      - alert: GatePassCreationFailure
+        expr: rate(gate_pass_creation_failures_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: gate-pass
+        annotations:
+          summary: "Gate pass creation failing ({{ $value | humanizePercentage }})"
+          description: "Gate pass creation failure rate exceeds 1%"
+          action: "Check bill service, verify inventory availability, review logs"
+
+      - alert: InventoryReservationFailed
+        expr: rate(inventory_reservation_failures_total[5m]) > 0.01
+        for: 5m
+        labels:
+          severity: warning
+          service: inventory
+        annotations:
+          summary: "Inventory reservation failing ({{ $value | humanizePercentage }})"
+          description: "Reservation failure rate exceeds 1%"
+          action: "Check inventory levels, verify database integrity, investigate concurrency issues"
+
+      - alert: ReportingQueryTimeout
+        expr: rate(reporting_query_timeouts_total[5m]) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+          service: reporting
+        annotations:
+          summary: "Reporting queries timing out ({{ $value | humanizePercentage }})"
+          description: "Query timeout rate exceeds 5%"
+          action: "Optimize reporting queries, add indexes, check database load"
+
+      - alert: NotificationDeliveryFailed
+        expr: rate(notification_delivery_failures_total[5m]) > 0.1
+        for: 5m
+        labels:
+          severity: warning
+          service: notifications
+        annotations:
+          summary: "Notification delivery failing ({{ $value | humanizePercentage }})"
+          description: "Email/SMS delivery failure rate exceeds 10%"
+          action: "Check email service, verify SMS credentials, review SMTP logs"
+
+      # ============================================================================
+      # Docker & Kubernetes Alerts
+      # ============================================================================
+
+      - alert: ContainerRestartingFrequently
+        expr: rate(container_last_seen{name=~"ghazanfar.*"}[15m]) > 0.033
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "Container restarting frequently"
+          description: "Container {{ $labels.name }} is restarting more than 3 times per minute"
+          action: "Check container logs, investigate crash cause, increase resource limits"
+
+      - alert: PodCrashLooping
+        expr: rate(kube_pod_container_status_restarts_total{pod=~"ghazanfar.*"}[15m]) > 0.01
+        for: 5m
+        labels:
+          severity: critical
+          service: kubernetes
+        annotations:
+          summary: "Pod crash looping"
+          description: "Pod {{ $labels.pod }} is crash looping"
+          action: "Describe pod, check events, view logs, trigger rollback"
+
+      # ============================================================================
+      # Deployment Health
+      # ============================================================================
+
+      - alert: DeploymentReplicasMismatch
+        expr: |
+          kube_deployment_spec_replicas{deployment=~"ghazanfar.*"}
+          !=
+          kube_deployment_status_replicas_available{deployment=~"ghazanfar.*"}
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "Deployment replicas mismatch"
+          description: "Deployment {{ $labels.deployment }} desired replicas != available"
+          action: "Check pod logs, node status, resource availability"
+
+      - alert: StatefulSetReplicasMismatch
+        expr: |
+          kube_statefulset_status_replicas_ready{statefulset=~"ghazanfar.*"}
+          <
+          kube_statefulset_status_replicas{statefulset=~"ghazanfar.*"}
+        for: 10m
+        labels:
+          severity: warning
+          service: kubernetes
+        annotations:
+          summary: "StatefulSet replicas not ready"
+          description: "StatefulSet {{ $labels.statefulset }} has unready replicas"
+          action: "Check pod logs, volume mounts, network connectivity"
+
+      # ============================================================================
+      # Network Alerts
+      # ============================================================================
+
+      - alert: HighNetworkErrorRate
+        expr: rate(node_network_receive_errs_total[5m]) + rate(node_network_transmit_errs_total[5m]) > 100
+        for: 5m
+        labels:
+          severity: warning
+          service: infrastructure
+        annotations:
+          summary: "High network error rate"
+          description: "Network errors on {{ $labels.instance }} exceed 100/sec"
+          action: "Check network interface, investigate packet loss, contact network team"
+
+      # ============================================================================
+      # Alert Routing
+      # ============================================================================
+
+routing:
+  group_by: ['service', 'severity']
+  group_wait: 30s
+  group_interval: 5m
+  repeat_interval: 24h
+  receiver: 'default-receiver'
+  routes:
+    - match:
+        severity: critical
+      receiver: 'critical-receiver'
+      repeat_interval: 1m
+    - match:
+        severity: warning
+      receiver: 'warning-receiver'
+      repeat_interval: 4h
+
+receivers:
+  - name: 'default-receiver'
+    # Add your notification channel here (Slack, PagerDuty, etc.)
+    slack_configs:
+      - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+        channel: '#alerts-default'
+
+  - name: 'critical-receiver'
+    slack_configs:
+      - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+        channel: '#alerts-critical'
+    pagerduty_configs:
+      - service_key: 'YOUR_PAGERDUTY_KEY'
+
+  - name: 'warning-receiver'
+    slack_configs:
+      - api_url: 'YOUR_SLACK_WEBHOOK_URL'
+        channel: '#alerts-warning'
+
+# Inhibition rules (prevent alert storms)
+inhibit_rules:
+  - source_match:
+      severity: 'critical'
+    target_match:
+      severity: 'warning'
+    equal: ['service', 'instance']
+  - source_match:
+      alertname: 'APIDown'
+    target_match:
+      alertname: 'HighErrorRate'
+    equal: ['instance']
