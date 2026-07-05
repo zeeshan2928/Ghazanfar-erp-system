@@ -66,4 +66,27 @@ export class GatePassesController {
       rejectDto,
     );
   }
+
+  /**
+   * REPORT SHORTAGE - warehouse staff marks items not available
+   * POST /gate-passes/:gatePassId/shortage
+   * Body: {
+   *   shortageItems: [
+   *     { billLineId: 1, orderQuantity: 10, pickedQuantity: 8 }
+   *   ]
+   * }
+   */
+  @Post(':gatePassId/shortage')
+  async reportShortage(
+    @Param('gatePassId') gatePassId: string,
+    @Body() body: { shortageItems: Array<any> },
+    @OrgContext() orgContext: any,
+  ) {
+    return this.gatePassesService.reportShortage(
+      orgContext.organizationId,
+      parseInt(gatePassId, 10),
+      orgContext.userId,
+      body.shortageItems,
+    );
+  }
 }

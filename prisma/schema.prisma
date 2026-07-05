@@ -62,6 +62,83 @@ enum ReceiptStatus {
   COMPLETE
 }
 
+enum UserRole {
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  SALESMAN
+  WAREHOUSE_STAFF
+  STAFF
+  LABOUR_STAFF
+  VIEWER
+}
+
+enum CommissionType {
+  PER_PRODUCT
+  PER_INVOICE
+  TIERED
+}
+
+enum TargetStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  PAUSED
+}
+
+enum SalesImportStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum LeaveType {
+  CASUAL
+  SICK
+  ANNUAL
+  UNPAID
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  LEAVE
+  HALFDAY
+}
+
+enum BonusStatus {
+  CALCULATED
+  APPROVED
+  PAID
+  REJECTED
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum AuditAction {
+  INVOICE_APPROVED
+  COMMISSION_APPROVED
+  DISCOUNT_APPLIED
+  ADJUSTMENT_MADE
+  REFUND_PROCESSED
+  WRITE_OFF
+  MODIFICATION_REQUEST_CREATED
+  MODIFICATION_APPROVED
+  BILL_PRINTED
+  GATE_PASS_PRINTED
+}
+
 // ================================================================================
 //                    MASTER MODELS (Organization & User)
 // ================================================================================
@@ -173,10 +250,9 @@ model Organization {
   performanceRatings      PerformanceRating[]
   complianceDocuments     ComplianceDocument[]
   commissionRules         CommissionRule[]
-  salesTargets            SalesTarget[]
-  salesProgressTrackings  SalesProgressTracking[]
+  // Sales target management moved to User model (Phase 6)
   commissionCalculations  CommissionCalculation[]
-  salesDataImports        SalesDataImport[]
+  // salesDataImports moved to ExternalSalesImport with User relationship (Phase 6)
   labourPerformanceRules  LabourPerformanceRule[]
   attendanceBonuses       AttendanceBonus[]
   leaveDeductions         LeaveDeduction[]
@@ -224,6 +300,21 @@ model Organization {
   userRoleAssignments     UserRoleAssignment[]
   fieldPermissions        FieldPermission[]
 
+  // PHASE 1: INVOICE SYSTEM
+  invoiceModifications   InvoiceModification[]
+  documentPrintHistories DocumentPrintHistory[]
+  commissionTransactions CommissionTransaction[]
+
+  // PHASE 6: SALES COMMISSION & TARGET MANAGEMENT
+  productCommissions      ProductCommission[]
+  salesTargets_org        SalesTarget[]            @relation("OrgTargets")
+  salesPerformanceMetrics SalesPerformanceMetric[]
+  externalSalesImports    ExternalSalesImport[]
+  SalesDataImport         SalesDataImport[]
+
+  // TIER 1 CRITICAL: WAREHOUSE FULFILLMENT
+  inventoryReservations   InventoryReservation[]
+
   @@index([isActive])
 }
 
@@ -249,8 +340,7 @@ model Employee {
   LeaveManagement        LeaveManagement[]
   PerformanceRating      PerformanceRating[]
   ComplianceDocument     ComplianceDocument[]
-  SalesTarget            SalesTarget[]
-  SalesProgressTracking  SalesProgressTracking[]
+  // SalesTarget moved to User model (Phase 6)
   CommissionCalculation  CommissionCalculation[]
   AttendanceBonus        AttendanceBonus[]
   LeaveDeduction         LeaveDeduction[]
@@ -266,13 +356,33 @@ model User {
   password       String
   firstName      String?
   lastName       String?
+  phone          String?
   organizationId Int
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bills_created Bill[]
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  // Invoice relationships
+  bills_created     Bill[] @relation("CreatedBy")
+  bills_modified    Bill[] @relation("LastModifiedBy")
+  bills_approved    Bill[] @relation("ApprovedBy")
+  bills_as_salesman Bill[] @relation("Salesman")
+
+  // Commission relationships
+  commissions_earned  CommissionTransaction[] @relation("SalesmanCommissions")
+  product_commissions ProductCommission[]     @relation("SalesmanCommissions")
+  sales_targets       SalesTarget[]           @relation("SalesTargets")
+  targets_assigned_by SalesTarget[]           @relation("TargetsAssignedBy")
+
+  // Audit relationships
+  invoice_modifications_by InvoiceModification[]  @relation("ModifiedBy")
+  invoice_approvals_by     InvoiceModification[]  @relation("ApprovedBy")
+  print_history_by         DocumentPrintHistory[]
+
+  // Import relationships
+  sales_imports ExternalSalesImport[]
 
   @@index([organizationId])
   @@index([email])
@@ -541,6 +651,7 @@ model Inventory {
   reserved       Int      @default(0)
   available      Int      @default(0)
   openingBalance Int      @default(0)
+  lastReservedAt DateTime?
   updatedAt      DateTime @updatedAt
 
   organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -548,6 +659,7 @@ model Inventory {
   movements    StockMovementLog[]
   adjustments  StockAdjustment[]
   transfers    WarehouseTransfer[]
+  reservations InventoryReservation[]
 
   @@unique([organizationId, productId, warehouseId])
   @@index([organizationId, productId])
@@ -1549,34 +1661,9 @@ model CommissionRule {
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 }
 
-model SalesTarget {
-  id             Int      @id @default(autoincrement())
-  organizationId Int
-  employeeId     Int?
-  targetAmount   Decimal  @db.Decimal(15, 2)
-  targetMonth    DateTime
-  createdAt      DateTime @default(now())
-
-  organization     Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  employee         Employee?               @relation(fields: [employeeId], references: [id])
-  progressTracking SalesProgressTracking[]
-
-  @@index([organizationId, targetMonth])
-}
-
-model SalesProgressTracking {
-  id             Int      @id @default(autoincrement())
-  organizationId Int
-  targetId       Int
-  employeeId     Int?
-  currentAmount  Decimal  @db.Decimal(15, 2)
-  progressDate   DateTime
-  createdAt      DateTime @default(now())
-
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  target       SalesTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
-  employee     Employee?    @relation(fields: [employeeId], references: [id])
-}
+// Removed: Old SalesTarget and SalesProgressTracking models
+// Replaced by: ProductCommission, SalesTarget, SalesPerformanceMetric (at end of schema)
+// These new models provide better structure for Phase 6
 
 model CommissionCalculation {
   id               Int      @id @default(autoincrement())
@@ -1906,6 +1993,7 @@ model Product {
   purchaseHistory    PurchaseHistory[]
   vendors            ProductVendor[]
   purchaseOrderItems PurchaseOrderItem[]
+  ProductCommission  ProductCommission[]
 
   @@unique([organizationId, code])
   @@index([organizationId, name])
@@ -1952,31 +2040,55 @@ model Bill {
   id             Int      @id @default(autoincrement())
   organizationId Int
   billNumber     String
+  cashbookNumber Int?
   billDate       DateTime @default(now())
   customerId     Int
+  salesmanId     Int // MANDATORY - for commission
   channel        String
   websiteOrderId String?
   orderSourceId  String?
-  createdBy      Int
-  subtotal       Int      @default(0)
-  discountAmount Int      @default(0)
-  taxAmount      Int      @default(0)
-  totalAmount    Int      @default(0)
-  paymentMethod  String?
-  remarks        String?
-  status         String   @default("APPROVED")
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
 
-  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer      Customer     @relation(fields: [customerId], references: [id])
-  createdByUser User         @relation(fields: [createdBy], references: [id])
+  createdBy      Int
+  lastModifiedBy Int?
+  approvedBy     Int?
+
+  subtotal           Int           @default(0)
+  discountType       DiscountType?
+  discountAmount     Int           @default(0)
+  discountPercentage Decimal       @db.Decimal(5, 2)
+  deliveryCharges    Int           @default(0)
+  taxAmount          Int           @default(0)
+  totalAmount        Int           @default(0)
+
+  paymentMethod String? // CASH, ONLINE, CHECK, CREDIT
+  remarks       String?
+
+  status         String                @default("APPROVED")
+  approvalStatus InvoiceApprovalStatus @default(DRAFT)
+
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+  approvedAt DateTime?
+
+  organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer           Customer     @relation(fields: [customerId], references: [id])
+  createdByUser      User         @relation("CreatedBy", fields: [createdBy], references: [id])
+  lastModifiedByUser User?        @relation("LastModifiedBy", fields: [lastModifiedBy], references: [id])
+  approvedByUser     User?        @relation("ApprovedBy", fields: [approvedBy], references: [id])
+  salesman           User         @relation("Salesman", fields: [salesmanId], references: [id])
+
   lines         BillLine[]
   gatePasses    GatePass[]
+  modifications InvoiceModification[]
+  commissions   CommissionTransaction[] @relation("InvoiceCommissions")
+  reservations  InventoryReservation[] @relation("BillReservations")
 
   @@unique([organizationId, billNumber])
   @@index([organizationId, customerId, billDate])
+  @@index([salesmanId])
+  @@index([approvalStatus])
+  @@index([createdBy])
 }
 
 model BillLine {
@@ -2040,6 +2152,7 @@ model GatePass {
   bill         Bill           @relation(fields: [billId], references: [id], onDelete: Cascade)
   warehouse    Warehouse      @relation(fields: [warehouseId], references: [id])
   items        GatePassItem[]
+  reservations InventoryReservation[] @relation("GatePassReservations")
 
   @@unique([organizationId, gatePassNumber])
   @@index([organizationId, warehouseId])
@@ -2059,6 +2172,30 @@ model GatePassItem {
   billLine     BillLine     @relation(fields: [billLineId], references: [id], onDelete: Cascade)
 
   @@index([gatePassId, productId])
+}
+
+model InventoryReservation {
+  id            Int       @id @default(autoincrement())
+  organizationId Int
+  billId        Int
+  inventoryId   Int
+  gatePassId    Int?
+  quantity      Int
+  status        String    @default("RESERVED") // RESERVED, RELEASED, EXPIRED
+  releaseType   String    @default("AUTO") // AUTO, MANUAL, EXPIRED
+  releaseDate   DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         Bill         @relation("BillReservations", fields: [billId], references: [id], onDelete: Cascade)
+  inventory    Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  gatePass     GatePass?    @relation("GatePassReservations", fields: [gatePassId], references: [id], onDelete: SetNull)
+
+  @@unique([billId, inventoryId])
+  @@index([organizationId, status])
+  @@index([billId, status])
+  @@index([inventoryId, status])
 }
 
 model WebsiteOrder {
@@ -2156,16 +2293,16 @@ enum NotificationType {
 }
 
 model Notification {
-  id              Int              @id @default(autoincrement())
-  organizationId  Int
-  userId          Int
-  type            NotificationType
-  title           String
-  message         String
-  data            Json?
-  isRead          Boolean          @default(false)
-  readAt          DateTime?
-  createdAt       DateTime         @default(now())
+  id             Int              @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  type           NotificationType
+  title          String
+  message        String
+  data           Json?
+  isRead         Boolean          @default(false)
+  readAt         DateTime?
+  createdAt      DateTime         @default(now())
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2174,15 +2311,15 @@ model Notification {
 }
 
 model NotificationTemplate {
-  id          Int              @id @default(autoincrement())
+  id             Int              @id @default(autoincrement())
   organizationId Int
-  type        NotificationType @unique
-  emailSubject String
-  emailBody   String
-  smsTemplate String?
-  isActive    Boolean          @default(true)
-  createdAt   DateTime         @default(now())
-  updatedAt   DateTime         @updatedAt
+  type           NotificationType @unique
+  emailSubject   String
+  emailBody      String
+  smsTemplate    String?
+  isActive       Boolean          @default(true)
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2190,17 +2327,17 @@ model NotificationTemplate {
 }
 
 model NotificationLog {
-  id            Int      @id @default(autoincrement())
+  id             Int      @id @default(autoincrement())
   organizationId Int
-  userId        Int
-  type          String
-  status        String   @default("SENT") // SENT, FAILED, PENDING
-  recipient     String   // Email or phone
-  channel       String   @default("EMAIL") // EMAIL, SMS, IN_APP
-  sentAt        DateTime @default(now())
-  errorMessage  String?
-  retryCount    Int      @default(0)
-  maxRetries    Int      @default(3)
+  userId         Int
+  type           String
+  status         String   @default("SENT") // SENT, FAILED, PENDING
+  recipient      String // Email or phone
+  channel        String   @default("EMAIL") // EMAIL, SMS, IN_APP
+  sentAt         DateTime @default(now())
+  errorMessage   String?
+  retryCount     Int      @default(0)
+  maxRetries     Int      @default(3)
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2209,19 +2346,19 @@ model NotificationLog {
 }
 
 model NotificationPreference {
-  id             Int      @id @default(autoincrement())
-  organizationId Int
-  userId         Int
-  billApprovalEmail Boolean @default(true)
-  billPaidEmail   Boolean  @default(true)
-  paymentDueEmail Boolean  @default(true)
-  poApprovalEmail Boolean  @default(true)
-  poReceivedEmail Boolean  @default(true)
-  poDelayedEmail  Boolean  @default(true)
-  inventoryLowEmail Boolean @default(true)
-  inventoryLowSMS Boolean  @default(false)
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  organizationId    Int
+  userId            Int
+  billApprovalEmail Boolean  @default(true)
+  billPaidEmail     Boolean  @default(true)
+  paymentDueEmail   Boolean  @default(true)
+  poApprovalEmail   Boolean  @default(true)
+  poReceivedEmail   Boolean  @default(true)
+  poDelayedEmail    Boolean  @default(true)
+  inventoryLowEmail Boolean  @default(true)
+  inventoryLowSMS   Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2233,23 +2370,14 @@ model NotificationPreference {
 //                    ADVANCED FEATURES: AUDIT LOGGING
 // ================================================================================
 
-enum AuditAction {
-  CREATE
-  UPDATE
-  DELETE
-  STATUS_CHANGE
-  EXPORT
-  IMPORT
-}
-
 model AuditLog {
   id             Int         @id @default(autoincrement())
   organizationId Int
   userId         Int?
-  entity         String      // "Bill", "PurchaseOrder", "User", etc.
+  entity         String // "Bill", "PurchaseOrder", "User", etc.
   entityId       Int
   action         AuditAction
-  changes        Json?       // {field: {oldValue, newValue}}
+  changes        Json? // {field: {oldValue, newValue}}
   oldData        Json?
   newData        Json?
   ipAddress      String?
@@ -2280,16 +2408,16 @@ enum EmailTemplateType {
 }
 
 model EmailTemplate {
-  id          Int               @id @default(autoincrement())
+  id             Int               @id @default(autoincrement())
   organizationId Int?
-  type        EmailTemplateType @unique
-  subject     String
-  htmlBody    String
-  textBody    String?
-  variables   String[]          @default([]) // ["billNumber", "customerName", "dueDate"]
-  isActive    Boolean           @default(true)
-  createdAt   DateTime          @default(now())
-  updatedAt   DateTime          @updatedAt
+  type           EmailTemplateType @unique
+  subject        String
+  htmlBody       String
+  textBody       String?
+  variables      String[]          @default([]) // ["billNumber", "customerName", "dueDate"]
+  isActive       Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
 
   organization Organization? @relation(fields: [organizationId], references: [id], onDelete: SetNull)
 
@@ -2297,15 +2425,15 @@ model EmailTemplate {
 }
 
 model EmailLog {
-  id             Int      @id @default(autoincrement())
+  id             Int                @id @default(autoincrement())
   organizationId Int
   templateType   EmailTemplateType?
   to             String
   subject        String
-  status         String   @default("SENT") // SENT, FAILED, BOUNCED
-  sentAt         DateTime @default(now())
+  status         String             @default("SENT") // SENT, FAILED, BOUNCED
+  sentAt         DateTime           @default(now())
   errorMessage   String?
-  attachments    String[] @default([])
+  attachments    String[]           @default([])
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -2317,11 +2445,89 @@ model EmailLog {
 //                ADVANCED FEATURES: PERMISSIONS & ROLES
 // ================================================================================
 
-enum UserRole {
-  ADMIN
-  MANAGER
-  STAFF
-  VIEWER
+enum InvoiceApprovalStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  REJECTED
+}
+
+enum DocumentType {
+  INVOICE
+  GATE_PASS
+  SALES_ORDER
+  PURCHASE_ORDER
+}
+
+model InvoiceModification {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+  invoiceId      Int
+
+  fieldName String
+  oldValue  String?
+  newValue  String?
+
+  modifiedBy Int
+  modifiedAt DateTime @default(now())
+
+  approvalStatus InvoiceApprovalStatus @default(PENDING_APPROVAL)
+  approvedBy     Int?
+  approvedAt     DateTime?
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice        Bill         @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+  modifiedByUser User         @relation("ModifiedBy", fields: [modifiedBy], references: [id])
+  approvedByUser User?        @relation("ApprovedBy", fields: [approvedBy], references: [id])
+
+  @@index([invoiceId, approvalStatus])
+  @@index([modifiedBy, approvalStatus])
+  @@index([approvedBy])
+}
+
+model DocumentPrintHistory {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+
+  documentType DocumentType
+  documentId   Int
+
+  printedBy   Int
+  printedAt   DateTime @default(now())
+  printerName String?
+  isDuplicate Boolean  @default(false)
+
+  organization  Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  printedByUser User         @relation(fields: [printedBy], references: [id])
+
+  @@index([documentType, documentId])
+  @@index([printedBy, printedAt])
+  @@index([organizationId, isDuplicate])
+}
+
+model CommissionTransaction {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+  invoiceId      Int
+  salesmanId     Int
+
+  commissionAmount     Int     @default(0) // in paisa
+  commissionPercentage Decimal @db.Decimal(5, 2)
+
+  invoiceTotal Int
+
+  status String @default("PENDING") // PENDING, APPROVED, PAID
+
+  createdAt DateTime  @default(now())
+  paidAt    DateTime?
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  invoice      Bill         @relation("InvoiceCommissions", fields: [invoiceId], references: [id], onDelete: Cascade)
+  salesman     User         @relation("SalesmanCommissions", fields: [salesmanId], references: [id])
+
+  @@index([salesmanId, status])
+  @@index([invoiceId])
+  @@index([organizationId, status])
 }
 
 model UserRoleAssignment {
@@ -2339,19 +2545,133 @@ model UserRoleAssignment {
 }
 
 model FieldPermission {
-  id             Int      @id @default(autoincrement())
-  organizationId Int
-  entity         String   // "Bill", "PurchaseOrder", etc.
-  field          String   // "billAmount", "costPrice", etc.
-  role           UserRole
-  canRead        Boolean  @default(true)
-  canWrite       Boolean  @default(true)
-  maskSensitiveData Boolean @default(false)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id                Int      @id @default(autoincrement())
+  organizationId    Int
+  entity            String // "Bill", "PurchaseOrder", etc.
+  field             String // "billAmount", "costPrice", etc.
+  role              UserRole
+  canRead           Boolean  @default(true)
+  canWrite          Boolean  @default(true)
+  maskSensitiveData Boolean  @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
 
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, entity, field, role])
   @@index([organizationId, entity, role])
+}
+
+// ================================================================================
+//                    SALES COMMISSION & TARGET MANAGEMENT
+// ================================================================================
+
+model ProductCommission {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+  productId      Int
+  salesmanId     Int
+
+  commissionType       CommissionType // PER_PRODUCT, PER_INVOICE, TIERED
+  commissionAmount     Decimal        @default(0) // Fixed amount in paisa
+  commissionPercentage Decimal        @default(0) // Percentage (0-100)
+
+  minQuantity Int? // For tiered: minimum quantity
+  maxQuantity Int? // For tiered: maximum quantity
+
+  startDate DateTime
+  endDate   DateTime?
+  isActive  Boolean   @default(true)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  salesman     User         @relation("SalesmanCommissions", fields: [salesmanId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, productId, salesmanId, commissionType])
+  @@index([salesmanId, isActive])
+  @@index([productId, isActive])
+  @@index([organizationId, startDate, endDate])
+}
+
+model SalesTarget {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+  salesmanId     Int
+
+  targetMonth    Int // 1-12
+  targetYear     Int // 2026, etc.
+  targetAmount   Decimal // Target in paisa
+  targetQuantity Int? // Optional quantity target
+
+  status TargetStatus @default(ACTIVE)
+
+  notes      String?
+  assignedBy Int?
+  assignedAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization            @relation("OrgTargets", fields: [organizationId], references: [id], onDelete: Cascade)
+  salesman       User                    @relation("SalesTargets", fields: [salesmanId], references: [id], onDelete: Cascade)
+  assignedByUser User?                   @relation("TargetsAssignedBy", fields: [assignedBy], references: [id])
+  performance    SalesPerformanceMetric?
+
+  @@unique([organizationId, salesmanId, targetMonth, targetYear])
+  @@index([salesmanId, status])
+  @@index([organizationId, targetYear, targetMonth])
+}
+
+model SalesPerformanceMetric {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+  targetId       Int @unique
+
+  totalSalesAmount Decimal @default(0) // Cumulative sales in paisa
+  totalInvoices    Int     @default(0) // Number of invoices
+  totalQuantity    Int     @default(0) // Total quantity sold
+  totalCommission  Decimal @default(0) // Total commission earned
+
+  progressPercentage Decimal @default(0) // (totalSalesAmount / targetAmount) * 100
+  daysInPeriod       Int     @default(0)
+  daysRemaining      Int     @default(0)
+
+  lastUpdated DateTime @default(now()) @updatedAt
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  target       SalesTarget  @relation(fields: [targetId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, lastUpdated])
+  @@index([targetId])
+}
+
+model ExternalSalesImport {
+  id             Int @id @default(autoincrement())
+  organizationId Int
+
+  filename     String
+  importStatus SalesImportStatus @default(PENDING)
+
+  totalRecords      Int @default(0)
+  successfulRecords Int @default(0)
+  failedRecords     Int @default(0)
+
+  rawData    String? // JSON: raw imported data
+  parsedData String? // JSON: parsed/processed data
+  errorLog   String? // JSON: error details
+
+  importedBy Int?
+  importedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  importedByUser User?        @relation(fields: [importedBy], references: [id])
+
+  @@index([organizationId, importStatus])
+  @@index([importedAt])
 }
