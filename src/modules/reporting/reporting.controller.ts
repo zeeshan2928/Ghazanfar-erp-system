@@ -121,4 +121,70 @@ export class ReportingController {
       end,
     );
   }
+
+  @Get('commission')
+  async getCommissionReport(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.reportingService.getCommissionReport(
+      orgContext.organizationId,
+      start,
+      end,
+    );
+  }
+
+  @Get('warehouse-transfer')
+  async getWarehouseTransferAnalytics(
+    @Query('days') days?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const daysNum = days ? parseInt(days, 10) : 30;
+    return this.reportingService.getWarehouseTransferAnalytics(
+      orgContext.organizationId,
+      daysNum,
+    );
+  }
+
+  @Get('product-performance')
+  async getProductPerformance(
+    @Query('startDate') startDate?: string,
+    @Query('endDate') endDate?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    const end = endDate ? new Date(endDate) : new Date();
+    return this.reportingService.getProductPerformance(
+      orgContext.organizationId,
+      start,
+      end,
+    );
+  }
+
+  @Get('daily-sales-trend')
+  async getDailySalesTrend(
+    @Query('days') days?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const daysNum = days ? parseInt(days, 10) : 30;
+    return this.reportingService.getDailySalesTrend(
+      orgContext.organizationId,
+      daysNum,
+    );
+  }
+
+  @Get('fulfillment-by-customer')
+  async getGateFulfillmentByCustomer(
+    @Query('days') days?: string,
+    @OrgContext() orgContext?: any,
+  ) {
+    const daysNum = days ? parseInt(days, 10) : 30;
+    return this.reportingService.getGateFulfillmentByCustomer(
+      orgContext.organizationId,
+      daysNum,
+    );
+  }
 }

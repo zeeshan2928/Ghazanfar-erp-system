@@ -463,4 +463,229 @@ export class ReportingService {
       .sort((a, b) => b.totalSales - a.totalSales)
       .slice(0, limit);
   }
+
+  async getCommissionReport(organizationId: number, startDate: Date, endDate: Date) {
+    const commissions = await this.prisma.commissionCalculation.findMany({
+      where: {
+        organizationId,
+        createdAt: { gte: startDate, lte: endDate },
+      },
+      include: {
+        employee: true,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const totalCommission = commissions.reduce((sum, c) => sum + (Number(c.commissionAmount) || 0), 0);
+    const salesmanMetrics = new Map<number, any>();
+
+    commissions.forEach((c) => {
+      if (!c.employeeId) return;
+      const current = salesmanMetrics.get(c.employeeId) || {
+        employeeId: c.employeeId,
+        employeeName: c.employee?.firstName,
+        totalCommission: 0,
+        commissionsEarned: 0,
+      };
+      current.totalCommission += Number(c.commissionAmount) || 0;
+      current.commissionsEarned++;
+      salesmanMetrics.set(c.employeeId, current);
+    });
+
+    return {
+      period: { startDate, endDate },
+      totalCommission: parseFloat((totalCommission / 100).toFixed(2)),
+      numberOfCommissions: commissions.length,
+      topSalesmen: Array.from(salesmanMetrics.values())
+        .sort((a, b) => b.totalCommission - a.totalCommission)
+        .slice(0, 10),
+    };
+  }
+
+  async getWarehouseTransferAnalytics(organizationId: number, days = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const transfers = await this.prisma.warehouseTransfer.findMany({
+      where: {
+        organizationId,
+        transferDate: { gte: startDate },
+      },
+      include: {
+        items: true,
+        fromWarehouse: true,
+        toWarehouse: true,
+      },
+    });
+
+    const completed = transfers.filter((t) => t.status === 'RECEIVED').length;
+    const pending = transfers.filter((t) => t.status === 'PENDING').length;
+    const inTransit = transfers.filter((t) => t.status === 'IN_TRANSIT').length;
+    const rejected = transfers.filter((t) => t.status === 'REJECTED').length;
+
+    const totalItems = transfers.reduce((sum, t) => sum + t.quantity, 0);
+    const completionRate = transfers.length > 0 ? (completed / transfers.length) * 100 : 0;
+
+    // Calculate average transfer time (using createdAt to transferDate as proxy)
+    let avgTransferTime = 0;
+    const completedTransfers = transfers.filter((t) => t.status === 'RECEIVED' && t.transferDate);
+    if (completedTransfers.length > 0) {
+      const totalTime = completedTransfers.reduce((sum, t) => {
+        return sum + (t.createdAt.getTime() - t.transferDate.getTime());
+      }, 0);
+      avgTransferTime = totalTime / completedTransfers.length / (1000 * 60 * 60); // hours
+    }
+
+    return {
+      period: { startDate, endDate: new Date(), days },
+      summary: {
+        totalTransfers: transfers.length,
+        completed,
+        pending,
+        inTransit,
+        rejected,
+        totalItems,
+        completionRate: parseFloat(completionRate.toFixed(2)),
+        avgTransferTimeHours: parseFloat(avgTransferTime.toFixed(2)),
+      },
+      byStatus: {
+        RECEIVED: completed,
+        PENDING: pending,
+        IN_TRANSIT: inTransit,
+        REJECTED: rejected,
+      },
+    };
+  }
+
+  async getProductPerformance(organizationId: number, startDate: Date, endDate: Date) {
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        billDate: { gte: startDate, lte: endDate },
+      },
+      include: {
+        lines: {
+          include: { product: true },
+        },
+      },
+    });
+
+    const productMetrics = new Map<number, any>();
+
+    bills.forEach((bill) => {
+      bill.lines.forEach((line) => {
+        if (!line.productId) return;
+        const current = productMetrics.get(line.productId) || {
+          productId: line.productId,
+          productName: line.product.name,
+          productCode: line.product.code,
+          totalQuantity: 0,
+          totalRevenue: 0,
+          numberOfTransactions: 0,
+        };
+        current.totalQuantity += line.quantity;
+        current.totalRevenue += line.lineTotal;
+        current.numberOfTransactions++;
+        productMetrics.set(line.productId, current);
+      });
+    });
+
+    const products = Array.from(productMetrics.values())
+      .map((p) => ({
+        ...p,
+        avgQuantityPerTransaction: parseFloat((p.totalQuantity / p.numberOfTransactions).toFixed(2)),
+        avgRevenuePerTransaction: parseFloat((p.totalRevenue / p.numberOfTransactions / 100).toFixed(2)),
+        totalRevenue: parseFloat((p.totalRevenue / 100).toFixed(2)),
+      }))
+      .sort((a, b) => b.totalRevenue - a.totalRevenue);
+
+    return {
+      period: { startDate, endDate },
+      totalProducts: products.length,
+      topProducts: products.slice(0, 20),
+    };
+  }
+
+  async getDailySalesTrend(organizationId: number, days = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        billDate: { gte: startDate },
+      },
+      orderBy: { billDate: 'asc' },
+    });
+
+    const dailyData = new Map<string, any>();
+
+    bills.forEach((bill) => {
+      const dateKey = bill.billDate.toISOString().split('T')[0]; // YYYY-MM-DD
+      const current = dailyData.get(dateKey) || {
+        date: dateKey,
+        sales: 0,
+        billCount: 0,
+      };
+      current.sales += bill.totalAmount || 0;
+      current.billCount++;
+      dailyData.set(dateKey, current);
+    });
+
+    const trend = Array.from(dailyData.values())
+      .map((d) => ({
+        ...d,
+        sales: parseFloat((d.sales / 100).toFixed(2)),
+        avgBillValue: parseFloat((d.sales / d.billCount / 100).toFixed(2)),
+      }));
+
+    return {
+      period: { startDate, endDate: new Date(), days },
+      dailyTrend: trend,
+    };
+  }
+
+  async getGateFulfillmentByCustomer(organizationId: number, days = 30) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const gatePasses = await this.prisma.gatePass.findMany({
+      where: {
+        organizationId,
+        gatePassDate: { gte: startDate },
+      },
+      include: {
+        bill: {
+          include: { customer: true },
+        },
+      },
+    });
+
+    const customerMetrics = new Map<number, any>();
+
+    gatePasses.forEach((gp) => {
+      if (!gp.bill?.customerId) return;
+      const current = customerMetrics.get(gp.bill.customerId) || {
+        customerId: gp.bill.customerId,
+        customerName: gp.bill.customer?.name,
+        totalGatePasses: 0,
+        confirmedGatePasses: 0,
+      };
+      current.totalGatePasses++;
+      if (gp.status === 'CONFIRMED') {
+        current.confirmedGatePasses++;
+      }
+      customerMetrics.set(gp.bill.customerId, current);
+    });
+
+    return {
+      period: { startDate, endDate: new Date(), days },
+      summary: Array.from(customerMetrics.values())
+        .map((c) => ({
+          ...c,
+          fulfillmentRate: parseFloat(((c.confirmedGatePasses / c.totalGatePasses) * 100).toFixed(2)),
+        }))
+        .sort((a, b) => b.fulfillmentRate - a.fulfillmentRate),
+    };
+  }
 }
