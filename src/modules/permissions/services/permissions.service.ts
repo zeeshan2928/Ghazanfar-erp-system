@@ -4,39 +4,39 @@ import { UserRole } from '@prisma/client';
 
 const DEFAULT_FIELD_PERMISSIONS: Record<string, Record<string, Record<UserRole, boolean>>> = {
   Bill: {
-    billNumber: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    customerName: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    amount: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    billDate: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    status: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    totalAmount: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    costPrice: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    margin: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    internalNotes: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    paymentTerms: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
+    billNumber: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    customerName: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    amount: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    billDate: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    status: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    totalAmount: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    costPrice: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    margin: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    internalNotes: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    paymentTerms: { ADMIN: true, MANAGER: true, ACCOUNTANT: true, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
   },
   PurchaseOrder: {
-    poNumber: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    vendorName: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    amount: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    poDate: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    status: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    totalAmount: { ADMIN: true, MANAGER: true, STAFF: true, VIEWER: true },
-    costPrice: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    margin: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    paymentTerms: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
+    poNumber: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    vendorName: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    amount: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    poDate: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    status: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    totalAmount: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: true, VIEWER: true },
+    costPrice: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    margin: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    paymentTerms: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
   },
   User: {
-    email: { ADMIN: true, MANAGER: false, STAFF: false, VIEWER: false },
-    firstName: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    lastName: { ADMIN: true, MANAGER: true, STAFF: false, VIEWER: false },
-    role: { ADMIN: true, MANAGER: false, STAFF: false, VIEWER: false },
+    email: { ADMIN: true, MANAGER: false, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    firstName: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    lastName: { ADMIN: true, MANAGER: true, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
+    role: { ADMIN: true, MANAGER: false, ACCOUNTANT: false, SALESMAN: false, WAREHOUSE_STAFF: false, LABOUR_STAFF: false, STAFF: false, VIEWER: false },
   },
 };
 
 const ENTITY_PERMISSIONS: Record<UserRole, Record<string, string[]>> = {
   ADMIN: {
-    Bill: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'CHANGE_STATUS', 'EXPORT_PDF'],
+    Bill: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'CHANGE_STATUS', 'EXPORT_PDF', 'REPRINT', 'MODIFY'],
     PurchaseOrder: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'CHANGE_STATUS', 'RECEIVE_GOODS'],
     User: ['CREATE', 'READ', 'UPDATE', 'DELETE', 'CHANGE_PASSWORD'],
     Reports: ['READ_ALL', 'EXPORT'],
@@ -48,6 +48,34 @@ const ENTITY_PERMISSIONS: Record<UserRole, Record<string, string[]>> = {
     User: ['READ', 'UPDATE_OWN'],
     Reports: ['READ_OWN', 'EXPORT'],
     AuditLog: ['READ'],
+  },
+  ACCOUNTANT: {
+    Bill: ['CREATE', 'READ', 'PRINT_GATEPASS', 'EXPORT_PDF'],
+    PurchaseOrder: ['READ'],
+    User: ['READ_OWN', 'UPDATE_OWN'],
+    Reports: ['READ_OWN', 'EXPORT'],
+    AuditLog: ['READ'],
+  },
+  SALESMAN: {
+    Bill: ['READ_OWN'],
+    PurchaseOrder: ['READ_OWN'],
+    User: ['READ_OWN', 'UPDATE_OWN'],
+    Reports: [],
+    AuditLog: [],
+  },
+  WAREHOUSE_STAFF: {
+    Bill: ['READ'],
+    PurchaseOrder: ['READ'],
+    User: ['READ_OWN'],
+    Reports: [],
+    AuditLog: [],
+  },
+  LABOUR_STAFF: {
+    Bill: ['READ'],
+    PurchaseOrder: ['READ'],
+    User: ['READ_OWN'],
+    Reports: [],
+    AuditLog: [],
   },
   STAFF: {
     Bill: ['CREATE', 'READ', 'UPDATE_OWN', 'CHANGE_STATUS'],
@@ -184,8 +212,8 @@ export class PermissionsService {
         return fieldPerm.canWrite;
       }
 
-      // Fall back to defaults - staff/viewer can't write restricted fields
-      if (role === 'STAFF' || role === 'VIEWER') {
+      // Fall back to defaults - staff/labour_staff/viewer can't write restricted fields
+      if (role === 'STAFF' || role === 'LABOUR_STAFF' || role === 'VIEWER') {
         const restrictedFields = ['costPrice', 'margin', 'paymentTerms', 'internalNotes'];
         if (restrictedFields.includes(field)) {
           return false;

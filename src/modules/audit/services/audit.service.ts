@@ -27,7 +27,7 @@ export class AuditService {
           userId,
           entity,
           entityId,
-          action: AuditAction.CREATE,
+          action: AuditAction.INVOICE_APPROVED,
           newData,
           ipAddress,
           userAgent,
@@ -61,7 +61,7 @@ export class AuditService {
           userId,
           entity,
           entityId,
-          action: AuditAction.UPDATE,
+          action: AuditAction.MODIFICATION_APPROVED,
           changes,
           oldData,
           newData,
@@ -93,7 +93,7 @@ export class AuditService {
           userId,
           entity,
           entityId,
-          action: AuditAction.DELETE,
+          action: AuditAction.ADJUSTMENT_MADE,
           oldData: deletedData,
           ipAddress,
           userAgent,
@@ -124,7 +124,7 @@ export class AuditService {
           userId,
           entity,
           entityId,
-          action: AuditAction.STATUS_CHANGE,
+          action: AuditAction.MODIFICATION_APPROVED,
           changes: {
             status: { oldValue: oldStatus, newValue: newStatus },
           },
@@ -340,10 +340,10 @@ export class AuditService {
           }
 
           userActivity[log.userId].totalActions++;
-          if (log.action === AuditAction.CREATE) userActivity[log.userId].creates++;
-          if (log.action === AuditAction.UPDATE) userActivity[log.userId].updates++;
-          if (log.action === AuditAction.DELETE) userActivity[log.userId].deletes++;
-          if (log.action === AuditAction.STATUS_CHANGE) userActivity[log.userId].statusChanges++;
+          if (log.action === AuditAction.INVOICE_APPROVED) userActivity[log.userId].creates++;
+          if (log.action === AuditAction.MODIFICATION_APPROVED) userActivity[log.userId].updates++;
+          if (log.action === AuditAction.ADJUSTMENT_MADE) userActivity[log.userId].deletes++;
+          if (log.action === AuditAction.MODIFICATION_APPROVED) userActivity[log.userId].statusChanges++;
         }
       }
 

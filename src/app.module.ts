@@ -20,6 +20,9 @@ import { AuditModule } from './modules/audit/audit.module';
 import { EmailModule } from './modules/email/email.module';
 import { WebSocketModule } from './modules/websocket/websocket.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
+import { LabourModule } from './modules/labour/labour.module';
+import { InvoicesModule } from './modules/invoices/invoices.module';
+import { SalesCommissionModule } from './modules/sales-commission/sales-commission.module';
 
 @Module({
   imports: [
@@ -43,6 +46,9 @@ import { PermissionsModule } from './modules/permissions/permissions.module';
     EmailModule,
     WebSocketModule,
     PermissionsModule,
+    LabourModule,
+    InvoicesModule,
+    SalesCommissionModule,
   ],
   controllers: [],
 })

@@ -25,6 +25,9 @@ export class CreateBillDto {
   @IsNumber()
   customerId: number;
 
+  @IsNumber()
+  salesmanId: number;  // MANDATORY - for commission calculation
+
   @IsString()
   channel: string;
 

@@ -83,14 +83,16 @@ export class BillsService {
 
       const bill = await tx.bill.create({
         data: {
-          organizationId,
           billNumber,
-          customerId: createBillDto.customerId,
+          customer: { connect: { id: createBillDto.customerId } },
+          salesman: { connect: { id: createBillDto.salesmanId } },
+          createdByUser: { connect: { id: userId } },
+          organization: { connect: { id: organizationId } },
           channel: createBillDto.channel,
           paymentMethod: createBillDto.paymentMethod,
-          createdBy: userId,
           subtotal,
           discountAmount,
+          discountPercentage: 0,
           taxAmount,
           totalAmount,
           remarks: createBillDto.remarks,
