@@ -29,3 +29,6 @@ coverage/
 
 # Prisma
 .prisma/
+
+# Database backups (contain live customer/business data - never commit)
+backups/
