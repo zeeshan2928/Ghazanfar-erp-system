@@ -3,7 +3,7 @@
  * Provides realistic data generation functions for testing and demo scenarios
  */
 
-import { faker } from "@faker-js/faker";
+import { faker } from '@faker-js/faker';
 
 // ============================================================================
 //                       BILL UTILITIES
@@ -12,9 +12,9 @@ import { faker } from "@faker-js/faker";
 export function generateBillNumber(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  const sequence = String(Math.floor(Math.random() * 10000)).padStart(5, "0");
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const sequence = String(Math.floor(Math.random() * 10000)).padStart(5, '0');
   return `BILL-${year}-${month}${day}${sequence}`;
 }
 
@@ -31,17 +31,17 @@ export function generateDueDate(billDate: Date, paymentTerms: number = 30): Date
 }
 
 export function generateBillStatus(): string {
-  const statuses = ["DRAFT", "PENDING_APPROVAL", "APPROVED", "PAID", "CANCELLED"];
+  const statuses = ['DRAFT', 'PENDING_APPROVAL', 'APPROVED', 'PAID', 'CANCELLED'];
   return statuses[Math.floor(Math.random() * statuses.length)];
 }
 
 export function generatePaymentMethod(): string {
-  const methods = ["BANK_TRANSFER", "CASH", "CHECK", "CREDIT_CARD"];
+  const methods = ['BANK_TRANSFER', 'CASH', 'CHECK', 'CREDIT_CARD'];
   return methods[Math.floor(Math.random() * methods.length)];
 }
 
 export function generateChannel(): string {
-  const channels = ["COUNTER", "WHOLESALE", "RETAIL", "WEBSITE"];
+  const channels = ['COUNTER', 'WHOLESALE', 'RETAIL', 'WEBSITE'];
   return channels[Math.floor(Math.random() * channels.length)];
 }
 
@@ -52,7 +52,7 @@ export function generateChannel(): string {
 export function generatePONumber(): string {
   const now = new Date();
   const year = now.getFullYear();
-  const sequence = String(Math.floor(Math.random() * 100000)).padStart(5, "0");
+  const sequence = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
   return `PO-${year}-${sequence}`;
 }
 
@@ -69,7 +69,7 @@ export function generateExpectedDeliveryDate(poDate: Date, leadDays: number = 15
 }
 
 export function generatePOStatus(): string {
-  const statuses = ["DRAFT", "SENT", "PARTIAL_RECEIVED", "RECEIVED", "CANCELLED"];
+  const statuses = ['DRAFT', 'SENT', 'PARTIAL_RECEIVED', 'RECEIVED', 'CANCELLED'];
   return statuses[Math.floor(Math.random() * statuses.length)];
 }
 
@@ -124,27 +124,35 @@ export function generateTaxAmount(subtotal: number, taxRate: number = 0.17): num
 // ============================================================================
 
 export function generatePakistaniPhone(): string {
-  const operators = ["300", "301", "302", "303", "304", "305", "321", "322"];
+  const operators = ['300', '301', '302', '303', '304', '305', '321', '322'];
   const operator = operators[Math.floor(Math.random() * operators.length)];
-  const number = String(Math.floor(Math.random() * 10000000)).padStart(7, "0");
+  const number = String(Math.floor(Math.random() * 10000000)).padStart(7, '0');
   return `+92-${operator}-${number}`;
 }
 
-export function generateEmail(name: string, domain: string = "test.com"): string {
-  return `${name.toLowerCase().replace(/\s+/g, ".")}@${domain}`;
+export function generateEmail(name: string, domain: string = 'test.com'): string {
+  return `${name.toLowerCase().replace(/\s+/g, '.')}@${domain}`;
 }
 
 export function generateBusinessName(): string {
-  const prefixes = ["Global", "Prime", "Elite", "Express", "Fast", "Smart", "Quality"];
-  const suffixes = ["Trading", "Wholesale", "Distribution", "Solutions", "Partners", "Group", "Enterprises"];
+  const prefixes = ['Global', 'Prime', 'Elite', 'Express', 'Fast', 'Smart', 'Quality'];
+  const suffixes = [
+    'Trading',
+    'Wholesale',
+    'Distribution',
+    'Solutions',
+    'Partners',
+    'Group',
+    'Enterprises',
+  ];
   const prefix = prefixes[Math.floor(Math.random() * prefixes.length)];
   const suffix = suffixes[Math.floor(Math.random() * suffixes.length)];
   return `${prefix} ${suffix} Ltd`;
 }
 
 export function generateWarehouseName(): string {
-  const locations = ["Islamabad", "Karachi", "Lahore", "Peshawar", "Quetta", "Multan"];
-  const types = ["Distribution Center", "Warehouse", "Storage Facility", "Regional Hub"];
+  const locations = ['Islamabad', 'Karachi', 'Lahore', 'Peshawar', 'Quetta', 'Multan'];
+  const types = ['Distribution Center', 'Warehouse', 'Storage Facility', 'Regional Hub'];
   const location = locations[Math.floor(Math.random() * locations.length)];
   const type = types[Math.floor(Math.random() * types.length)];
   return `${location} ${type}`;
@@ -152,7 +160,8 @@ export function generateWarehouseName(): string {
 
 export function generateCreditLimit(): number {
   const creditLimits = [
-    50000, 100000, 150000, 200000, 250000, 300000, 500000, 750000, 1000000, 1500000, 2000000, 2500000, 5000000,
+    50000, 100000, 150000, 200000, 250000, 300000, 500000, 750000, 1000000, 1500000, 2000000,
+    2500000, 5000000,
   ];
   return creditLimits[Math.floor(Math.random() * creditLimits.length)];
 }
@@ -167,17 +176,17 @@ export function generatePaymentTerms(): number {
 // ============================================================================
 
 export function generateCustomerType(): string {
-  const types = ["RETAIL", "WHOLESALE", "WALKIN"];
+  const types = ['RETAIL', 'WHOLESALE', 'WALKIN'];
   return types[Math.floor(Math.random() * types.length)];
 }
 
 export function generateRegistrationNumber(): string {
-  const ntn = String(Math.floor(Math.random() * 10000000000)).padStart(10, "0");
+  const ntn = String(Math.floor(Math.random() * 10000000000)).padStart(10, '0');
   return `NTN-${ntn}`;
 }
 
 export function generateTaxId(): string {
-  const stn = String(Math.floor(Math.random() * 1000000000)).padStart(9, "0");
+  const stn = String(Math.floor(Math.random() * 1000000000)).padStart(9, '0');
   return `STN-${stn}`;
 }
 
@@ -186,7 +195,7 @@ export function generateTaxId(): string {
 // ============================================================================
 
 export function generateVendorCategory(): string {
-  const categories = ["Raw Materials", "Packaging", "Equipment", "Services", "Software"];
+  const categories = ['Raw Materials', 'Packaging', 'Equipment', 'Services', 'Software'];
   return categories[Math.floor(Math.random() * categories.length)];
 }
 
@@ -236,7 +245,7 @@ export function calculateLineTotal(quantity: number, unitPrice: number): number 
 export function calculateBillTotal(
   items: Array<{ quantity: number; unitPrice: number }>,
   discountPercent: number = 0,
-  taxRate: number = 0.17
+  taxRate: number = 0.17,
 ): number {
   let subtotal = 0;
   for (const item of items) {
@@ -319,12 +328,20 @@ export function generateRealisticPO(orgId: number, vendorId: number, createdBy: 
 // ============================================================================
 
 export function generateAuditAction(): string {
-  const actions = ["CREATE", "UPDATE", "DELETE", "APPROVE", "REJECT", "VIEW", "EXPORT", "IMPORT"];
+  const actions = ['CREATE', 'UPDATE', 'DELETE', 'APPROVE', 'REJECT', 'VIEW', 'EXPORT', 'IMPORT'];
   return actions[Math.floor(Math.random() * actions.length)];
 }
 
 export function generateEntityType(): string {
-  const entities = ["Bill", "PurchaseOrder", "Customer", "Vendor", "Product", "Inventory", "Payment"];
+  const entities = [
+    'Bill',
+    'PurchaseOrder',
+    'Customer',
+    'Vendor',
+    'Product',
+    'Inventory',
+    'Payment',
+  ];
   return entities[Math.floor(Math.random() * entities.length)];
 }
 
@@ -344,7 +361,12 @@ export function generateBills(count: number, orgId: number, customerId: number, 
   return bills;
 }
 
-export function generatePurchaseOrders(count: number, orgId: number, vendorId: number, createdBy: number) {
+export function generatePurchaseOrders(
+  count: number,
+  orgId: number,
+  vendorId: number,
+  createdBy: number,
+) {
   const pos = [];
   for (let i = 0; i < count; i++) {
     pos.push(generateRealisticPO(orgId, vendorId, createdBy));

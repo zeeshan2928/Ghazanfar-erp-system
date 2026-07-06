@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Body, UseGuards, BadRequestException, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  UseGuards,
+  BadRequestException,
+  Res,
+  HttpStatus,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { ImportExportService } from './services/import-export.service';
 import { ImportRequestDto } from './dto/import-export.dto';
@@ -80,7 +89,10 @@ export class ImportExportController {
       if (!request.csvData) {
         throw new BadRequestException('csvData is required');
       }
-      return await this.importExportService.importProducts(orgContext.organizationId, request.csvData);
+      return await this.importExportService.importProducts(
+        orgContext.organizationId,
+        request.csvData,
+      );
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -104,7 +116,10 @@ export class ImportExportController {
       if (!request.csvData) {
         throw new BadRequestException('csvData is required');
       }
-      return await this.importExportService.importPurchaseOrders(orgContext.organizationId, request.csvData);
+      return await this.importExportService.importPurchaseOrders(
+        orgContext.organizationId,
+        request.csvData,
+      );
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -116,7 +131,10 @@ export class ImportExportController {
       if (!request.csvData) {
         throw new BadRequestException('csvData is required');
       }
-      return await this.importExportService.importCustomers(orgContext.organizationId, request.csvData);
+      return await this.importExportService.importCustomers(
+        orgContext.organizationId,
+        request.csvData,
+      );
     } catch (error) {
       throw new BadRequestException(error.message);
     }
@@ -128,7 +146,10 @@ export class ImportExportController {
       if (!request.csvData) {
         throw new BadRequestException('csvData is required');
       }
-      return await this.importExportService.importVendors(orgContext.organizationId, request.csvData);
+      return await this.importExportService.importVendors(
+        orgContext.organizationId,
+        request.csvData,
+      );
     } catch (error) {
       throw new BadRequestException(error.message);
     }

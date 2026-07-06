@@ -18,11 +18,7 @@ export class InventoryReservationService {
   /**
    * CHECK AVAILABILITY - Returns available qty (total - reserved)
    */
-  async checkAvailability(
-    organizationId: number,
-    productId: number,
-    warehouseId: number,
-  ) {
+  async checkAvailability(organizationId: number, productId: number, warehouseId: number) {
     const inventory = await this.prisma.inventory.findFirst({
       where: {
         organizationId,
@@ -42,12 +38,12 @@ export class InventoryReservationService {
     }
 
     const reserved = inventory.reserved || 0;
-    const available = inventory.physicalOnHand - reserved;
+    const available = inventory.physical_on_hand - reserved;
 
     return {
       productId,
       warehouseId,
-      total: inventory.physicalOnHand,
+      total: inventory.physical_on_hand,
       reserved,
       available: Math.max(0, available),
     };
@@ -58,7 +54,7 @@ export class InventoryReservationService {
    * Automatically creates reservations for all bill items
    */
   async reserveForBill(organizationId: number, billId: number) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       // Get bill with items
       const bill = await tx.bill.findFirst({
         where: {
@@ -94,7 +90,7 @@ export class InventoryReservationService {
         }
 
         const reserved = inventory.reserved || 0;
-        const available = inventory.physicalOnHand - reserved;
+        const available = inventory.physical_on_hand - reserved;
 
         if (available < line.quantity) {
           throw new BadRequestException(
@@ -144,7 +140,7 @@ export class InventoryReservationService {
     reservationId: number,
     releaseType: 'AUTO' | 'MANUAL' | 'EXPIRED' = 'MANUAL',
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const reservation = await tx.inventoryReservation.findFirst({
         where: {
           id: reservationId,
@@ -195,7 +191,7 @@ export class InventoryReservationService {
     billId: number,
     releaseType: 'AUTO' | 'MANUAL' = 'AUTO',
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       // Get all reservations for this bill
       const reservations = await tx.inventoryReservation.findMany({
         where: {
@@ -252,15 +248,15 @@ export class InventoryReservationService {
         bill: {
           select: {
             id: true,
-            billNumber: true,
+            bill_number: true,
             status: true,
-          },
-        },
-        gatePass: {
-          select: {
-            id: true,
-            gatePassNumber: true,
-            status: true,
+            gatePasses: {
+              select: {
+                id: true,
+                gate_pass_number: true,
+                status: true,
+              },
+            },
           },
         },
       },
@@ -270,9 +266,9 @@ export class InventoryReservationService {
     return {
       inventoryId,
       total: reservations.length,
-      reserved: reservations.filter((r) => r.status === 'RESERVED').length,
-      released: reservations.filter((r) => r.status === 'RELEASED').length,
-      expired: reservations.filter((r) => r.status === 'EXPIRED').length,
+      reserved: reservations.filter(r => r.status === 'RESERVED').length,
+      released: reservations.filter(r => r.status === 'RELEASED').length,
+      expired: reservations.filter(r => r.status === 'EXPIRED').length,
       reservations,
     };
   }
@@ -289,7 +285,7 @@ export class InventoryReservationService {
     });
 
     // Fetch product details for all inventories
-    const productIds = [...new Set(inventories.map((i) => i.productId).filter((id) => id))];
+    const productIds = [...new Set(inventories.map(i => i.productId).filter(id => id))];
     const products = await this.prisma.product.findMany({
       where: {
         id: {
@@ -298,29 +294,29 @@ export class InventoryReservationService {
       },
     });
 
-    const productMap = new Map(products.map((p) => [p.id, p]));
+    const productMap = new Map(products.map(p => [p.id, p]));
 
     const shortages = inventories
-      .map((inv) => {
+      .map(inv => {
         const product = productMap.get(inv.productId);
         if (!product) return null;
 
         const reserved = inv.reserved || 0;
-        const available = inv.physicalOnHand - reserved;
+        const available = inv.physical_on_hand - reserved;
 
         return {
           inventoryId: inv.id,
           productId: inv.productId,
           productCode: product.code,
           productName: product.name,
-          total: inv.physicalOnHand,
+          total: inv.physical_on_hand,
           reserved,
           available: Math.max(0, available),
           threshold: 10,
           isLow: available < 10,
         };
       })
-      .filter((s) => s && s.isLow)
+      .filter(s => s && s.isLow)
       .sort((a, b) => (a?.available ?? 0) - (b?.available ?? 0));
 
     return {
@@ -338,7 +334,7 @@ export class InventoryReservationService {
     const cutoffDate = new Date();
     cutoffDate.setDate(cutoffDate.getDate() - daysOld);
 
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       // Find old reserved items
       const oldReservations = await tx.inventoryReservation.findMany({
         where: {
@@ -386,11 +382,7 @@ export class InventoryReservationService {
   /**
    * GET INVENTORY STATUS - Full status of an inventory item
    */
-  async getInventoryStatus(
-    organizationId: number,
-    productId: number,
-    warehouseId: number,
-  ) {
+  async getInventoryStatus(organizationId: number, productId: number, warehouseId: number) {
     const [inventory, product, warehouse] = await Promise.all([
       this.prisma.inventory.findFirst({
         where: {
@@ -430,14 +422,14 @@ export class InventoryReservationService {
         bill: {
           select: {
             id: true,
-            billNumber: true,
+            bill_number: true,
           },
         },
       },
     });
 
     const reserved = inventory.reserved || 0;
-    const available = inventory.physicalOnHand - reserved;
+    const available = inventory.physical_on_hand - reserved;
 
     return {
       found: true,
@@ -446,7 +438,7 @@ export class InventoryReservationService {
       productName: product.name,
       warehouseId,
       warehouseName: warehouse.name,
-      total: inventory.physicalOnHand,
+      total: inventory.physical_on_hand,
       reserved,
       available: Math.max(0, available),
       lastReservedAt: inventory.lastReservedAt,
@@ -481,7 +473,7 @@ export class InventoryReservationService {
 
     return {
       total: items.length,
-      canFulfillAll: results.every((r) => r.canFulfill),
+      canFulfillAll: results.every(r => r.canFulfill),
       results,
     };
   }

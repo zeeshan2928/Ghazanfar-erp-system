@@ -8,20 +8,20 @@ import {
   Body,
   Query,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { VendorsService } from './services/vendors.service';
 import { CreateVendorDto, UpdateVendorDto, AddProductToVendorDto } from './dto/vendor.dto';
 import { OrgContext } from 'src/common/decorators/org-context.decorator';
+import { JwtGuard } from 'src/common/guards/jwt.guard';
 
 @Controller('vendors')
+@UseGuards(JwtGuard)
 export class VendorsController {
   constructor(private readonly vendorsService: VendorsService) {}
 
   @Post()
-  create(
-    @OrgContext() { organizationId }: any,
-    @Body() createDto: CreateVendorDto,
-  ) {
+  create(@OrgContext() { organizationId }: any, @Body() createDto: CreateVendorDto) {
     return this.vendorsService.create(organizationId, createDto);
   }
 
@@ -35,10 +35,7 @@ export class VendorsController {
   }
 
   @Get(':id')
-  getById(
-    @OrgContext() { organizationId }: any,
-    @Param('id', ParseIntPipe) vendorId: number,
-  ) {
+  getById(@OrgContext() { organizationId }: any, @Param('id', ParseIntPipe) vendorId: number) {
     return this.vendorsService.getById(organizationId, vendorId);
   }
 
@@ -70,10 +67,7 @@ export class VendorsController {
   }
 
   @Delete(':id')
-  deactivate(
-    @OrgContext() { organizationId }: any,
-    @Param('id', ParseIntPipe) vendorId: number,
-  ) {
+  deactivate(@OrgContext() { organizationId }: any, @Param('id', ParseIntPipe) vendorId: number) {
     return this.vendorsService.deactivate(organizationId, vendorId);
   }
 }

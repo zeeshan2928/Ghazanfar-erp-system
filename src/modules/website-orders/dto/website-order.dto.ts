@@ -3,7 +3,7 @@ import { IsString, IsOptional, IsNumber } from 'class-validator';
 export class WebsiteOrderItemDto {
   productId: number;
   quantity: number;
-  unit_price: number;
+  unitPrice: number;
 }
 
 export class ApproveWebsiteOrderDto {

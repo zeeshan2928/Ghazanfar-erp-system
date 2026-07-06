@@ -16,14 +16,14 @@ export class MetricsController {
     let output = '';
 
     // Output counters
-    metrics.counters.forEach((counter) => {
+    metrics.counters.forEach(counter => {
       output += `# HELP ${counter.name}\n`;
       output += `# TYPE ${counter.name} counter\n`;
       output += `${counter.name} ${counter.value}\n\n`;
     });
 
     // Output gauges
-    metrics.gauges.forEach((gauge) => {
+    metrics.gauges.forEach(gauge => {
       output += `# HELP ${gauge.name}\n`;
       output += `# TYPE ${gauge.name} gauge\n`;
       output += `${gauge.name} ${gauge.value}\n\n`;

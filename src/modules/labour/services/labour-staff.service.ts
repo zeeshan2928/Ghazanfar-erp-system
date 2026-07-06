@@ -1,83 +1,45 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 
+/**
+ * NOTE: this entire service is built against Prisma models that don't exist
+ * anywhere in schema.prisma (Employee, Attendance, LeaveManagement) - same
+ * pattern as leave.service.ts (see its docstring for full context). Stubbed
+ * to log a warning and return safe defaults rather than crash.
+ */
 @Injectable()
 export class LabourStaffService {
   private readonly logger = new Logger(LabourStaffService.name);
 
   constructor(private prisma: PrismaService) {}
 
-  async getEmployeeStats(organizationId: number, employeeId: number) {
-    try {
-      const employee = await this.prisma.employee.findUnique({
-        where: { id: employeeId },
-        include: {
-          Attendance: true,
-          LeaveManagement: true,
-        },
-      });
-
-      if (!employee) return null;
-
-      const monthAttendance = await this.prisma.attendance.findMany({
-        where: {
-          employeeId,
-          organizationId,
-          attendanceDate: {
-            gte: new Date(new Date().getFullYear(), new Date().getMonth(), 1),
-            lt: new Date(new Date().getFullYear(), new Date().getMonth() + 1, 1),
-          },
-        },
-      });
-
-      const leaves = await this.prisma.leaveManagement.findMany({
-        where: { employeeId, organizationId },
-      });
-
-      return {
-        employee,
-        attendanceThisMonth: monthAttendance.length,
-        totalLeaves: leaves.length,
-      };
-    } catch (error) {
-      this.logger.error(`Failed to get employee stats: ${(error as Error).message}`);
-      throw error;
-    }
+  async getEmployeeStats(organizationId: number, employeeId: number): Promise<any> {
+    this.logger.warn('getEmployeeStats(): no Employee model exists in schema.prisma');
+    return null;
   }
 
-  async getOrganizationEmployees(organizationId: number) {
-    return this.prisma.employee.findMany({
-      where: {
-        organizationId,
-        isActive: true,
-      },
-      include: {
-        Attendance: true,
-        LeaveManagement: true,
-      },
-    });
+  async getOrganizationEmployees(organizationId: number): Promise<any[]> {
+    this.logger.warn('getOrganizationEmployees(): no Employee model exists in schema.prisma');
+    return [];
   }
 
-  async updateEmployeeSalary(organizationId: number, employeeId: number, salary: number) {
-    return this.prisma.employee.update({
-      where: { id: employeeId },
-      data: { salary },
-    });
+  async updateEmployeeSalary(
+    organizationId: number,
+    employeeId: number,
+    salary: number,
+  ): Promise<any> {
+    this.logger.warn('updateEmployeeSalary(): no Employee model exists in schema.prisma');
+    return null;
   }
 
   async getEmployeeLeaveBalance(organizationId: number, employeeId: number) {
-    const leaves = await this.prisma.leaveManagement.findMany({
-      where: {
-        employeeId,
-        organizationId,
-        approvalStatus: 'APPROVED',
-      },
-    });
-
+    this.logger.warn(
+      'getEmployeeLeaveBalance(): no LeaveManagement model exists in schema.prisma',
+    );
     return {
       employeeId,
-      totalLeavesApproved: leaves.length,
-      leaves,
+      totalLeavesApproved: 0,
+      leaves: [],
     };
   }
 }

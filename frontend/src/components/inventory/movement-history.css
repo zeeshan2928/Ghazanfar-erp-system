@@ -1,0 +1,266 @@
+/* Movement History */
+.movement-history-container {
+  max-width: 1000px;
+  margin: 0 auto;
+  padding: 16px;
+}
+
+.history-header {
+  margin-bottom: 24px;
+}
+
+.history-header h1 {
+  font-size: 28px;
+  font-weight: 700;
+  margin: 0 0 8px 0;
+}
+
+.history-header .subtitle {
+  color: #666;
+  font-size: 14px;
+  margin: 0;
+}
+
+/* Filter Card */
+.filter-card {
+  margin-bottom: 20px;
+}
+
+.filters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-group label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.filter-input {
+  padding: 10px 12px;
+  border: 1px solid #E5E5EA;
+  border-radius: 6px;
+  font-size: 14px;
+  outline: none;
+  transition: border-color 0.2s;
+  font-family: inherit;
+}
+
+.filter-input:focus {
+  border-color: #007AFF;
+}
+
+/* Summary Stats */
+.history-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.stat-box {
+  background: white;
+  border: 1px solid #E5E5EA;
+  border-radius: 8px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.stat-label {
+  font-size: 12px;
+  color: #999;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.stat-value {
+  font-size: 24px;
+  font-weight: 700;
+  color: #333;
+}
+
+.stat-value.positive {
+  color: #34C759;
+}
+
+.stat-value.negative {
+  color: #FF3B30;
+}
+
+/* Movements Timeline */
+.movements-timeline {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+.movement-card {
+  border-left: 4px solid #007AFF;
+}
+
+.movement-card .card-body {
+  padding: 12px;
+}
+
+.movement-header {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 12px;
+}
+
+.movement-icon {
+  font-size: 24px;
+  flex-shrink: 0;
+}
+
+.movement-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.movement-type {
+  font-size: 14px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.movement-datetime {
+  font-size: 12px;
+  color: #999;
+  margin: 4px 0 0 0;
+}
+
+.movement-qty {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: right;
+  flex-shrink: 0;
+}
+
+.movement-qty.positive {
+  color: #34C759;
+}
+
+.movement-qty.negative {
+  color: #FF3B30;
+}
+
+.movement-qty.neutral {
+  color: #007AFF;
+}
+
+/* Movement Details */
+.movement-details {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  padding-top: 12px;
+  border-top: 1px solid #F2F2F7;
+}
+
+.detail-row {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.detail-label {
+  font-weight: 600;
+  color: #666;
+  flex-shrink: 0;
+}
+
+.detail-value {
+  color: #333;
+  text-align: right;
+  flex: 1;
+  word-break: break-word;
+}
+
+/* Pagination */
+.pagination-section {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px 0;
+  border-top: 1px solid #E5E5EA;
+}
+
+.pagination-info {
+  font-size: 12px;
+  color: #666;
+  text-align: center;
+}
+
+.pagination-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  align-items: center;
+}
+
+.pagination-btn {
+  padding: 8px 12px;
+  background-color: #F2F2F7;
+  border: 1px solid #E5E5EA;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  transition: all 0.2s;
+}
+
+.pagination-btn:hover:not(:disabled) {
+  background-color: #E5E5EA;
+}
+
+.pagination-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.page-indicator {
+  min-width: 30px;
+  text-align: center;
+  font-weight: 600;
+}
+
+/* Mobile Responsive */
+@media (max-width: 640px) {
+  .movement-history-container {
+    padding: 12px;
+  }
+
+  .history-header h1 {
+    font-size: 24px;
+  }
+
+  .filters-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .history-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .movement-header {
+    flex-wrap: wrap;
+  }
+
+  .movement-qty {
+    flex-basis: 100%;
+    text-align: left;
+  }
+}

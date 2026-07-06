@@ -1,6 +1,6 @@
 import { Controller, Get, Post, Put, Param, Body, UseGuards, Query } from '@nestjs/common';
 import { EmailTemplateService } from './services/email-template.service';
-import { EmailTemplateType } from '@prisma/client';
+import { EmailTemplateType } from './types/email-template-type.enum';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
@@ -35,7 +35,8 @@ export class EmailController {
   @Put('templates/:type')
   async updateTemplate(
     @Param('type') type: string,
-    @Body() updateData: { subject?: string; htmlBody?: string; textBody?: string; isActive?: boolean },
+    @Body()
+    updateData: { subject?: string; htmlBody?: string; textBody?: string; isActive?: boolean },
   ) {
     try {
       return await this.emailService.updateTemplate(type as EmailTemplateType, updateData);
@@ -48,17 +49,18 @@ export class EmailController {
    * Preview rendered email (with sample data)
    */
   @Post('preview/:type')
-  async previewTemplate(
-    @Param('type') type: string,
-    @Body() sampleData: any,
-  ) {
+  async previewTemplate(@Param('type') type: string, @Body() sampleData: any) {
     try {
       const template = await this.emailService.getTemplate(type as EmailTemplateType);
       if (!template) {
         return { error: 'Template not found' };
       }
 
-      const rendered = this.emailService.renderTemplate(type as EmailTemplateType, template, sampleData);
+      const rendered = this.emailService.renderTemplate(
+        type as EmailTemplateType,
+        template,
+        sampleData,
+      );
       return rendered;
     } catch (error) {
       return { error: 'Failed to preview template' };
@@ -96,11 +98,15 @@ export class EmailController {
           poNumber: 'PO-001',
           vendorName: 'Supplier Inc',
           totalAmount: 5000,
-          expectedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          expectedDelivery: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split('T')[0],
         },
         SHIPMENT_NOTIFICATION: {
           trackingNumber: 'TRACK123456',
-          estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
+          estimatedDelivery: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000)
+            .toISOString()
+            .split('T')[0],
         },
         DELIVERY_CONFIRMATION: {
           deliveryDate: new Date().toISOString().split('T')[0],

@@ -14,8 +14,24 @@ export class WarehouseTransfersService {
     private transactionService: TransactionService,
   ) {}
 
-  async create(organizationId: number, _userId: number, createDto: CreateWarehouseTransferDto) {
-    return this.transactionService.run(async (tx) => {
+  private async generateTransferNumber(organizationId: number, tx: any): Promise<string> {
+    const year = new Date().getFullYear();
+    const count = await tx.warehouseTransfer.count({
+      where: {
+        organizationId,
+        createdAt: {
+          gte: new Date(`${year}-01-01`),
+          lt: new Date(`${year + 1}-01-01`),
+        },
+      },
+    });
+
+    const sequence = String(count + 1).padStart(6, '0');
+    return `TRF-${year}-${sequence}`;
+  }
+
+  async create(organizationId: number, userId: number, createDto: CreateWarehouseTransferDto) {
+    return this.transactionService.run(async tx => {
       // Verify warehouses exist
       const fromWarehouse = await tx.warehouse.findFirst({
         where: {
@@ -54,9 +70,7 @@ export class WarehouseTransfersService {
         });
 
         if (!inventory) {
-          throw new BadRequestException(
-            `Product ${item.productId} not found in source warehouse`,
-          );
+          throw new BadRequestException(`Product ${item.productId} not found in source warehouse`);
         }
 
         if (inventory.available < item.quantity) {
@@ -67,17 +81,22 @@ export class WarehouseTransfersService {
       }
 
       // Create transfer
+      const transferNumber = await this.generateTransferNumber(organizationId, tx);
+
       const transfer = await tx.warehouseTransfer.create({
         data: {
           organizationId,
-          fromWarehouseId: createDto.fromWarehouseId,
-          toWarehouseId: createDto.toWarehouseId,
+          transfer_number: transferNumber,
+          from_warehouse_id: createDto.fromWarehouseId,
+          to_warehouse_id: createDto.toWarehouseId,
           status: 'PENDING',
-          transferDate: new Date(),
-          quantity: createDto.items.reduce((sum, item) => sum + item.quantity, 0),
+          transfer_date: new Date(),
+          created_by: userId,
+          // WarehouseTransfer.updatedAt has no @updatedAt in schema.prisma, so
+          // Prisma can't auto-manage it - must be supplied explicitly.
+          updatedAt: new Date(),
           items: {
-            create: createDto.items.map((item) => ({
-              organizationId,
+            create: createDto.items.map(item => ({
               productId: item.productId,
               quantity: item.quantity,
             })),
@@ -85,11 +104,12 @@ export class WarehouseTransfersService {
         },
         include: {
           items: true,
-          fromWarehouse: true,
-          toWarehouse: true,
+          from_warehouse: true,
+          to_warehouse: true,
         },
       });
 
+      // Note: 'quantity' field is calculated from items, not stored directly on WarehouseTransfer
       // Reserve stock in source warehouse
       for (const item of createDto.items) {
         await tx.inventory.update({
@@ -124,10 +144,10 @@ export class WarehouseTransfersService {
         },
         include: {
           items: true,
-          fromWarehouse: true,
-          toWarehouse: true,
+          from_warehouse: true,
+          to_warehouse: true,
         },
-        orderBy: { transferDate: 'desc' },
+        orderBy: { transfer_date: 'desc' },
         skip,
         take,
       }),
@@ -161,20 +181,18 @@ export class WarehouseTransfersService {
     }
 
     if (transfer.status !== 'PENDING') {
-      throw new BadRequestException(
-        `Cannot start transfer with status ${transfer.status}`,
-      );
+      throw new BadRequestException(`Cannot start transfer with status ${transfer.status}`);
     }
 
     return this.prisma.warehouseTransfer.update({
       where: { id: transferId },
       data: {
-        status: 'SHIPPED',
+        status: 'IN_TRANSIT',
       },
       include: {
         items: true,
-        fromWarehouse: true,
-        toWarehouse: true,
+        from_warehouse: true,
+        to_warehouse: true,
       },
     });
   }
@@ -188,10 +206,10 @@ export class WarehouseTransfersService {
         },
         include: {
           items: true,
-          fromWarehouse: true,
-          toWarehouse: true,
+          from_warehouse: true,
+          to_warehouse: true,
         },
-        orderBy: { transferDate: 'desc' },
+        orderBy: { transfer_date: 'desc' },
         skip,
         take,
       }),
@@ -220,8 +238,8 @@ export class WarehouseTransfersService {
       },
       include: {
         items: true,
-        fromWarehouse: true,
-        toWarehouse: true,
+        from_warehouse: true,
+        to_warehouse: true,
       },
     });
 
@@ -238,7 +256,7 @@ export class WarehouseTransfersService {
     _userId: number,
     confirmDto: ConfirmTransferReceiptDto,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const transfer = await tx.warehouseTransfer.findFirst({
         where: {
           id: transferId,
@@ -254,19 +272,15 @@ export class WarehouseTransfersService {
       }
 
       if (transfer.status !== 'IN_TRANSIT') {
-        throw new BadRequestException(
-          `Cannot confirm transfer with status ${transfer.status}`,
-        );
+        throw new BadRequestException(`Cannot confirm transfer with status ${transfer.status}`);
       }
 
       // Validate received quantities
       for (const received of confirmDto.items) {
-        const item = transfer.items.find((i) => i.productId === received.productId);
+        const item = transfer.items.find(i => i.productId === received.productId);
 
         if (!item) {
-          throw new BadRequestException(
-            `Product ${received.productId} not found in transfer`,
-          );
+          throw new BadRequestException(`Product ${received.productId} not found in transfer`);
         }
 
         if (received.quantityReceived > item.quantity) {
@@ -278,14 +292,14 @@ export class WarehouseTransfersService {
 
       // Update inventory for destination warehouse
       for (const received of confirmDto.items) {
-        const item = transfer.items.find((i) => i.productId === received.productId);
+        const item = transfer.items.find(i => i.productId === received.productId);
 
         // Add to destination warehouse inventory
         const destInventory = await tx.inventory.findFirst({
           where: {
             organizationId,
             productId: received.productId,
-            warehouseId: transfer.toWarehouseId,
+            warehouseId: transfer.to_warehouse_id,
           },
         });
 
@@ -293,7 +307,7 @@ export class WarehouseTransfersService {
           await tx.inventory.update({
             where: { id: destInventory.id },
             data: {
-              physicalOnHand: {
+              physical_on_hand: {
                 increment: received.quantityReceived,
               },
               available: {
@@ -307,10 +321,10 @@ export class WarehouseTransfersService {
             data: {
               organizationId,
               productId: received.productId,
-              warehouseId: transfer.toWarehouseId,
-              physicalOnHand: received.quantityReceived,
+              warehouseId: transfer.to_warehouse_id,
+              physical_on_hand: received.quantityReceived,
               available: received.quantityReceived,
-              openingBalance: 0,
+              opening_balance: 0,
             },
           });
         }
@@ -322,7 +336,7 @@ export class WarehouseTransfersService {
             organizationId_productId_warehouseId: {
               organizationId,
               productId: received.productId,
-              warehouseId: transfer.fromWarehouseId,
+              warehouseId: transfer.from_warehouse_id,
             },
           },
           data: {
@@ -332,7 +346,7 @@ export class WarehouseTransfersService {
             available: {
               increment: shortageQty,
             },
-            physicalOnHand: {
+            physical_on_hand: {
               decrement: received.quantityReceived,
             },
           },
@@ -347,8 +361,8 @@ export class WarehouseTransfersService {
         },
         include: {
           items: true,
-          fromWarehouse: true,
-          toWarehouse: true,
+          from_warehouse: true,
+          to_warehouse: true,
         },
       });
 
@@ -362,7 +376,7 @@ export class WarehouseTransfersService {
     _userId: number,
     _rejectDto: RejectTransferDto,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const transfer = await tx.warehouseTransfer.findFirst({
         where: {
           id: transferId,
@@ -378,9 +392,7 @@ export class WarehouseTransfersService {
       }
 
       if (!['PENDING', 'IN_TRANSIT'].includes(transfer.status)) {
-        throw new BadRequestException(
-          `Cannot reject transfer with status ${transfer.status}`,
-        );
+        throw new BadRequestException(`Cannot reject transfer with status ${transfer.status}`);
       }
 
       // Release reserved inventory back to source warehouse
@@ -390,7 +402,7 @@ export class WarehouseTransfersService {
             organizationId_productId_warehouseId: {
               organizationId,
               productId: item.productId,
-              warehouseId: transfer.fromWarehouseId,
+              warehouseId: transfer.from_warehouse_id,
             },
           },
           data: {
@@ -412,13 +424,12 @@ export class WarehouseTransfersService {
         },
         include: {
           items: true,
-          fromWarehouse: true,
-          toWarehouse: true,
+          from_warehouse: true,
+          to_warehouse: true,
         },
       });
 
       return rejected;
     });
   }
-
 }

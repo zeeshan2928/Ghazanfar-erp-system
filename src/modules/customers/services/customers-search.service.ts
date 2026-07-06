@@ -7,18 +7,15 @@ import {
   FilterOperator,
   ColumnValueDto,
 } from '@common/dto/filter.dto';
-import {
-  getAllowedOperators,
-  isFieldAllowed,
-} from '@common/config/filter-config';
+import { getAllowedOperators, isFieldAllowed } from '@common/config/filter-config';
 
 export interface CustomerSearchResult {
   id: number;
   name: string;
-  customer_type: string;
+  customerType: string;
   phone: string;
   email: string;
-  credit_limit: number;
+  creditLimit: number;
 }
 
 @Injectable()
@@ -98,10 +95,10 @@ export class CustomersSearchService {
     const data: CustomerSearchResult[] = customers.map((customer: any) => ({
       id: customer.id,
       name: customer.name,
-      customer_type: customer.customerType || 'N/A',
+      customerType: customer.customerType || 'N/A',
       phone: customer.phone || 'N/A',
       email: customer.email || 'N/A',
-      credit_limit: customer.creditLimit || 0,
+      creditLimit: customer.creditLimit || 0,
     }));
 
     return this.filterService.buildPaginatedResponse(data, total, skip, take);
@@ -110,16 +107,13 @@ export class CustomersSearchService {
   /**
    * Get unique values for a column
    */
-  async getColumnValues(
-    organizationId: number,
-    columnName: string,
-  ): Promise<ColumnValueDto[]> {
+  async getColumnValues(organizationId: number, columnName: string): Promise<ColumnValueDto[]> {
     this.validateColumnName(columnName);
 
     switch (columnName) {
       case 'name':
         return this.getCustomerNames(organizationId);
-      case 'customer_type':
+      case 'customerType':
         return this.getCustomerTypes(organizationId);
       default:
         return [];
@@ -168,7 +162,7 @@ export class CustomersSearchService {
     const where: any = {};
 
     for (const filter of filters) {
-      let mappedFilter = { ...filter };
+      const mappedFilter = { ...filter };
 
       // Map field names to actual database columns
       switch (filter.field) {
@@ -227,19 +221,17 @@ export class CustomersSearchService {
         break;
       case 'isLike':
         // Fuzzy match - treat as contains search
-        return { contains: (value as string), mode: 'insensitive' };
+        return { contains: value as string, mode: 'insensitive' };
       case 'isNotLike':
         // Fuzzy match negation
-        return { not: { contains: (value as string), mode: 'insensitive' } };
+        return { not: { contains: value as string, mode: 'insensitive' } };
     }
     return null;
   }
 
   private validateColumnName(columnName: string): void {
     if (!isFieldAllowed('customers', columnName)) {
-      throw new BadRequestException(
-        `Field '${columnName}' is not available for customers search`,
-      );
+      throw new BadRequestException(`Field '${columnName}' is not available for customers search`);
     }
   }
 
@@ -255,9 +247,7 @@ export class CustomersSearchService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Invalid field '${fieldName}' for customers search`,
-      );
+      throw new BadRequestException(`Invalid field '${fieldName}' for customers search`);
     }
   }
 }

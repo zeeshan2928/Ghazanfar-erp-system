@@ -16,10 +16,8 @@ export class TransactionService {
    *     return { bill, gatePass };
    *   });
    */
-  async run<T>(
-    callback: (tx: Prisma.TransactionClient) => Promise<T>,
-  ): Promise<T> {
-    return this.prisma.$transaction(async (tx) => {
+  async run<T>(callback: (tx: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.prisma.$transaction(async tx => {
       return callback(tx);
     });
   }

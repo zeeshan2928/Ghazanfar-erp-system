@@ -1,0 +1,3 @@
+﻿INSERT INTO "Warehouse" ("organizationId", name, location, "isActive", "createdAt", "updatedAt") VALUES (1, 'Main Warehouse', 'Karachi', true, NOW(), NOW());
+INSERT INTO "Product" ("organizationId", code, name, description, "costPrice", "baseUnit", "isVisibleOnCounter", "isVisibleRetail", "createdAt", "updatedAt") VALUES (1, 'P001', 'Mobile Phone', 'Test mobile phone', 30000, 'piece', true, true, NOW(), NOW());
+INSERT INTO "Inventory" ("organizationId", "productId", "warehouseId", "physicalOnHand", reserved, available, "openingBalance", "lastReservedAt", "createdAt", "updatedAt") VALUES (1, 1, 1, 100, 0, 100, 100, NOW(), NOW(), NOW());

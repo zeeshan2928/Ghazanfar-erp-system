@@ -42,15 +42,11 @@ export class LoggerMiddleware implements NestMiddleware {
 
     // Log request details in debug mode
     if (process.env.LOG_LEVEL === 'debug') {
-      this.logger.debug(
-        `Incoming request: ${method} ${originalUrl}`,
-        'HTTP',
-        {
-          ip,
-          userAgent,
-          contentLength: req.get('content-length'),
-        },
-      );
+      this.logger.debug(`Incoming request: ${method} ${originalUrl}`, 'HTTP', {
+        ip,
+        userAgent,
+        contentLength: req.get('content-length'),
+      });
     }
 
     next();

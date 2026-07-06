@@ -1,0 +1,142 @@
+
+> erp-warehouse-dashboard@0.0.1 dev
+> vite
+
+
+  [32m[1mVITE[22m v5.4.21[39m  [2mready in [0m[1m418[22m[2m[0m ms[22m
+
+  [32m➜[39m  [1mLocal[22m:   [36mhttp://localhost:[1m5173[22m/[39m
+[2m  [32m➜[39m  [1mNetwork[22m[2m: use [22m[1m--host[22m[2m to expose[22m
+[2m14:19:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m14:19:41[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m14:19:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m14:19:46[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../../services/api" from "src/screens/WarehousesScreen.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/ghazanfar-erp-backend/frontend/src/screens/WarehousesScreen.tsx[39m:2:26
+[33m  17 |  var _s = $RefreshSig$();
+  18 |  import { useState, useEffect } from "react";
+  19 |  import { apiClient } from "../../services/api";
+     |                             ^
+  20 |  export function WarehousesScreen() {
+  21 |    _s();[39m
+      at TransformPluginContext._formatError (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 4)
+      at async TransformPluginContext.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m14:19:46[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "../../services/api" from "src/screens/WarehousesScreen.tsx". Does the file exist?
+[2m14:19:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m14:19:59[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../../screens/WarehousesScreen" from "src/components/MainDashboard.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/ghazanfar-erp-backend/frontend/src/components/MainDashboard.tsx[39m:7:33
+[33m  22 |  import { ProductsScreen } from "./screens/ProductsScreen";
+  23 |  import { InventoryScreen } from "./screens/InventoryScreen";
+  24 |  import { WarehousesScreen } from "../../screens/WarehousesScreen";
+     |                                    ^
+  25 |  import { PurchaseOrdersScreen } from "./screens/PurchaseOrdersScreen";
+  26 |  import { ReportsAnalytics } from "./screens/ReportsAnalytics";[39m
+      at TransformPluginContext._formatError (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 9)
+      at async TransformPluginContext.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+      at async viteTransformMiddleware (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:62106:24)
+[2m14:20:12[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m14:20:12[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../../screens/WarehousesScreen" from "src/components/MainDashboard.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/ghazanfar-erp-backend/frontend/src/components/MainDashboard.tsx[39m:7:33
+[33m  22 |  import { ProductsScreen } from "./screens/ProductsScreen";
+  23 |  import { InventoryScreen } from "./screens/InventoryScreen";
+  24 |  import { WarehousesScreen } from "../../screens/WarehousesScreen";
+     |                                    ^
+  25 |  import { PurchaseOrdersScreen } from "./screens/PurchaseOrdersScreen";
+  26 |  import { ReportsAnalytics } from "./screens/ReportsAnalytics";[39m
+      at TransformPluginContext._formatError (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 9)
+      at async TransformPluginContext.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m14:20:12[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "../../screens/WarehousesScreen" from "src/components/MainDashboard.tsx". Does the file exist?
+[2m14:20:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m14:20:17[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/App.tsx[22m
+[2m14:20:17[22m [31m[1m[vite][22m[39m [31mInternal server error: Failed to resolve import "../../screens/WarehousesScreen" from "src/components/MainDashboard.tsx". Does the file exist?[39m
+  Plugin: [35mvite:import-analysis[39m
+  File: [36mD:/ghazanfar-erp-backend/frontend/src/components/MainDashboard.tsx[39m:7:33
+[33m  22 |  import { ProductsScreen } from "./screens/ProductsScreen";
+  23 |  import { InventoryScreen } from "./screens/InventoryScreen";
+  24 |  import { WarehousesScreen } from "../../screens/WarehousesScreen";
+     |                                    ^
+  25 |  import { PurchaseOrdersScreen } from "./screens/PurchaseOrdersScreen";
+  26 |  import { ReportsAnalytics } from "./screens/ReportsAnalytics";[39m
+      at TransformPluginContext._formatError (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49258:41)
+      at TransformPluginContext.error (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49253:16)
+      at normalizeUrl (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64307:23)
+      at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+      at async file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64439:39
+      at async Promise.all (index 9)
+      at async TransformPluginContext.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:64366:7)
+      at async PluginContainer.transform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:49099:18)
+      at async loadAndTransform (file:///D:/ghazanfar-erp-backend/frontend/node_modules/vite/dist/node/chunks/dep-BK3b2jBa.js:51978:27)
+[2m14:20:17[22m [31m[1m[vite][22m[39m Pre-transform error: Failed to resolve import "../../screens/WarehousesScreen" from "src/components/MainDashboard.tsx". Does the file exist?
+[2m14:24:58[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/LoginScreen.tsx, /src/components/screens/InventoryScreen.tsx, /src/components/screens/BillsScreen.tsx, /src/components/screens/PurchaseOrdersScreen.tsx, /src/components/screens/ProductsScreen.tsx, /src/components/screens/CustomersScreen.tsx, /src/components/screens/ReportsAnalytics.tsx, /src/components/screens/WarehousesScreen.tsx[22m
+[2m14:25:05[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/screens/WarehousesScreen.tsx[22m
+[2m14:25:13[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m15:33:20[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m15:33:21[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m15:33:24[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m15:33:26[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m15:33:27[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+D:/ghazanfar-erp-backend/frontend/src/services/cash-book/entryApiIntegration.ts:13:13: ERROR: Syntax error "e"
+[2m15:33:27[22m [31m[1m[vite][22m[39m Pre-transform error: Transform failed with 1 error:
+D:/ghazanfar-erp-backend/frontend/src/services/cash-book/entryApiIntegration.ts:13:13: ERROR: Syntax error "e"
+[2m15:33:27[22m [31m[1m[vite][22m[39m [31mInternal server error: Transform failed with 1 error:
+D:/ghazanfar-erp-backend/frontend/src/services/cash-book/entryApiIntegration.ts:13:13: ERROR: Syntax error "e"[39m
+  Plugin: [35mvite:esbuild[39m
+  File: [36mD:/ghazanfar-erp-backend/frontend/src/services/cash-book/entryApiIntegration.ts[39m:13:13
+[33m  
+  [33mSyntax error "e"[33m
+  11 |        const newEntry: CashBookEntry = {
+  12 |          ...entry,
+  13 |          id: \entry-\\,
+     |               ^
+  14 |          status: 'pending',
+  15 |          createdAt: Date.now(),
+  [39m
+      at failureErrorWithLog (D:\ghazanfar-erp-backend\frontend\node_modules\esbuild\lib\main.js:1472:15)
+      at D:\ghazanfar-erp-backend\frontend\node_modules\esbuild\lib\main.js:755:50
+      at responseCallbacks.<computed> (D:\ghazanfar-erp-backend\frontend\node_modules\esbuild\lib\main.js:622:9)
+      at handleIncomingPacket (D:\ghazanfar-erp-backend\frontend\node_modules\esbuild\lib\main.js:677:12)
+      at Socket.readFromStdout (D:\ghazanfar-erp-backend\frontend\node_modules\esbuild\lib\main.js:600:7)
+      at Socket.emit (node:events:509:20)
+      at addChunk (node:internal/streams/readable:568:12)
+      at readableAddChunkPushByteMode (node:internal/streams/readable:519:3)
+      at Readable.push (node:internal/streams/readable:399:5)
+      at Pipe.onStreamRead (node:internal/stream_base_commons:189:23)
+[2m15:34:38[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/CashBookReportScreen.tsx[22m
+[2m15:34:46[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/CashBookReportScreen.tsx[22m
+[2m15:35:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/CashBookReportScreen.tsx[22m
+[2m15:35:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/CashFlow.tsx[22m
+[2m15:35:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/DiscrepancyList.tsx[22m
+[2m15:35:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/cash-book-reports/ReconciliationDashboard.tsx[22m
+[2m16:20:56[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/LoginScreen.tsx, /src/components/screens/InventoryScreen.tsx, /src/components/screens/BillsScreen.tsx, /src/components/screens/PurchaseOrdersScreen.tsx, /src/components/screens/ProductsScreen.tsx, /src/components/screens/CustomersScreen.tsx, /src/components/screens/ReportsAnalytics.tsx, /src/components/screens/WarehousesScreen.tsx, /src/components/screens/GatePassesScreen.tsx, /src/components/ReportingDashboard.tsx, /src/components/screens/ExportImport.tsx, /src/components/GatePassDashboard.tsx[22m
+[2m16:22:25[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m16:22:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m16:22:36[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m16:31:04[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m17:01:10[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/LoginScreen.tsx, /src/components/screens/InventoryScreen.tsx, /src/components/screens/BillsScreen.tsx, /src/components/screens/PurchaseOrdersScreen.tsx, /src/components/screens/ProductsScreen.tsx, /src/components/screens/CustomersScreen.tsx, /src/components/screens/ReportsAnalytics.tsx, /src/components/screens/WarehousesScreen.tsx, /src/components/screens/GatePassesScreen.tsx, /src/components/ReportingDashboard.tsx, /src/components/screens/ExportImport.tsx, /src/components/GatePassDashboard.tsx, /src/components/screens/ChartOfAccountsScreen.tsx, /src/components/screens/BalanceSheetScreen.tsx, /src/components/screens/IncomeStatementScreen.tsx, /src/components/screens/TrialBalanceScreen.tsx, /src/components/screens/JournalEntryScreen.tsx[22m
+[2m17:03:19[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m17:03:37[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m17:03:43[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/MainDashboard.tsx[22m
+[2m17:05:31[22m [36m[1m[vite][22m[39m [32mhmr update [39m[2m/src/components/LoginScreen.tsx, /src/components/screens/InventoryScreen.tsx, /src/components/screens/BillsScreen.tsx, /src/components/screens/PurchaseOrdersScreen.tsx, /src/components/screens/ProductsScreen.tsx, /src/components/screens/CustomersScreen.tsx, /src/components/screens/ReportsAnalytics.tsx, /src/components/screens/WarehousesScreen.tsx, /src/components/screens/GatePassesScreen.tsx, /src/components/ReportingDashboard.tsx, /src/components/screens/ExportImport.tsx, /src/components/GatePassDashboard.tsx, /src/components/screens/ChartOfAccountsScreen.tsx, /src/components/screens/BalanceSheetScreen.tsx, /src/components/screens/IncomeStatementScreen.tsx, /src/components/screens/TrialBalanceScreen.tsx, /src/components/screens/JournalEntryScreen.tsx[22m

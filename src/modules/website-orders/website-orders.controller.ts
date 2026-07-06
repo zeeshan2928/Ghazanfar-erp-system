@@ -18,22 +18,12 @@ export class WebsiteOrdersController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const takeNum = take ? parseInt(take, 10) : 10;
 
-    return this.websiteOrdersService.getPending(
-      orgContext.organizationId,
-      skipNum,
-      takeNum,
-    );
+    return this.websiteOrdersService.getPending(orgContext.organizationId, skipNum, takeNum);
   }
 
   @Get(':orderId')
-  async getById(
-    @Param('orderId') orderId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.websiteOrdersService.getById(
-      orgContext.organizationId,
-      orderId,
-    );
+  async getById(@Param('orderId') orderId: string, @OrgContext() orgContext: any) {
+    return this.websiteOrdersService.getById(orgContext.organizationId, orderId);
   }
 
   @Post(':orderId/approve')

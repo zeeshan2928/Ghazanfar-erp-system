@@ -14,26 +14,13 @@ export class WarehouseTransfersController {
   constructor(private transfersService: WarehouseTransfersService) {}
 
   @Post()
-  async create(
-    @Body() createDto: CreateWarehouseTransferDto,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.transfersService.create(
-      orgContext.organizationId,
-      orgContext.userId,
-      createDto,
-    );
+  async create(@Body() createDto: CreateWarehouseTransferDto, @OrgContext() orgContext: any) {
+    return this.transfersService.create(orgContext.organizationId, orgContext.userId, createDto);
   }
 
   @Post(':transferId/start')
-  async startTransfer(
-    @Param('transferId') transferId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.transfersService.startTransfer(
-      orgContext.organizationId,
-      parseInt(transferId, 10),
-    );
+  async startTransfer(@Param('transferId') transferId: string, @OrgContext() orgContext: any) {
+    return this.transfersService.startTransfer(orgContext.organizationId, parseInt(transferId, 10));
   }
 
   @Get('pending')
@@ -45,11 +32,7 @@ export class WarehouseTransfersController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const takeNum = take ? parseInt(take, 10) : 10;
 
-    return this.transfersService.getPending(
-      orgContext.organizationId,
-      skipNum,
-      takeNum,
-    );
+    return this.transfersService.getPending(orgContext.organizationId, skipNum, takeNum);
   }
 
   @Get('in-transit')
@@ -61,22 +44,12 @@ export class WarehouseTransfersController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const takeNum = take ? parseInt(take, 10) : 10;
 
-    return this.transfersService.getInTransit(
-      orgContext.organizationId,
-      skipNum,
-      takeNum,
-    );
+    return this.transfersService.getInTransit(orgContext.organizationId, skipNum, takeNum);
   }
 
   @Get(':transferId')
-  async getById(
-    @Param('transferId') transferId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.transfersService.getById(
-      orgContext.organizationId,
-      parseInt(transferId, 10),
-    );
+  async getById(@Param('transferId') transferId: string, @OrgContext() orgContext: any) {
+    return this.transfersService.getById(orgContext.organizationId, parseInt(transferId, 10));
   }
 
   @Post(':transferId/confirm-receipt')

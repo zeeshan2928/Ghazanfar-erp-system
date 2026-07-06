@@ -13,11 +13,33 @@ import {
 } from '@nestjs/common';
 import { JwtGuard } from '../../../common/guards/jwt.guard';
 import { InventoryReservationService } from '../services/inventory-reservation.service';
+import { InventoryOperationsService } from '../services/inventory-operations.service';
 
 @Controller('api/v1/inventory')
 @UseGuards(JwtGuard)
 export class InventoryController {
-  constructor(private inventoryReservationService: InventoryReservationService) {}
+  constructor(
+    private inventoryReservationService: InventoryReservationService,
+    private inventoryOperationsService: InventoryOperationsService,
+  ) {}
+
+  /**
+   * POST - Create inventory for a product in a warehouse
+   */
+  @Post()
+  async createInventory(
+    @Request() req: any,
+    @Body() body: { productId: number; warehouseId: number; openingBalance?: number },
+  ) {
+    const organizationId = req.user.organizationId;
+
+    return this.inventoryOperationsService.createInventory(
+      organizationId,
+      body.productId,
+      body.warehouseId,
+      body.openingBalance || 0,
+    );
+  }
 
   /**
    * POST - Check availability for multiple products
@@ -25,7 +47,8 @@ export class InventoryController {
   @Post('check-availability')
   async checkAvailability(
     @Request() req: any,
-    @Body() body: {
+    @Body()
+    body: {
       items: Array<{ productId: number; warehouseId: number; requiredQuantity: number }>;
     },
   ) {
@@ -56,10 +79,7 @@ export class InventoryController {
    * GET - Reservation history for an inventory item
    */
   @Get(':inventoryId/reservations')
-  async getReservationHistory(
-    @Request() req: any,
-    @Param('inventoryId') inventoryId: string,
-  ) {
+  async getReservationHistory(@Request() req: any, @Param('inventoryId') inventoryId: string) {
     const organizationId = req.user.organizationId;
 
     return this.inventoryReservationService.getReservationHistory(
@@ -72,10 +92,7 @@ export class InventoryController {
    * GET - Detect shortage items in warehouse
    */
   @Get('shortages')
-  async getShortages(
-    @Request() req: any,
-    @Query('warehouseId') warehouseId?: string,
-  ) {
+  async getShortages(@Request() req: any, @Query('warehouseId') warehouseId?: string) {
     const organizationId = req.user.organizationId;
 
     if (!warehouseId) {
@@ -85,10 +102,7 @@ export class InventoryController {
       };
     }
 
-    return this.inventoryReservationService.detectShortages(
-      organizationId,
-      parseInt(warehouseId),
-    );
+    return this.inventoryReservationService.detectShortages(organizationId, parseInt(warehouseId));
   }
 
   /**
@@ -101,10 +115,7 @@ export class InventoryController {
   ) {
     const organizationId = req.user.organizationId;
 
-    return this.inventoryReservationService.detectShortages(
-      organizationId,
-      parseInt(warehouseId),
-    );
+    return this.inventoryReservationService.detectShortages(organizationId, parseInt(warehouseId));
   }
 
   /**

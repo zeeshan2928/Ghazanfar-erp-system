@@ -7,10 +7,7 @@ import {
   FilterOperator,
   ColumnValueDto,
 } from '@common/dto/filter.dto';
-import {
-  getAllowedOperators,
-  isFieldAllowed,
-} from '@common/config/filter-config';
+import { getAllowedOperators, isFieldAllowed } from '@common/config/filter-config';
 
 export interface ProductSearchResult {
   id: number;
@@ -20,6 +17,11 @@ export interface ProductSearchResult {
   category_name: string;
   cost_price: number;
   stock_level: string;
+  brand: { id: number; name: string } | null;
+  category: { id: number; name: string } | null;
+  totalStock: number;
+  salePrice: number | null;
+  commissionRate: number | null;
 }
 
 @Injectable()
@@ -68,10 +70,10 @@ export class ProductsSearchService {
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
       const fieldMap: any = {
-        'name': 'name',
-        'code': 'code',
-        'cost_price': 'costPrice',
-        'createdAt': 'createdAt'
+        name: 'name',
+        code: 'code',
+        cost_price: 'cost_price',
+        createdAt: 'createdAt',
       };
       const dbField = fieldMap[request.sortBy];
       if (dbField) {
@@ -89,8 +91,16 @@ export class ProductsSearchService {
         skip,
         take,
         orderBy,
+        include: { brand: true, category: true },
       }),
       this.prisma.product.count({ where }),
+    ]);
+
+    const productIds = products.map((p: any) => p.id);
+    const [stockByProduct, pricesByProduct, commissionsByProduct] = await Promise.all([
+      this.getTotalStockByProduct(organizationId, productIds),
+      this.getCurrentSalePriceByProduct(productIds),
+      this.getCurrentCommissionByProduct(organizationId, productIds),
     ]);
 
     // Format results
@@ -98,22 +108,91 @@ export class ProductsSearchService {
       id: product.id,
       name: product.name,
       code: product.code,
-      brand_name: 'N/A',
-      category_name: 'N/A',
-      cost_price: product.costPrice,
-      stock_level: this.getStockLevel(0), // TODO: fetch from inventory
+      brand_name: product.brand?.name || 'N/A',
+      category_name: product.category?.name || 'N/A',
+      cost_price: product.cost_price,
+      stock_level: this.getStockLevel(stockByProduct.get(product.id) || 0),
+      brand: product.brand ? { id: product.brand.id, name: product.brand.name } : null,
+      category: product.category ? { id: product.category.id, name: product.category.name } : null,
+      totalStock: stockByProduct.get(product.id) || 0,
+      salePrice: pricesByProduct.get(product.id) ?? null,
+      commissionRate: commissionsByProduct.get(product.id) ?? null,
     }));
 
     return this.filterService.buildPaginatedResponse(data, total, skip, take);
   }
 
+  /** Sums `available` stock across every warehouse, per product. */
+  private async getTotalStockByProduct(
+    organizationId: number,
+    productIds: number[],
+  ): Promise<Map<number, number>> {
+    if (productIds.length === 0) return new Map();
+    const grouped = await this.prisma.inventory.groupBy({
+      by: ['productId'],
+      where: { organizationId, productId: { in: productIds } },
+      _sum: { available: true },
+    });
+    return new Map(grouped.map((g: any) => [g.productId, g._sum.available || 0]));
+  }
+
+  /**
+   * The invoice picker needs one representative "sale price" per product.
+   * Uses the COUNTER/RETAIL price tier as the baseline shown in the picker -
+   * the actual invoice can still price differently per channel/customer via
+   * ProductPrice directly; this is just a display convenience.
+   */
+  private async getCurrentSalePriceByProduct(productIds: number[]): Promise<Map<number, number>> {
+    if (productIds.length === 0) return new Map();
+    const now = new Date();
+    const prices = await this.prisma.productPrice.findMany({
+      where: {
+        productId: { in: productIds },
+        channel: 'COUNTER',
+        customerType: 'RETAIL',
+        isActive: true,
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const result = new Map<number, number>();
+    for (const price of prices) {
+      if (!result.has(price.productId)) {
+        result.set(price.productId, price.price);
+      }
+    }
+    return result;
+  }
+
+  private async getCurrentCommissionByProduct(
+    organizationId: number,
+    productIds: number[],
+  ): Promise<Map<number, number>> {
+    if (productIds.length === 0) return new Map();
+    const now = new Date();
+    const commissions = await this.prisma.productCommission.findMany({
+      where: {
+        organizationId,
+        productId: { in: productIds },
+        effectiveFrom: { lte: now },
+        OR: [{ effectiveTo: null }, { effectiveTo: { gte: now } }],
+      },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const result = new Map<number, number>();
+    for (const commission of commissions) {
+      if (!result.has(commission.productId)) {
+        result.set(commission.productId, Number(commission.commissionRate));
+      }
+    }
+    return result;
+  }
+
   /**
    * Get unique values for a column
    */
-  async getColumnValues(
-    organizationId: number,
-    columnName: string,
-  ): Promise<ColumnValueDto[]> {
+  async getColumnValues(organizationId: number, columnName: string): Promise<ColumnValueDto[]> {
     this.validateColumnName(columnName);
 
     switch (columnName) {
@@ -122,9 +201,9 @@ export class ProductsSearchService {
       case 'code':
         return this.getProductCodes(organizationId);
       case 'brand':
-        return []; // Brand model not yet implemented
+        return this.getBrandValues(organizationId);
       case 'category':
-        return []; // Category model not yet implemented
+        return this.getCategoryValues(organizationId);
       case 'stock_level':
         return this.getStockLevelValues();
       default:
@@ -162,6 +241,24 @@ export class ProductsSearchService {
     }));
   }
 
+  private async getBrandValues(organizationId: number): Promise<ColumnValueDto[]> {
+    const brands = await this.prisma.brand.findMany({
+      where: { organizationId, isActive: true },
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    });
+    return brands.map((b: any) => ({ value: b.name, label: b.name }));
+  }
+
+  private async getCategoryValues(organizationId: number): Promise<ColumnValueDto[]> {
+    const categories = await this.prisma.productCategory.findMany({
+      where: { organizationId, isActive: true },
+      select: { name: true },
+      orderBy: { name: 'asc' },
+    });
+    return categories.map((c: any) => ({ value: c.name, label: c.name }));
+  }
+
   private getStockLevelValues(): ColumnValueDto[] {
     return [
       { value: 'low', label: 'Low Stock' },
@@ -189,13 +286,17 @@ export class ProductsSearchService {
     const where: any = {};
 
     for (const filter of filters) {
-      // Skip brand and category as they're not yet implemented
-      if (filter.field === 'brand' || filter.field === 'category') {
-        continue;
-      }
-
       const condition = this.buildCondition({ ...filter });
-      if (condition) {
+      if (!condition) continue;
+
+      // brand/category filter values are names (see getBrandValues/
+      // getCategoryValues), so filter through the relation rather than a
+      // scalar column.
+      if (filter.field === 'brand') {
+        where.brand = { name: condition };
+      } else if (filter.field === 'category') {
+        where.category = { name: condition };
+      } else {
         where[filter.field] = condition;
       }
     }
@@ -241,19 +342,17 @@ export class ProductsSearchService {
         break;
       case 'isLike':
         // Fuzzy match - treat as contains search
-        return { contains: (value as string), mode: 'insensitive' };
+        return { contains: value as string, mode: 'insensitive' };
       case 'isNotLike':
         // Fuzzy match negation
-        return { not: { contains: (value as string), mode: 'insensitive' } };
+        return { not: { contains: value as string, mode: 'insensitive' } };
     }
     return null;
   }
 
   private validateColumnName(columnName: string): void {
     if (!isFieldAllowed('products', columnName)) {
-      throw new BadRequestException(
-        `Field '${columnName}' is not available for products search`,
-      );
+      throw new BadRequestException(`Field '${columnName}' is not available for products search`);
     }
   }
 
@@ -269,9 +368,7 @@ export class ProductsSearchService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Invalid field '${fieldName}' for products search`,
-      );
+      throw new BadRequestException(`Invalid field '${fieldName}' for products search`);
     }
   }
 }

@@ -1,6 +1,21 @@
-import { Controller, Get, Post, Delete, Param, Body, UseGuards, Query, HttpStatus, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Delete,
+  Param,
+  Body,
+  UseGuards,
+  Query,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import { NotificationsService } from './services/notifications.service';
-import { CreateNotificationDto, SendNotificationDto, NotificationPreferenceDto } from './dto/create-notification.dto';
+import {
+  CreateNotificationDto,
+  SendNotificationDto,
+  NotificationPreferenceDto,
+} from './dto/create-notification.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
@@ -21,7 +36,12 @@ export class NotificationsController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const takeNum = take ? parseInt(take, 10) : 10;
 
-    return this.notificationsService.getUserNotifications(orgContext.organizationId, orgContext.userId, skipNum, takeNum);
+    return this.notificationsService.getUserNotifications(
+      orgContext.organizationId,
+      orgContext.userId,
+      skipNum,
+      takeNum,
+    );
   }
 
   /**
@@ -46,7 +66,12 @@ export class NotificationsController {
       endDate,
     };
 
-    return this.notificationsService.getNotificationHistory(orgContext.organizationId, filters, skipNum, takeNum);
+    return this.notificationsService.getNotificationHistory(
+      orgContext.organizationId,
+      filters,
+      skipNum,
+      takeNum,
+    );
   }
 
   /**
@@ -55,7 +80,10 @@ export class NotificationsController {
   @Post(':id/read')
   @HttpCode(HttpStatus.OK)
   async markAsRead(@Param('id') notificationId: string, @OrgContext() orgContext?: any) {
-    return this.notificationsService.markAsRead(orgContext.organizationId, parseInt(notificationId, 10));
+    return this.notificationsService.markAsRead(
+      orgContext.organizationId,
+      parseInt(notificationId, 10),
+    );
   }
 
   /**
@@ -73,7 +101,10 @@ export class NotificationsController {
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
   async deleteNotification(@Param('id') notificationId: string, @OrgContext() orgContext?: any) {
-    await this.notificationsService.deleteNotification(orgContext.organizationId, parseInt(notificationId, 10));
+    await this.notificationsService.deleteNotification(
+      orgContext.organizationId,
+      parseInt(notificationId, 10),
+    );
   }
 
   /**
@@ -81,7 +112,10 @@ export class NotificationsController {
    */
   @Get('preferences')
   async getPreferences(@OrgContext() orgContext?: any) {
-    return this.notificationsService.getNotificationPreferences(orgContext.organizationId, orgContext.userId);
+    return this.notificationsService.getNotificationPreferences(
+      orgContext.organizationId,
+      orgContext.userId,
+    );
   }
 
   /**

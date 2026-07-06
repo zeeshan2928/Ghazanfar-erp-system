@@ -8,10 +8,10 @@ import { apiClient } from '../../services/api';
 interface Customer {
   id: number;
   name: string;
-  customer_type: string;
+  customerType: string;
   phone: string;
   email: string;
-  credit_limit: number;
+  creditLimit: number;
 }
 
 export function CustomersScreen() {
@@ -23,13 +23,15 @@ export function CustomersScreen() {
   const [primaryFilter, setPrimaryFilter] = useState<FilterOperatorDto | undefined>();
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '' });
 
   const columns = [
     { name: 'name', label: 'Name', dataType: DataType.TEXT },
-    { name: 'customer_type', label: 'Type', dataType: DataType.ENUM },
+    { name: 'customerType', label: 'Type', dataType: DataType.ENUM },
     { name: 'phone', label: 'Phone', dataType: DataType.TEXT },
     { name: 'email', label: 'Email', dataType: DataType.TEXT },
-    { name: 'credit_limit', label: 'Credit', dataType: DataType.NUMERIC },
+    { name: 'creditLimit', label: 'Credit', dataType: DataType.NUMERIC },
   ];
 
   useEffect(() => {
@@ -44,9 +46,9 @@ export function CustomersScreen() {
   async function preloadColumnValues() {
     try {
       const [typeVals] = await Promise.all([
-        apiClient.getCustomerColumnValues('customer_type'),
+        apiClient.getCustomerColumnValues('customerType'),
       ]);
-      setColumnValues((prev) => ({ ...prev, customer_type: typeVals || [] }));
+      setColumnValues((prev) => ({ ...prev, customerType: typeVals || [] }));
     } catch (error) {
       console.error('Failed to load values:', error);
     }
@@ -91,9 +93,41 @@ export function CustomersScreen() {
 
   const filterableColumns = columns.map((col) => ({ ...col, values: columnValues[col.name] }));
 
+  async function handleAddCustomer() {
+    try {
+      await apiClient.createCustomer({
+        name: formData.name,
+        phone: formData.phone,
+        email: formData.email,
+        creditLimit: parseInt(formData.creditLimit) || 0,
+      });
+      setFormData({ name: '', phone: '', email: '', creditLimit: '' });
+      setShowAddForm(false);
+      await fetchCustomers();
+      alert('✅ Customer created successfully!');
+    } catch (err: any) {
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    }
+  }
+
   return (
     <div style={styles.container}>
-      <h2>👥 Customers</h2>
+      <div style={styles.header}>
+        <h2>👥 Customers</h2>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={styles.addBtn}>
+          {showAddForm ? '❌ Cancel' : '➕ Add Customer'}
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div style={styles.formContainer}>
+          <input type="text" placeholder="Customer Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={styles.input} />
+          <input type="tel" placeholder="Phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} style={styles.input} />
+          <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={styles.input} />
+          <input type="number" placeholder="Credit Limit" value={formData.creditLimit} onChange={(e) => setFormData({...formData, creditLimit: e.target.value})} style={styles.input} />
+          <button onClick={handleAddCustomer} style={styles.submitBtn}>Save</button>
+        </div>
+      )}
       <SearchBox onSearch={handlePrimarySearch} placeholder="Search by customer name..." />
       <FilterPanel columns={filterableColumns} onFilterApply={handleColumnFilter} />
       <FilterSummary
@@ -124,10 +158,10 @@ export function CustomersScreen() {
                 {customers.map((c) => (
                   <tr key={c.id}>
                     <td style={styles.td}>{c.name}</td>
-                    <td style={styles.td}><span style={getTypeStyle(c.customer_type)}>{c.customer_type}</span></td>
+                    <td style={styles.td}><span style={getTypeStyle(c.customerType)}>{c.customerType}</span></td>
                     <td style={styles.td}>{c.phone}</td>
                     <td style={styles.td}>{c.email}</td>
-                    <td style={styles.td}>Rs {c.credit_limit.toLocaleString()}</td>
+                    <td style={styles.td}>Rs {c.creditLimit.toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -155,6 +189,11 @@ function getTypeStyle(type: string): React.CSSProperties {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { padding: '20px' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  addBtn: { padding: '10px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' },
+  formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  input: { flex: 1, minWidth: '150px', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' },
+  submitBtn: { padding: '10px 30px', backgroundColor: '#43e97b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' },
   loading: { textAlign: 'center', padding: '40px', color: '#666' },
   noResults: { textAlign: 'center', padding: '40px', color: '#999' },
   tableWrapper: { overflowX: 'auto', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '4px' },

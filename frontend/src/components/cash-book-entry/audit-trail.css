@@ -1,0 +1,379 @@
+.audit {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #F2F2F7;
+  min-height: 100vh;
+}
+
+.audit__header {
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.audit__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 12px 0;
+}
+
+.audit__stats {
+  display: flex;
+  gap: 24px;
+}
+
+.audit__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.audit__stat-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #999;
+  text-transform: uppercase;
+}
+
+.audit__stat-value {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+}
+
+.audit__container {
+  display: grid;
+  grid-template-columns: 280px 1fr;
+  gap: 16px;
+}
+
+.audit__panel {
+  background-color: white;
+  border-radius: 8px;
+  padding: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  display: flex;
+  flex-direction: column;
+}
+
+.audit__panel-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 12px 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.audit__panel--entries {
+  max-height: 600px;
+  overflow-y: auto;
+}
+
+.audit__entries-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit__entry-item {
+  padding: 12px;
+  background-color: #F5F5F5;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s;
+  border-left: 3px solid transparent;
+}
+
+.audit__entry-item:hover {
+  background-color: #EEEEEE;
+}
+
+.audit__entry-item--selected {
+  background-color: #E3F2FD;
+  border-left-color: #2196F3;
+}
+
+.audit__entry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.audit__entry-ref {
+  font-weight: 600;
+  color: #2196F3;
+  font-size: 13px;
+}
+
+.audit__comment-badge {
+  font-size: 11px;
+  background-color: #E3F2FD;
+  color: #2196F3;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.audit__entry-date {
+  font-size: 12px;
+  color: #999;
+  margin-bottom: 4px;
+}
+
+.audit__entry-amount {
+  font-weight: 700;
+  color: #333;
+}
+
+.audit__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  color: #999;
+  min-height: 300px;
+}
+
+.audit__entry-details {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.audit__entry-details-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #333;
+  margin: 0 0 6px 0;
+}
+
+.audit__entry-details-info {
+  font-size: 12px;
+  color: #666;
+  margin: 0;
+}
+
+.audit__section {
+  margin-bottom: 16px;
+}
+
+.audit__section:last-child {
+  margin-bottom: 0;
+}
+
+.audit__section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.audit__section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.audit__filter-select {
+  padding: 6px 10px;
+  border: 1px solid #E5E5EA;
+  border-radius: 4px;
+  font-size: 12px;
+  color: #333;
+  background-color: white;
+  cursor: pointer;
+}
+
+.audit__filter-select:focus {
+  outline: none;
+  border-color: #2196F3;
+}
+
+.audit__section-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  color: #999;
+  font-size: 12px;
+  background-color: #F5F5F5;
+  border-radius: 6px;
+}
+
+.audit__comments {
+  flex: 1;
+  overflow-y: auto;
+  margin-bottom: 16px;
+  max-height: 300px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.audit__comment {
+  background-color: #F5F5F5;
+  padding: 12px;
+  border-radius: 6px;
+  border-left: 3px solid #2196F3;
+}
+
+.audit__comment-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  font-size: 12px;
+}
+
+.audit__comment-author {
+  font-weight: 600;
+  color: #333;
+}
+
+.audit__comment-time {
+  color: #999;
+  font-size: 11px;
+}
+
+.audit__comment-content {
+  font-size: 12px;
+  color: #333;
+  line-height: 1.4;
+}
+
+.audit__comment-form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid #E5E5EA;
+}
+
+.audit__comment-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #E5E5EA;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: inherit;
+  color: #333;
+  resize: vertical;
+  min-height: 80px;
+}
+
+.audit__comment-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33,150,243,0.1);
+}
+
+.audit__log-entries {
+  flex: 1;
+  overflow-y: auto;
+  max-height: 400px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.audit__log-entry {
+  display: flex;
+  gap: 12px;
+  padding: 10px;
+  background-color: #F5F5F5;
+  border-radius: 6px;
+  font-size: 12px;
+  align-items: flex-start;
+}
+
+.audit__log-time {
+  color: #999;
+  min-width: 140px;
+  font-size: 11px;
+}
+
+.audit__log-action {
+  flex: 1;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.audit__log-icon {
+  font-size: 14px;
+  width: 20px;
+  text-align: center;
+}
+
+.audit__log-text {
+  color: #333;
+  font-weight: 500;
+}
+
+.audit__log-by {
+  color: #666;
+  font-size: 11px;
+  min-width: 100px;
+  text-align: right;
+}
+
+.audit__btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+  width: 100%;
+}
+
+.audit__btn--primary {
+  background-color: #2196F3;
+  color: white;
+}
+
+.audit__btn--primary:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.audit__btn--primary:disabled {
+  background-color: #BDBDBD;
+  cursor: not-allowed;
+}
+
+@media (max-width: 1024px) {
+  .audit__container {
+    grid-template-columns: 1fr;
+  }
+
+  .audit__panel--entries {
+    max-height: 300px;
+  }
+}
+
+@media (max-width: 640px) {
+  .audit {
+    padding: 12px;
+  }
+
+  .audit__container {
+    grid-template-columns: 1fr;
+  }
+
+  .audit__stats {
+    flex-direction: column;
+    gap: 12px;
+  }
+}

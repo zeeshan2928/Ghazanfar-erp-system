@@ -5,6 +5,18 @@ import { PrismaService } from '@database/prisma.service';
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
+  async createProduct(organizationId: number, data: any) {
+    return this.prisma.product.create({
+      data: {
+        organizationId,
+        code: data.code,
+        name: data.name,
+        cost_price: parseInt(data.costPrice || data.cost_price) || 0,
+        isActive: true,
+      },
+    });
+  }
+
   async getPurchaseHistory(organizationId: number, productId: number, limit = 5) {
     const product = await this.prisma.product.findUnique({
       where: { id: productId },
@@ -19,24 +31,24 @@ export class ProductsService {
         organizationId,
         productId,
       },
-      orderBy: { poDate: 'desc' },
+      orderBy: { po_date: 'desc' },
       take: limit,
       select: {
         id: true,
-        vendorName: true,
-        poNumber: true,
-        poDate: true,
-        quantityPurchased: true,
-        costPrice: true,
+        vendor_name: true,
+        po_number: true,
+        po_date: true,
+        quantity_purchased: true,
+        cost_price: true,
       },
     });
 
-    return purchases.map((p) => ({
-      vendor: p.vendorName,
-      poNumber: p.poNumber,
-      poDate: p.poDate,
-      quantity: p.quantityPurchased,
-      costPrice: p.costPrice,
+    return purchases.map(p => ({
+      vendor: p.vendor_name,
+      poNumber: p.po_number,
+      poDate: p.po_date,
+      quantity: p.quantity_purchased,
+      costPrice: p.cost_price,
     }));
   }
 }

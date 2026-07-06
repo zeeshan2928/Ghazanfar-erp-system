@@ -34,23 +34,10 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.LTE,
       FilterOperator.BETWEEN,
     ],
-    bill_date: [
-      FilterOperator.EQUALS,
-      FilterOperator.BETWEEN,
-    ],
-    status: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-    ],
-    payment_method: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-    ],
-    employee_name: [
-      FilterOperator.EQUALS,
-      FilterOperator.IN,
-      FilterOperator.CONTAINS,
-    ],
+    bill_date: [FilterOperator.EQUALS, FilterOperator.BETWEEN],
+    status: [FilterOperator.IN, FilterOperator.NOT_IN],
+    payment_method: [FilterOperator.IN, FilterOperator.NOT_IN],
+    employee_name: [FilterOperator.EQUALS, FilterOperator.IN, FilterOperator.CONTAINS],
   },
 
   // Products Screen
@@ -69,16 +56,8 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.CONTAINS,
       FilterOperator.BEGINS_WITH,
     ],
-    brand: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
-    category: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
+    brand: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    category: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
     cost_price: [
       FilterOperator.EQUALS,
       FilterOperator.GT,
@@ -87,10 +66,7 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.LTE,
       FilterOperator.BETWEEN,
     ],
-    stock_level: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-    ],
+    stock_level: [FilterOperator.IN, FilterOperator.NOT_IN],
   },
 
   // Manage Stock Screen
@@ -101,30 +77,11 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.BEGINS_WITH,
       FilterOperator.ENDS_WITH,
     ],
-    bill_number: [
-      FilterOperator.EQUALS,
-      FilterOperator.CONTAINS,
-      FilterOperator.BEGINS_WITH,
-    ],
-    account: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
-    date_received: [
-      FilterOperator.EQUALS,
-      FilterOperator.BETWEEN,
-    ],
-    warehouse: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
-    product_name: [
-      FilterOperator.IS_LIKE,
-      FilterOperator.CONTAINS,
-      FilterOperator.EQUALS,
-    ],
+    bill_number: [FilterOperator.EQUALS, FilterOperator.CONTAINS, FilterOperator.BEGINS_WITH],
+    account: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    date_received: [FilterOperator.EQUALS, FilterOperator.BETWEEN],
+    warehouse: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    product_name: [FilterOperator.IS_LIKE, FilterOperator.CONTAINS, FilterOperator.EQUALS],
     quantity: [
       FilterOperator.EQUALS,
       FilterOperator.GT,
@@ -145,21 +102,9 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.CONTAINS,
       FilterOperator.BEGINS_WITH,
     ],
-    customer_type: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
-    phone: [
-      FilterOperator.EQUALS,
-      FilterOperator.CONTAINS,
-      FilterOperator.BEGINS_WITH,
-    ],
-    email: [
-      FilterOperator.EQUALS,
-      FilterOperator.CONTAINS,
-      FilterOperator.IS_LIKE,
-    ],
+    customer_type: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    phone: [FilterOperator.EQUALS, FilterOperator.CONTAINS, FilterOperator.BEGINS_WITH],
+    email: [FilterOperator.EQUALS, FilterOperator.CONTAINS, FilterOperator.IS_LIKE],
     credit_limit: [
       FilterOperator.GT,
       FilterOperator.GTE,
@@ -183,15 +128,8 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.CONTAINS,
       FilterOperator.BEGINS_WITH,
     ],
-    status: [
-      FilterOperator.IN,
-      FilterOperator.NOT_IN,
-      FilterOperator.EQUALS,
-    ],
-    created_date: [
-      FilterOperator.EQUALS,
-      FilterOperator.BETWEEN,
-    ],
+    status: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    created_date: [FilterOperator.EQUALS, FilterOperator.BETWEEN],
     amount: [
       FilterOperator.EQUALS,
       FilterOperator.GT,
@@ -208,10 +146,7 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
  * Usage: getAllowedOperators('bills', 'customer_name')
  * Returns: [EQUALS, CONTAINS, IS_LIKE, ...]
  */
-export function getAllowedOperators(
-  screenName: string,
-  fieldName: string,
-): FilterOperator[] {
+export function getAllowedOperators(screenName: string, fieldName: string): FilterOperator[] {
   const screenConfig = SCREEN_FILTER_CONFIGS[screenName];
   if (!screenConfig) {
     throw new Error(`Screen configuration not found: ${screenName}`);
@@ -219,9 +154,7 @@ export function getAllowedOperators(
 
   const fieldOperators = screenConfig[fieldName];
   if (!fieldOperators) {
-    throw new Error(
-      `Field configuration not found for screen '${screenName}': ${fieldName}`,
-    );
+    throw new Error(`Field configuration not found for screen '${screenName}': ${fieldName}`);
   }
 
   return fieldOperators;

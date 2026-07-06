@@ -29,14 +29,8 @@ export class GatePassesController {
   }
 
   @Get(':gatePassId')
-  async getById(
-    @Param('gatePassId') gatePassId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.gatePassesService.getById(
-      orgContext.organizationId,
-      parseInt(gatePassId, 10),
-    );
+  async getById(@Param('gatePassId') gatePassId: string, @OrgContext() orgContext: any) {
+    return this.gatePassesService.getById(orgContext.organizationId, parseInt(gatePassId, 10));
   }
 
   @Post(':gatePassId/confirm')

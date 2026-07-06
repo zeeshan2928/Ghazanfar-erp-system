@@ -68,7 +68,9 @@ export class LabourStaffController {
   @Get('staff/:organizationId')
   async getOrganizationStaff(@Param('organizationId') organizationId: string) {
     try {
-      const staff = await this.labourStaffService.getOrganizationEmployees(parseInt(organizationId));
+      const staff = await this.labourStaffService.getOrganizationEmployees(
+        parseInt(organizationId),
+      );
 
       return {
         status: 'success',
@@ -77,10 +79,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching staff: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch staff members',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch staff members', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -105,10 +104,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching staff details: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch staff details',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch staff details', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -133,10 +129,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error updating staff: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to update staff member',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to update staff member', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -166,10 +159,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error recording check-in: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to record check-in',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to record check-in', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -181,7 +171,9 @@ export class LabourStaffController {
     @Query('employeeId') employeeId?: string,
   ) {
     try {
-      const start = startDate ? new Date(startDate) : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
+      const start = startDate
+        ? new Date(startDate)
+        : new Date(new Date().getFullYear(), new Date().getMonth(), 1);
       const end = endDate ? new Date(endDate) : new Date();
 
       if (employeeId) {
@@ -199,7 +191,9 @@ export class LabourStaffController {
         };
       }
 
-      const stats = await this.attendanceService.getOrganizationAttendanceStats(parseInt(organizationId));
+      const stats = await this.attendanceService.getOrganizationAttendanceStats(
+        parseInt(organizationId),
+      );
 
       return {
         status: 'success',
@@ -251,7 +245,7 @@ export class LabourStaffController {
     },
   ) {
     try {
-      const updates = data.updates.map((u) => ({
+      const updates = data.updates.map(u => ({
         employeeId: u.employeeId,
         date: new Date(u.date),
         status: u.status,
@@ -269,10 +263,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error bulk updating attendance: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to bulk update attendance',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to bulk update attendance', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -305,10 +296,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error applying for leave: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to submit leave application',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to submit leave application', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -324,10 +312,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching pending leaves: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch pending leaves',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch pending leaves', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -349,10 +334,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching leave history: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch leave history',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch leave history', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -373,10 +355,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching leave balance: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch leave balance',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch leave balance', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -400,10 +379,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error approving leave: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to approve leave',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to approve leave', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -426,10 +402,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error rejecting leave: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to reject leave',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to reject leave', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -462,10 +435,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error calculating bonus: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to calculate bonus',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to calculate bonus', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -495,10 +465,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error calculating all bonuses: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to calculate bonuses',
-        HttpStatus.BAD_REQUEST,
-      );
+      throw new HttpException('Failed to calculate bonuses', HttpStatus.BAD_REQUEST);
     }
   }
 
@@ -520,10 +487,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching bonus history: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch bonus history',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch bonus history', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 
@@ -546,10 +510,7 @@ export class LabourStaffController {
       };
     } catch (error) {
       this.logger.error(`Error fetching bonus summary: ${(error as Error).message}`);
-      throw new HttpException(
-        'Failed to fetch bonus summary',
-        HttpStatus.INTERNAL_SERVER_ERROR,
-      );
+      throw new HttpException('Failed to fetch bonus summary', HttpStatus.INTERNAL_SERVER_ERROR);
     }
   }
 }

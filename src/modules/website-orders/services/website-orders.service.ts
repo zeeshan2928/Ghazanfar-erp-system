@@ -59,7 +59,7 @@ export class WebsiteOrdersService {
     userId: number,
     approveDto: ApproveWebsiteOrderDto,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const order = await tx.websiteOrder.findFirst({
         where: {
           id: orderId,
@@ -72,9 +72,7 @@ export class WebsiteOrdersService {
       }
 
       if (order.status !== 'PENDING_APPROVAL') {
-        throw new BadRequestException(
-          `Cannot approve order with status ${order.status}`,
-        );
+        throw new BadRequestException(`Cannot approve order with status ${order.status}`);
       }
 
       // Verify customer exists
@@ -88,37 +86,39 @@ export class WebsiteOrdersService {
 
       // Parse items from JSON
       const itemsData = typeof order.items === 'string' ? JSON.parse(order.items) : order.items;
-      const items = itemsData as Array<{
-        productId: number;
-        quantity: number;
-        unitPrice: number;
-      }>;
+      // Normalize to camelCase (legacy rows may have snake_case unit_price in stored JSON)
+      const items: Array<{ productId: number; quantity: number; unitPrice: number }> = (
+        itemsData as any[]
+      ).map(item => ({
+        productId: item.productId,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice ?? item.unit_price,
+      }));
 
       // @ts-ignore - Prisma transaction type inference issue, logic is correct
       const bill = await tx.bill.create({
         data: {
-          billNumber: await this.generateBillNumber(organizationId, tx),
-          customer: { connect: { id: approveDto.customerId } },
-          salesman: { connect: { id: userId } },
-          createdByUser: { connect: { id: userId } },
-          organization: { connect: { id: organizationId } },
+          bill_number: await this.generateBillNumber(organizationId, tx),
+          customerId: approveDto.customerId,
+          salesmanId: userId,
+          created_by: userId,
+          organizationId,
           channel: 'WEBSITE',
-          websiteOrderId: orderId,
           subtotal: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
-          discountAmount: 0,
+          discount_amount: 0,
           discountPercentage: 0,
-          taxAmount: 0,
-          totalAmount: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
+          tax_amount: 0,
+          total_amount: items.reduce((sum, item) => sum + item.quantity * item.unitPrice, 0),
           remarks: approveDto.remarks,
           status: 'APPROVED',
           lines: {
-            create: items.map((item) => ({
+            create: items.map(item => ({
               organizationId,
               productId: item.productId,
               warehouseId: approveDto.warehouseId,
               quantity: item.quantity,
-              unitPrice: item.unitPrice,
-              lineTotal: item.quantity * item.unitPrice,
+              unit_price: item.unitPrice,
+              line_total: item.quantity * item.unitPrice,
             })),
           },
         },
@@ -162,12 +162,12 @@ export class WebsiteOrdersService {
       await tx.gatePass.create({
         data: {
           organizationId,
-          gatePassNumber,
+          gate_pass_number: gatePassNumber,
           billId: bill.id,
           warehouseId: approveDto.warehouseId,
           status: 'PENDING',
           items: {
-            create: billLines.map((line) => ({
+            create: billLines.map(line => ({
               organizationId,
               billLineId: line.id,
               productId: line.productId,
@@ -182,9 +182,9 @@ export class WebsiteOrdersService {
         where: { id: orderId },
         data: {
           status: 'APPROVED',
-          approvalBy: userId,
-          approvalDate: new Date(),
-          syncedToErpBillId: bill.id,
+          approval_by: userId,
+          approval_date: new Date(),
+          synced_to_erp_bill_id: bill.id,
         },
       });
 
@@ -213,18 +213,16 @@ export class WebsiteOrdersService {
     }
 
     if (order.status !== 'PENDING_APPROVAL') {
-      throw new BadRequestException(
-        `Cannot reject order with status ${order.status}`,
-      );
+      throw new BadRequestException(`Cannot reject order with status ${order.status}`);
     }
 
     return this.prisma.websiteOrder.update({
       where: { id: orderId },
       data: {
         status: 'REJECTED',
-        approvalBy: userId,
-        approvalDate: new Date(),
-        rejectionReason: rejectDto.reason,
+        approval_by: userId,
+        approval_date: new Date(),
+        rejection_reason: rejectDto.reason,
       },
     });
   }
@@ -233,23 +231,31 @@ export class WebsiteOrdersService {
     const today = new Date();
     const year = today.getFullYear();
 
-    const lastBill = await tx.bill.findFirst({
+    // NOTE: sorting bill_number as a string is unsafe when historical rows have
+    // inconsistent zero-padding (e.g. "BILL-2026-001" vs "BILL-2026-000002") -
+    // lexicographic order picks the wrong "last" row and regenerates a number
+    // that already exists. Fetch all matches for the year and take the true
+    // numeric max instead.
+    const bills = await tx.bill.findMany({
       where: {
         organizationId,
-        billNumber: {
+        bill_number: {
           startsWith: `BILL-${year}-`,
         },
       },
-      orderBy: { billNumber: 'desc' },
-      select: { billNumber: true },
+      select: { bill_number: true },
     });
 
-    let sequence = 1;
-    if (lastBill) {
-      const parts = lastBill.billNumber.split('-');
-      sequence = parseInt(parts[2], 10) + 1;
+    let maxSequence = 0;
+    for (const bill of bills) {
+      const parts = bill.bill_number.split('-');
+      const num = parseInt(parts[2], 10);
+      if (!isNaN(num) && num > maxSequence) {
+        maxSequence = num;
+      }
     }
 
+    const sequence = maxSequence + 1;
     return `BILL-${year}-${String(sequence).padStart(6, '0')}`;
   }
 
@@ -257,23 +263,26 @@ export class WebsiteOrdersService {
     const today = new Date();
     const year = today.getFullYear();
 
-    const lastGatePass = await tx.gatePass.findFirst({
+    const gatePasses = await tx.gatePass.findMany({
       where: {
         organizationId,
-        gatePassNumber: {
+        gate_pass_number: {
           startsWith: `GP-${year}-`,
         },
       },
-      orderBy: { gatePassNumber: 'desc' },
-      select: { gatePassNumber: true },
+      select: { gate_pass_number: true },
     });
 
-    let sequence = 1;
-    if (lastGatePass) {
-      const parts = lastGatePass.gatePassNumber.split('-');
-      sequence = parseInt(parts[2], 10) + 1;
+    let maxSequence = 0;
+    for (const gp of gatePasses) {
+      const parts = gp.gate_pass_number.split('-');
+      const num = parseInt(parts[2], 10);
+      if (!isNaN(num) && num > maxSequence) {
+        maxSequence = num;
+      }
     }
 
+    const sequence = maxSequence + 1;
     return `GP-${year}-${String(sequence).padStart(6, '0')}`;
   }
 }

@@ -1,7 +1,13 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@database/prisma.service';
 import { Prisma } from '@prisma/client';
+import { PrismaService } from '@database/prisma.service';
 
+/**
+ * NOTE: this entire service is built against Prisma models that don't exist
+ * anywhere in schema.prisma (Attendance, AttendanceBonus, Employee) - same
+ * pattern as leave.service.ts (see its docstring for full context). Stubbed
+ * to log a warning and return safe defaults rather than crash.
+ */
 @Injectable()
 export class BonusCalculationService {
   private readonly logger = new Logger(BonusCalculationService.name);
@@ -14,102 +20,50 @@ export class BonusCalculationService {
     month: number,
     year: number,
     baseBonus: number = 0,
-  ) {
-    try {
-      const startDate = new Date(year, month, 1);
-      const endDate = new Date(year, month + 1, 1);
-
-      const attendance = await this.prisma.attendance.findMany({
-        where: {
-          organizationId,
-          employeeId,
-          attendanceDate: { gte: startDate, lt: endDate },
-        },
-      });
-
-      const presentDays = attendance.filter(a => a.status === 'PRESENT').length;
-      const leaveDays = attendance.filter(a => a.status === 'LEAVE').length;
-      const absentDays = attendance.filter(a => a.status === 'ABSENT').length;
-
-      let bonusAmount = new Prisma.Decimal(baseBonus);
-
-      if (leaveDays === 0) {
-        bonusAmount = bonusAmount.add(500);
-      }
-
-      bonusAmount = bonusAmount.add(presentDays * 100);
-
-      return await this.prisma.attendanceBonus.create({
-        data: {
-          organizationId,
-          employeeId,
-          bonusMonth: startDate,
-          bonusAmount,
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to calculate bonus: ${(error as Error).message}`);
-      throw error;
-    }
+  ): Promise<any> {
+    this.logger.warn(
+      'calculateMonthlyBonus(): no Attendance/AttendanceBonus model exists in schema.prisma',
+    );
+    return null;
   }
 
-  async getMonthlyBonus(organizationId: number, employeeId: number, bonusMonth: Date) {
-    return this.prisma.attendanceBonus.findFirst({
-      where: {
-        organizationId,
-        employeeId,
-        bonusMonth,
-      },
-    });
+  async getMonthlyBonus(
+    organizationId: number,
+    employeeId: number,
+    bonusMonth: Date,
+  ): Promise<any> {
+    this.logger.warn('getMonthlyBonus(): no AttendanceBonus model exists in schema.prisma');
+    return null;
   }
 
-  async getBonusHistory(organizationId: number, employeeId: number) {
-    return this.prisma.attendanceBonus.findMany({
-      where: { organizationId, employeeId },
-      orderBy: { bonusMonth: 'desc' },
-    });
+  async getBonusHistory(organizationId: number, employeeId: number): Promise<any[]> {
+    this.logger.warn('getBonusHistory(): no AttendanceBonus model exists in schema.prisma');
+    return [];
   }
 
   async getOrganizationBonusStats(organizationId: number, month: number, year: number) {
-    const startDate = new Date(year, month, 1);
-    const endDate = new Date(year, month + 1, 1);
-
-    const bonuses = await this.prisma.attendanceBonus.findMany({
-      where: {
-        organizationId,
-        bonusMonth: { gte: startDate, lt: endDate },
-      },
-      include: { employee: true },
-    });
-
-    const totalBonus = bonuses.reduce((sum, b) => sum.add(b.bonusAmount), new Prisma.Decimal(0));
-
+    this.logger.warn(
+      'getOrganizationBonusStats(): no AttendanceBonus model exists in schema.prisma',
+    );
     return {
       month,
       year,
-      totalBonuses: bonuses.length,
-      totalAmount: totalBonus,
-      averageBonus: bonuses.length > 0 ? totalBonus.div(bonuses.length) : new Prisma.Decimal(0),
-      details: bonuses,
+      totalBonuses: 0,
+      total_amount: new Prisma.Decimal(0),
+      averageBonus: new Prisma.Decimal(0),
+      details: [],
     };
   }
 
-  async calculateAllMonthlyBonuses(organizationId: number, month: number, year: number, baseBonus: number = 0) {
-    try {
-      const employees = await this.prisma.employee.findMany({
-        where: { organizationId, isActive: true },
-      });
-
-      const results = [];
-      for (const employee of employees) {
-        const bonus = await this.calculateMonthlyBonus(organizationId, employee.id, month, year, baseBonus);
-        results.push(bonus);
-      }
-
-      return results;
-    } catch (error) {
-      this.logger.error(`Failed to calculate all bonuses: ${(error as Error).message}`);
-      throw error;
-    }
+  async calculateAllMonthlyBonuses(
+    organizationId: number,
+    month: number,
+    year: number,
+    baseBonus: number = 0,
+  ): Promise<any[]> {
+    this.logger.warn(
+      'calculateAllMonthlyBonuses(): no Employee/Attendance/AttendanceBonus model exists in schema.prisma',
+    );
+    return [];
   }
 }

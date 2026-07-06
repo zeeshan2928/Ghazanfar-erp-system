@@ -14,7 +14,7 @@ export class CreateVendorDto {
 
   @IsOptional()
   @IsString()
-  contact_person?: string;
+  contactPerson?: string;
 
   @IsOptional()
   @IsString()
@@ -36,7 +36,7 @@ export class UpdateVendorDto {
 
   @IsOptional()
   @IsString()
-  contact_person?: string;
+  contactPerson?: string;
 
   @IsOptional()
   @IsString()
@@ -48,9 +48,9 @@ export class AddProductToVendorDto {
   productId: number;
 
   @IsNumber()
-  unit_price: number;
+  unitPrice: number;
 
   @IsNumber()
   @IsOptional()
-  lead_time_days?: number;
+  leadTimeDays?: number;
 }

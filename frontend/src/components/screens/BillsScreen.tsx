@@ -10,16 +10,17 @@ import {
   ColumnValueDto,
 } from '../../types/filters';
 import { apiClient } from '../../services/api';
+import { BillDetailModal } from '../bills/BillDetailModal';
 
 interface Bill {
   id: number;
-  bill_number: string;
-  customer_name: string;
+  billNumber: string;
+  customerName: string;
   amount: number;
-  bill_date: string;
+  billDate: string;
   status: string;
-  payment_method: string;
-  employee_name: string;
+  paymentMethod: string;
+  employeeName: string;
 }
 
 interface ColumnConfig {
@@ -39,15 +40,19 @@ export function BillsScreen() {
   const [primaryFilter, setPrimaryFilter] = useState<FilterOperatorDto | undefined>();
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({ customerId: '', amount: '' });
+
+  const [selectedBillId, setSelectedBillId] = useState<number | null>(null);
 
   const columns: ColumnConfig[] = [
     {
-      name: 'bill_number',
+      name: 'billNumber',
       label: 'Bill #',
       dataType: DataType.TEXT,
     },
     {
-      name: 'customer_name',
+      name: 'customerName',
       label: 'Customer',
       dataType: DataType.TEXT,
     },
@@ -57,7 +62,7 @@ export function BillsScreen() {
       dataType: DataType.NUMERIC,
     },
     {
-      name: 'bill_date',
+      name: 'billDate',
       label: 'Date',
       dataType: DataType.DATE,
     },
@@ -81,13 +86,13 @@ export function BillsScreen() {
     try {
       const [statusVals, paymentVals] = await Promise.all([
         apiClient.getBillColumnValues('status'),
-        apiClient.getBillColumnValues('payment_method'),
+        apiClient.getBillColumnValues('paymentMethod'),
       ]);
 
       setColumnValues((prev) => ({
         ...prev,
         status: statusVals || [],
-        payment_method: paymentVals || [],
+        paymentMethod: paymentVals || [],
       }));
     } catch (error) {
       console.error('Failed to load column values:', error);
@@ -116,7 +121,7 @@ export function BillsScreen() {
 
   const handlePrimarySearch = (value: string, operator: FilterOperator) => {
     setPrimaryFilter({
-      field: 'bill_number',
+      field: 'billNumber',
       operator,
       value,
       dataType: DataType.TEXT,
@@ -163,9 +168,37 @@ export function BillsScreen() {
     values: columnValues[col.name],
   }));
 
+  async function handleAddBill() {
+    try {
+      await apiClient.createBill({
+        customerId: parseInt(formData.customerId),
+        totalAmount: parseInt(formData.amount) || 0,
+      });
+      setFormData({ customerId: '', amount: '' });
+      setShowAddForm(false);
+      await fetchBills();
+      alert('✅ Bill created successfully!');
+    } catch (err: any) {
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    }
+  }
+
   return (
     <div style={styles.container}>
-      <h2>📄 Bills</h2>
+      <div style={styles.header}>
+        <h2>📄 Bills</h2>
+        <button onClick={() => setShowAddForm(!showAddForm)} style={styles.addBtn}>
+          {showAddForm ? '❌ Cancel' : '➕ Add Bill'}
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div style={styles.formContainer}>
+          <input type="number" placeholder="Customer ID" value={formData.customerId} onChange={(e) => setFormData({...formData, customerId: e.target.value})} style={styles.input} />
+          <input type="number" placeholder="Amount" value={formData.amount} onChange={(e) => setFormData({...formData, amount: e.target.value})} style={styles.input} />
+          <button onClick={handleAddBill} style={styles.submitBtn}>Save</button>
+        </div>
+      )}
 
       <SearchBox
         onSearch={handlePrimarySearch}
@@ -205,20 +238,20 @@ export function BillsScreen() {
               </thead>
               <tbody>
                 {bills.map((bill) => (
-                  <tr key={bill.id} style={styles.tr}>
-                    <td style={styles.td}>{bill.bill_number}</td>
-                    <td style={styles.td}>{bill.customer_name}</td>
+                  <tr key={bill.id} style={styles.trClickable} onClick={() => setSelectedBillId(bill.id)}>
+                    <td style={styles.td}>{bill.billNumber}</td>
+                    <td style={styles.td}>{bill.customerName}</td>
                     <td style={styles.td}>Rs {bill.amount.toLocaleString()}</td>
                     <td style={styles.td}>
-                      {new Date(bill.bill_date).toLocaleDateString()}
+                      {new Date(bill.billDate).toLocaleDateString()}
                     </td>
                     <td style={styles.td}>
                       <span style={getStatusStyle(bill.status)}>
                         {bill.status}
                       </span>
                     </td>
-                    <td style={styles.td}>{bill.payment_method}</td>
-                    <td style={styles.td}>{bill.employee_name}</td>
+                    <td style={styles.td}>{bill.paymentMethod}</td>
+                    <td style={styles.td}>{bill.employeeName}</td>
                   </tr>
                 ))}
               </tbody>
@@ -255,6 +288,12 @@ export function BillsScreen() {
           </div>
         </>
       )}
+
+      <BillDetailModal
+        billId={selectedBillId}
+        onClose={() => setSelectedBillId(null)}
+        onSaved={fetchBills}
+      />
     </div>
   );
 }
@@ -283,6 +322,11 @@ const styles: Record<string, React.CSSProperties> = {
   container: {
     padding: '20px',
   },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  addBtn: { padding: '10px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' },
+  formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' },
+  input: { flex: 1, minWidth: '150px', padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' },
+  submitBtn: { padding: '10px 30px', backgroundColor: '#43e97b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' },
   loading: {
     textAlign: 'center',
     padding: '40px',
@@ -348,5 +392,9 @@ const styles: Record<string, React.CSSProperties> = {
   disabled: {
     backgroundColor: '#ccc',
     cursor: 'not-allowed',
+  },
+  trClickable: {
+    borderBottom: '1px solid #eee',
+    cursor: 'pointer',
   },
 };

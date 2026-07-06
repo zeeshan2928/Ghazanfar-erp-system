@@ -102,7 +102,7 @@ export class TestUtils {
    */
   static createTransactionMock(): any {
     return {
-      run: jest.fn((callback) => callback(this.createPrismaMock())),
+      run: jest.fn(callback => callback(this.createPrismaMock())),
     };
   }
 
@@ -219,7 +219,7 @@ export class TestUtils {
    * Assert that an object contains certain properties
    */
   static assertHasProperties(obj: any, properties: string[]): void {
-    properties.forEach((prop) => {
+    properties.forEach(prop => {
       expect(obj).toHaveProperty(prop);
     });
   }
@@ -244,7 +244,7 @@ export class TestUtils {
    * Clean up all mocks
    */
   static clearAllMocks(mocks: any[]): void {
-    mocks.forEach((mock) => {
+    mocks.forEach(mock => {
       if (mock && typeof mock === 'object') {
         Object.values(mock).forEach((value: any) => {
           if (value && typeof value.mockClear === 'function') {
@@ -336,7 +336,7 @@ export class DatabaseFixtures {
     // Delete in order of dependencies
     await this.prisma.billLine.deleteMany({});
     await this.prisma.bill.deleteMany({});
-    await this.prisma.pOItem.deleteMany({});
+    await this.prisma.purchaseOrderItem.deleteMany({});
     await this.prisma.purchaseOrder.deleteMany({});
     await this.prisma.customer.deleteMany({});
     await this.prisma.product.deleteMany({});

@@ -1,0 +1,7 @@
+﻿INSERT INTO "Organization" (name, slug, "createdAt", "updatedAt") VALUES ('Ghazanfar Brothers', 'ghazanfar-brothers', NOW(), NOW());
+INSERT INTO "Customer" ("organizationId", name, phone, email, "customerType", "creditLimit", "createdAt", "updatedAt") VALUES (1, 'Ali Trades', '03001234567', 'ali@trades.com', 'RETAIL', 500000, NOW(), NOW());
+INSERT INTO "Warehouse" ("organizationId", name, location, "createdAt", "updatedAt") VALUES (1, 'Main Warehouse', 'Karachi', NOW(), NOW());
+INSERT INTO "Product" ("organizationId", code, name, description, cost, "createdAt", "updatedAt") VALUES (1, 'P001', 'Mobile Phone', 'Test mobile phone', 30000, NOW(), NOW());
+INSERT INTO "Inventory" ("organizationId", "productId", "warehouseId", "physicalOnHand", reserved, available, "openingBalance", "lastReservedAt", "createdAt", "updatedAt") VALUES (1, 1, 1, 100, 0, 100, 100, NOW(), NOW(), NOW());
+INSERT INTO "Bill" ("organizationId", "billNumber", "customerId", "billDate", channel, "createdBy", subtotal, "discountAmount", "discountPercentage", "deliveryCharges", "taxAmount", "totalAmount", "paymentMethod", remarks, status, "approvalStatus", "isActive", "createdAt", "updatedAt") VALUES (1, 'BILL-2026-001', 1, NOW(), 'COUNTER', 1, 50000, 0, 0, 0, 5400, 55400, 'CASH', 'Test bill', 'APPROVED', 'APPROVED', true, NOW(), NOW());
+INSERT INTO "BillLine" ("organizationId", "billId", "productId", "warehouseId", quantity, "unitPrice", "taxAmount", "createdAt", "updatedAt") VALUES (1, 1, 1, 1, 10, 5000, 5400, NOW(), NOW());

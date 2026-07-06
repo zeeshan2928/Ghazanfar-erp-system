@@ -7,15 +7,13 @@ import {
   FilterOperator,
   ColumnValueDto,
 } from '@common/dto/filter.dto';
-import {
-  getAllowedOperators,
-  isFieldAllowed,
-} from '@common/config/filter-config';
+import { getAllowedOperators, isFieldAllowed } from '@common/config/filter-config';
 
 export interface BillSearchResult {
   id: number;
   billNumber: string;
   customerName: string;
+  customerPhone: string;
   amount: number;
   billDate: string;
   status: string;
@@ -33,7 +31,7 @@ export class BillsSearchService {
 
   /**
    * Search bills with filters
-   * Supports primary search (billNumber) + column filters
+   * Supports primary search (bill_number) + column filters
    */
   async search(
     organizationId: number,
@@ -68,15 +66,16 @@ export class BillsSearchService {
     // Build sort - only allow specific fields to prevent injection
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = [
-        'billNumber',
-        'billDate',
-        'totalAmount',
-        'status',
-        'createdAt',
-      ];
-      if (allowedSortFields.includes(request.sortBy)) {
-        orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
+      const fieldMap: any = {
+        billNumber: 'bill_number',
+        billDate: 'bill_date',
+        totalAmount: 'total_amount',
+        status: 'status',
+        createdAt: 'createdAt',
+      };
+      const dbField = fieldMap[request.sortBy];
+      if (dbField) {
+        orderBy = { [dbField]: request.sortOrder || 'asc' };
       }
     }
 
@@ -88,8 +87,8 @@ export class BillsSearchService {
       this.prisma.bill.findMany({
         where,
         include: {
-          customer: { select: { name: true } },
-          createdByUser: { select: { firstName: true, lastName: true } },
+          customer: { select: { name: true, phone: true } },
+          User_Bill_created_byToUser: { select: { firstName: true, lastName: true } },
         },
         skip,
         take,
@@ -101,13 +100,15 @@ export class BillsSearchService {
     // Format results
     const data: BillSearchResult[] = bills.map((bill: any) => ({
       id: bill.id,
-      billNumber: bill.billNumber,
+      billNumber: bill.bill_number,
       customerName: bill.customer?.name || 'N/A',
-      amount: bill.totalAmount,
-      billDate: bill.billDate.toISOString().split('T')[0],
+      customerPhone: bill.customer?.phone || '',
+      amount: bill.total_amount,
+      billDate: bill.bill_date.toISOString().split('T')[0],
       status: bill.status,
-      paymentMethod: bill.paymentMethod || 'N/A',
-      employeeName: `${bill.createdByUser?.firstName || ''} ${bill.createdByUser?.lastName || ''}`.trim(),
+      paymentMethod: bill.payment_method || 'N/A',
+      employeeName:
+        `${bill.User_Bill_created_byToUser?.firstName || ''} ${bill.User_Bill_created_byToUser?.lastName || ''}`.trim(),
       remarks: bill.remarks || '',
     }));
 
@@ -117,10 +118,7 @@ export class BillsSearchService {
   /**
    * Get unique values for a column (for filter dropdowns)
    */
-  async getColumnValues(
-    organizationId: number,
-    columnName: string,
-  ): Promise<ColumnValueDto[]> {
+  async getColumnValues(organizationId: number, columnName: string): Promise<ColumnValueDto[]> {
     this.validateColumnName(columnName);
 
     switch (columnName) {
@@ -142,31 +140,27 @@ export class BillsSearchService {
   /**
    * Get distinct bill numbers
    */
-  private async getBillNumberValues(
-    organizationId: number,
-  ): Promise<ColumnValueDto[]> {
+  private async getBillNumberValues(organizationId: number): Promise<ColumnValueDto[]> {
     const results = await this.prisma.bill.findMany({
       where: { organizationId },
-      select: { billNumber: true },
-      distinct: ['billNumber'],
-      orderBy: { billNumber: 'asc' },
+      select: { bill_number: true },
+      distinct: ['bill_number'],
+      orderBy: { bill_number: 'asc' },
       take: 100,
     });
 
     return results
-      .filter((r: any) => r.billNumber != null)
+      .filter((r: any) => r.bill_number != null)
       .map((r: any) => ({
-        value: r.billNumber,
-        label: r.billNumber,
+        value: r.bill_number,
+        label: r.bill_number,
       }));
   }
 
   /**
    * Get distinct order statuses
    */
-  private async getStatusValues(
-    organizationId: number,
-  ): Promise<ColumnValueDto[]> {
+  private async getStatusValues(organizationId: number): Promise<ColumnValueDto[]> {
     const results = await this.prisma.bill.findMany({
       where: { organizationId },
       select: { status: true },
@@ -185,31 +179,27 @@ export class BillsSearchService {
   /**
    * Get distinct payment methods
    */
-  private async getPaymentMethodValues(
-    organizationId: number,
-  ): Promise<ColumnValueDto[]> {
+  private async getPaymentMethodValues(organizationId: number): Promise<ColumnValueDto[]> {
     const results = await this.prisma.bill.findMany({
-      where: { organizationId, paymentMethod: { not: null } },
-      select: { paymentMethod: true },
-      distinct: ['paymentMethod'],
-      orderBy: { paymentMethod: 'asc' },
+      where: { organizationId, payment_method: { not: null } },
+      select: { payment_method: true },
+      distinct: ['payment_method'],
+      orderBy: { payment_method: 'asc' },
       take: 100,
     });
 
     return results
-      .filter((r: any) => r.paymentMethod != null)
+      .filter((r: any) => r.payment_method != null)
       .map((r: any) => ({
-        value: r.paymentMethod,
-        label: r.paymentMethod,
+        value: r.payment_method,
+        label: r.payment_method,
       }));
   }
 
   /**
    * Get customer names for dropdown filter
    */
-  private async getCustomerValues(
-    organizationId: number,
-  ): Promise<ColumnValueDto[]> {
+  private async getCustomerValues(organizationId: number): Promise<ColumnValueDto[]> {
     const distinctCustomers = await this.prisma.bill.findMany({
       where: { organizationId },
       select: { customerId: true },
@@ -218,9 +208,7 @@ export class BillsSearchService {
       take: 100,
     });
 
-    const customerIds = distinctCustomers
-      .map((r: any) => r.customerId)
-      .filter(Boolean);
+    const customerIds = distinctCustomers.map((r: any) => r.customerId).filter(Boolean);
 
     if (customerIds.length === 0) {
       return [];
@@ -241,20 +229,16 @@ export class BillsSearchService {
   /**
    * Get employee names for dropdown filter
    */
-  private async getEmployeeValues(
-    organizationId: number,
-  ): Promise<ColumnValueDto[]> {
+  private async getEmployeeValues(organizationId: number): Promise<ColumnValueDto[]> {
     const distinctEmployees = await this.prisma.bill.findMany({
       where: { organizationId },
-      select: { createdBy: true },
-      distinct: ['createdBy'],
-      orderBy: { createdBy: 'asc' },
+      select: { created_by: true },
+      distinct: ['created_by'],
+      orderBy: { created_by: 'asc' },
       take: 100,
     });
 
-    const userIds = distinctEmployees
-      .map((r: any) => r.createdBy)
-      .filter(Boolean);
+    const userIds = distinctEmployees.map((r: any) => r.created_by).filter(Boolean);
 
     if (userIds.length === 0) {
       return [];
@@ -286,10 +270,10 @@ export class BillsSearchService {
     for (const filter of filters) {
       switch (filter.field) {
         case 'amount':
-          // Map amount to totalAmount field
+          // Map amount to total_amount field
           const amountCondition = this.buildCondition(filter);
           if (amountCondition) {
-            where.totalAmount = amountCondition;
+            where.total_amount = amountCondition;
           }
           break;
 
@@ -302,10 +286,10 @@ export class BillsSearchService {
           break;
 
         case 'employeeName':
-          // Filter by createdByUser relationship
+          // Filter by User_Bill_created_byToUser relationship
           const employeeCondition = this.buildEmployeeNameCondition(filter);
           if (employeeCondition) {
-            where.createdByUser = { is: employeeCondition };
+            where.User_Bill_created_byToUser = { is: employeeCondition };
           }
           break;
 
@@ -359,10 +343,10 @@ export class BillsSearchService {
         break;
       case 'isLike':
         // Fuzzy match - treat as contains search
-        return { contains: (value as string), mode: 'insensitive' };
+        return { contains: value as string, mode: 'insensitive' };
       case 'isNotLike':
         // Fuzzy match negation
-        return { not: { contains: (value as string), mode: 'insensitive' } };
+        return { not: { contains: value as string, mode: 'insensitive' } };
     }
     return null;
   }
@@ -392,28 +376,19 @@ export class BillsSearchService {
 
     if (operator === 'in') {
       return {
-        OR: [
-          { firstName: { in: value } },
-          { lastName: { in: value } },
-        ],
+        OR: [{ firstName: { in: value } }, { lastName: { in: value } }],
       };
     }
 
     if (operator === 'notIn') {
       return {
-        AND: [
-          { firstName: { notIn: value } },
-          { lastName: { notIn: value } },
-        ],
+        AND: [{ firstName: { notIn: value } }, { lastName: { notIn: value } }],
       };
     }
 
     // For contains/like operators
     return {
-      OR: [
-        { firstName: condition },
-        { lastName: condition },
-      ],
+      OR: [{ firstName: condition }, { lastName: condition }],
     };
   }
 
@@ -422,9 +397,7 @@ export class BillsSearchService {
    */
   private validateColumnName(columnName: string): void {
     if (!isFieldAllowed('bills', columnName)) {
-      throw new BadRequestException(
-        `Field '${columnName}' is not available for bills search`,
-      );
+      throw new BadRequestException(`Field '${columnName}' is not available for bills search`);
     }
   }
 
@@ -443,9 +416,7 @@ export class BillsSearchService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Invalid field '${fieldName}' for bills search`,
-      );
+      throw new BadRequestException(`Invalid field '${fieldName}' for bills search`);
     }
   }
 }

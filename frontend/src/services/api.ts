@@ -154,6 +154,11 @@ class ApiClient {
     return response.data;
   }
 
+  async createProduct(data: any) {
+    const response = await this.client.post('/products', data);
+    return response.data;
+  }
+
   async searchProducts(request: SearchRequestDto) {
     const response = await this.client.post<FilterResponseDto<any>>(
       '/products/search',
@@ -166,6 +171,16 @@ class ApiClient {
     const response = await this.client.get<any[]>(
       `/products/filters/columns/${columnName}`
     );
+    return response.data;
+  }
+
+  async getProductPurchaseHistory(productId: number) {
+    const response = await this.client.get(`/products/${productId}/purchase-history`);
+    return response.data;
+  }
+
+  async getProductStockAcrossWarehouses(productId: number) {
+    const response = await this.client.get(`/warehouses/product/${productId}/stock`);
     return response.data;
   }
 
@@ -184,6 +199,11 @@ class ApiClient {
     return response.data;
   }
 
+  async createCustomer(data: any) {
+    const response = await this.client.post('/customers', data);
+    return response.data;
+  }
+
   async searchCustomers(request: SearchRequestDto) {
     const response = await this.client.post<FilterResponseDto<any>>(
       '/customers/search',
@@ -196,6 +216,16 @@ class ApiClient {
     const response = await this.client.get<any[]>(
       `/customers/filters/columns/${columnName}`
     );
+    return response.data;
+  }
+
+  async getCustomerSaleHistory(customerId: number) {
+    const response = await this.client.get(`/customers/${customerId}/sale-history`);
+    return response.data;
+  }
+
+  async getCustomerProductHistory(customerId: number, productId: number) {
+    const response = await this.client.get(`/customers/${customerId}/products/${productId}/purchase-history`);
     return response.data;
   }
 
@@ -409,6 +439,259 @@ class ApiClient {
 
   async getUserStats() {
     const response = await this.client.get('/users/stats');
+    return response.data;
+  }
+
+  // ==================== GATE PASS OPERATIONS ====================
+  async getGatePassesByStatus(warehouseId: number, status: string, skip = 0, take = 10) {
+    const response = await this.client.get('/gate-passes', {
+      params: { warehouseId, status, skip, take }
+    });
+    return response.data;
+  }
+
+  async getGatePassDetail(gatePassId: number) {
+    const response = await this.client.get(`/gate-passes/${gatePassId}`);
+    return response.data;
+  }
+
+  async updateGatePassStatus(gatePassId: number, status: string) {
+    const response = await this.client.patch(`/gate-passes/${gatePassId}/status`, { status });
+    return response.data;
+  }
+
+  async reportGatePassShortage(gatePassId: number, data: any) {
+    const response = await this.client.post(`/gate-passes/${gatePassId}/shortage`, data);
+    return response.data;
+  }
+
+  async printGatePassLabel(gatePassId: number) {
+    const response = await this.client.get(`/gate-passes/${gatePassId}/print`);
+    return response.data;
+  }
+
+  // ==================== INVENTORY OPERATIONS ====================
+  async getInventoryByWarehouse(warehouseId: number, skip = 0, take = 20, search?: string) {
+    const response = await this.client.get('/inventory', {
+      params: { warehouseId, skip, take, search }
+    });
+    return response.data;
+  }
+
+  async getInventoryItem(productId: number, warehouseId: number) {
+    const response = await this.client.get(`/inventory/product/${productId}/warehouse/${warehouseId}`);
+    return response.data;
+  }
+
+  async adjustStock(data: any) {
+    const response = await this.client.post('/inventory/adjust', data);
+    return response.data;
+  }
+
+  async getInventoryMovements(warehouseId: number, fromDate?: string, toDate?: string, skip = 0, take = 20) {
+    const response = await this.client.get('/inventory/movements', {
+      params: { warehouseId, fromDate, toDate, skip, take }
+    });
+    return response.data;
+  }
+
+  async getInventoryDashboard(warehouseId: number) {
+    const response = await this.client.get(`/inventory/dashboard/${warehouseId}`);
+    return response.data;
+  }
+
+  async getWarehouseInventory(warehouseId: number) {
+    const response = await this.client.get(`/warehouses/${warehouseId}/inventory`);
+    return response.data;
+  }
+
+  async getProductInventoryStatus(productId: number) {
+    const response = await this.client.get(`/products/${productId}/inventory-status`);
+    return response.data;
+  }
+
+  // ==================== WAREHOUSES MANAGEMENT ====================
+  async getWarehouses() {
+    const response = await this.client.get('/warehouses');
+    return response.data;
+  }
+
+  async createWarehouse(data: any) {
+    const response = await this.client.post('/warehouses', data);
+    return response.data;
+  }
+
+  // ==================== GENERAL LEDGER (GL) ====================
+  async getChartOfAccounts() {
+    const response = await this.client.get('/chart-of-accounts');
+    return response.data;
+  }
+
+  async createAccount(data: any) {
+    const response = await this.client.post('/chart-of-accounts', data);
+    return response.data;
+  }
+
+  async updateAccount(accountId: number, data: any) {
+    const response = await this.client.patch(`/chart-of-accounts/${accountId}`, data);
+    return response.data;
+  }
+
+  async getAccountHierarchy() {
+    const response = await this.client.get('/chart-of-accounts/tree/hierarchy');
+    return response.data;
+  }
+
+  async seedChartOfAccounts() {
+    const response = await this.client.post('/chart-of-accounts/seed/starter', {});
+    return response.data;
+  }
+
+  async getJournalEntries(skip = 0, take = 20) {
+    const response = await this.client.get('/journal-entries', { params: { skip, take } });
+    return response.data;
+  }
+
+  async createJournalEntry(data: any) {
+    const response = await this.client.post('/journal-entries', data);
+    return response.data;
+  }
+
+  async getJournalEntry(entryId: number) {
+    const response = await this.client.get(`/journal-entries/${entryId}`);
+    return response.data;
+  }
+
+  async postJournalEntry(entryId: number) {
+    const response = await this.client.post(`/journal-entries/${entryId}/post`, {});
+    return response.data;
+  }
+
+  async reverseJournalEntry(entryId: number, reversalDate?: string) {
+    const response = await this.client.post(`/journal-entries/${entryId}/reverse`, { reversalDate });
+    return response.data;
+  }
+
+  async getTrialBalance() {
+    const response = await this.client.get('/journal-entries/reports/trial-balance');
+    return response.data;
+  }
+
+  async getBalanceSheet(asOfDate?: string) {
+    const response = await this.client.get('/gl-reporting/balance-sheet', { params: { asOfDate } });
+    return response.data;
+  }
+
+  async getIncomeStatement(from?: string, to?: string) {
+    const response = await this.client.get('/gl-reporting/income-statement', { params: { from, to } });
+    return response.data;
+  }
+
+  async generateArAging(asOfDate?: string) {
+    const response = await this.client.post('/ar-ap-aging/generate/ar', {}, { params: { asOfDate } });
+    return response.data;
+  }
+
+  async generateApAging(asOfDate?: string) {
+    const response = await this.client.post('/ar-ap-aging/generate/ap', {}, { params: { asOfDate } });
+    return response.data;
+  }
+
+  async getArAgingReport(customerId?: number, asOfDate?: string) {
+    const response = await this.client.get('/ar-ap-aging/report/ar', { params: { customerId, asOfDate } });
+    return response.data;
+  }
+
+  async getApAgingReport(vendorId?: number, asOfDate?: string) {
+    const response = await this.client.get('/ar-ap-aging/report/ap', { params: { vendorId, asOfDate } });
+    return response.data;
+  }
+
+  async getCombinedAgingReport(asOfDate?: string) {
+    const response = await this.client.get('/ar-ap-aging/report/combined', { params: { asOfDate } });
+    return response.data;
+  }
+
+  // ==================== BUDGET ====================
+  async createBudget(data: any) {
+    const response = await this.client.post('/budget', data);
+    return response.data;
+  }
+
+  async getBudgets(fiscalYear?: number) {
+    const response = await this.client.get('/budget', { params: { fiscalYear } });
+    return response.data;
+  }
+
+  async getBudget(id: number) {
+    const response = await this.client.get(`/budget/${id}`);
+    return response.data;
+  }
+
+  async updateBudget(id: number, data: any) {
+    const response = await this.client.patch(`/budget/${id}`, data);
+    return response.data;
+  }
+
+  async deleteBudget(id: number) {
+    const response = await this.client.delete(`/budget/${id}`);
+    return response.data;
+  }
+
+  async getBudgetVariances(fiscalYear: number) {
+    const response = await this.client.get(`/budget/variance/${fiscalYear}`);
+    return response.data;
+  }
+
+  // ==================== PRODUCT CATEGORIES ====================
+  async createProductCategory(data: any) {
+    const response = await this.client.post('/product-categories', data);
+    return response.data;
+  }
+
+  async getProductCategories(includeInactive = false) {
+    const response = await this.client.get('/product-categories', { params: { includeInactive } });
+    return response.data;
+  }
+
+  async getProductCategory(id: number) {
+    const response = await this.client.get(`/product-categories/${id}`);
+    return response.data;
+  }
+
+  async updateProductCategory(id: number, data: any) {
+    const response = await this.client.patch(`/product-categories/${id}`, data);
+    return response.data;
+  }
+
+  async deleteProductCategory(id: number) {
+    const response = await this.client.delete(`/product-categories/${id}`);
+    return response.data;
+  }
+
+  // ==================== BRANDS ====================
+  async createBrand(data: any) {
+    const response = await this.client.post('/brands', data);
+    return response.data;
+  }
+
+  async getBrands(includeInactive = false) {
+    const response = await this.client.get('/brands', { params: { includeInactive } });
+    return response.data;
+  }
+
+  async getBrand(id: number) {
+    const response = await this.client.get(`/brands/${id}`);
+    return response.data;
+  }
+
+  async updateBrand(id: number, data: any) {
+    const response = await this.client.patch(`/brands/${id}`, data);
+    return response.data;
+  }
+
+  async deleteBrand(id: number) {
+    const response = await this.client.delete(`/brands/${id}`);
     return response.data;
   }
 }

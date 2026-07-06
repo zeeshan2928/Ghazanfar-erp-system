@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { ImportResponseDto, ExportResponseDto } from '../dto/import-export.dto';
+import { OrderStatus, PurchaseOrderStatus } from '@prisma/client';
 
 @Injectable()
 export class ImportExportService {
@@ -40,7 +41,7 @@ export class ImportExportService {
   async exportPurchaseOrders(organizationId: number): Promise<ExportResponseDto> {
     const pos = await this.prisma.purchaseOrder.findMany({
       where: { organizationId },
-      include: { vendor: true, items: true },
+      include: { vendor: true, PurchaseOrderItem: true },
     });
 
     const csv = this.poToCSV(pos);
@@ -94,12 +95,12 @@ export class ImportExportService {
       const rowNum = rowIndex + 2; // +1 for header, +1 for 1-based indexing
 
       try {
-        const { code, name, description, costPrice } = row;
+        const { code, name, description, cost_price: costPrice } = row;
 
         // Validate required fields
         if (!code || !name || !costPrice) {
           skipped++;
-          errors.push({ row: rowNum, reason: 'Missing required fields: code, name, costPrice' });
+          errors.push({ row: rowNum, reason: 'Missing required fields: code, name, cost_price' });
           continue;
         }
 
@@ -110,7 +111,7 @@ export class ImportExportService {
             code: code.trim(),
             name: name.trim(),
             description: description?.trim(),
-            costPrice: parseInt(costPrice, 10),
+            cost_price: parseInt(costPrice, 10),
             isActive: true,
           },
         });
@@ -142,12 +143,15 @@ export class ImportExportService {
       const rowNum = rowIndex + 2;
 
       try {
-        const { billNumber, customerName, billDate, totalAmount, status } = row;
+        const { bill_number: billNumber, customerName, billDate, totalAmount, status } = row;
 
         // Validate required fields
         if (!billNumber || !customerName || !billDate || !totalAmount) {
           skipped++;
-          errors.push({ row: rowNum, reason: 'Missing required fields: billNumber, customerName, billDate, totalAmount' });
+          errors.push({
+            row: rowNum,
+            reason: 'Missing required fields: bill_number, customerName, billDate, totalAmount',
+          });
           continue;
         }
 
@@ -166,19 +170,21 @@ export class ImportExportService {
           });
         }
 
-        // @ts-ignore - Prisma type inference issue, logic is correct
+        // NOTE: OrderStatus has no DRAFT value (real values: PENDING_APPROVAL,
+        // APPROVED, REJECTED, FULFILLED, CANCELLED). Defaulting imported bills
+        // to APPROVED, matching the main bill creation path's default.
         await this.prisma.bill.create({
           data: {
-            billNumber: billNumber.trim(),
-            billDate: new Date(billDate),
+            bill_number: billNumber.trim(),
+            bill_date: new Date(billDate),
             customer: { connect: { id: customer.id } },
             salesman: { connect: { id: 1 } },
-            createdByUser: { connect: { id: 1 } },
+            User_Bill_created_byToUser: { connect: { id: 1 } },
             organization: { connect: { id: organizationId } },
-            totalAmount: parseInt(totalAmount, 10),
+            total_amount: parseInt(totalAmount, 10),
             discountPercentage: 0,
             channel: 'COUNTER',
-            status: status?.trim() || 'DRAFT',
+            status: (status?.trim() as OrderStatus) || 'APPROVED',
             isActive: true,
           },
         });
@@ -210,12 +216,21 @@ export class ImportExportService {
       const rowNum = rowIndex + 2;
 
       try {
-        const { poNumber, vendorName, poDate, totalAmount, status } = row;
+        const {
+          po_number: poNumber,
+          vendor_name: vendorName,
+          po_date: poDate,
+          totalAmount,
+          status,
+        } = row;
 
         // Validate required fields
         if (!poNumber || !vendorName || !poDate || !totalAmount) {
           skipped++;
-          errors.push({ row: rowNum, reason: 'Missing required fields: poNumber, vendorName, poDate, totalAmount' });
+          errors.push({
+            row: rowNum,
+            reason: 'Missing required fields: po_number, vendor_name, po_date, totalAmount',
+          });
           continue;
         }
 
@@ -235,14 +250,15 @@ export class ImportExportService {
         }
 
         // Create PO
+        // Note: PurchaseOrder has no po_date/total_amount columns; createdAt is used as the order date.
         await this.prisma.purchaseOrder.create({
           data: {
             organizationId,
-            poNumber: poNumber.trim(),
+            po_number: poNumber.trim(),
             vendorId: vendor.id,
-            poDate: new Date(poDate),
-            totalAmount: parseFloat(totalAmount),
-            status: status?.trim() || 'DRAFT',
+            created_by: 1,
+            createdAt: new Date(poDate),
+            status: (status?.trim() as PurchaseOrderStatus) || 'DRAFT',
           },
         });
 
@@ -360,7 +376,7 @@ export class ImportExportService {
             email: email?.trim(),
             phone: phone?.trim(),
             address: address?.trim(),
-            contactPerson: contactPerson?.trim(),
+            contact_person: contactPerson?.trim(),
             isActive: true,
           },
         });
@@ -442,24 +458,19 @@ export class ImportExportService {
   }
 
   private productsToCSV(products: any[]): string {
-    const headers = ['code', 'name', 'description', 'costPrice'];
-    const rows = products.map((p) => [
-      p.code,
-      p.name,
-      p.description || '',
-      p.costPrice || '',
-    ]);
+    const headers = ['code', 'name', 'description', 'cost_price'];
+    const rows = products.map(p => [p.code, p.name, p.description || '', p.cost_price || '']);
 
     return this.arrayToCSV([headers, ...rows]);
   }
 
   private billsToCSV(bills: any[]): string {
-    const headers = ['billNumber', 'customerName', 'billDate', 'totalAmount', 'status', 'remarks'];
-    const rows = bills.map((b) => [
-      b.billNumber,
+    const headers = ['bill_number', 'customerName', 'billDate', 'totalAmount', 'status', 'remarks'];
+    const rows = bills.map(b => [
+      b.bill_number,
       b.customer?.name || '',
-      b.billDate.toISOString().split('T')[0],
-      b.totalAmount || '',
+      b.bill_date.toISOString().split('T')[0],
+      b.total_amount || '',
       b.status || '',
       b.remarks || '',
     ]);
@@ -468,12 +479,12 @@ export class ImportExportService {
   }
 
   private poToCSV(pos: any[]): string {
-    const headers = ['poNumber', 'vendorName', 'poDate', 'totalAmount', 'status', 'remarks'];
-    const rows = pos.map((po) => [
-      po.poNumber,
+    const headers = ['po_number', 'vendor_name', 'po_date', 'totalAmount', 'status', 'remarks'];
+    const rows = pos.map(po => [
+      po.po_number,
       po.vendor?.name || '',
-      po.poDate.toISOString().split('T')[0],
-      po.totalAmount || '',
+      po.po_date.toISOString().split('T')[0],
+      po.total_amount || '',
       po.status || '',
       po.remarks || '',
     ]);
@@ -483,31 +494,26 @@ export class ImportExportService {
 
   private customersToCSV(customers: any[]): string {
     const headers = ['name', 'email', 'phone', 'address'];
-    const rows = customers.map((c) => [
-      c.name,
-      c.email || '',
-      c.phone || '',
-      c.address || '',
-    ]);
+    const rows = customers.map(c => [c.name, c.email || '', c.phone || '', c.address || '']);
 
     return this.arrayToCSV([headers, ...rows]);
   }
 
   private vendorsToCSV(vendors: any[]): string {
     const headers = ['name', 'email', 'phone', 'address', 'contactPerson'];
-    const rows = vendors.map((v) => [
+    const rows = vendors.map(v => [
       v.name,
       v.email || '',
       v.phone || '',
       v.address || '',
-      v.contactPerson || '',
+      v.contact_person || '',
     ]);
 
     return this.arrayToCSV([headers, ...rows]);
   }
 
   private arrayToCSV(data: string[][]): string {
-    return data.map((row) => row.map((cell) => this.escapeCSVCell(cell)).join(',')).join('\n');
+    return data.map(row => row.map(cell => this.escapeCSVCell(cell)).join(',')).join('\n');
   }
 
   private escapeCSVCell(cell: string): string {

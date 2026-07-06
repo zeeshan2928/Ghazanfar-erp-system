@@ -46,26 +46,17 @@ export class GatePassesController {
    * GET warehouse dashboard stats
    */
   @Get('warehouse/:warehouseId/stats')
-  async getWarehouseStats(
-    @Request() req: any,
-    @Param('warehouseId') warehouseId: string,
-  ) {
+  async getWarehouseStats(@Request() req: any, @Param('warehouseId') warehouseId: string) {
     const organizationId = req.user.organizationId;
 
-    return this.gatePassesService.getWarehouseStats(
-      organizationId,
-      parseInt(warehouseId),
-    );
+    return this.gatePassesService.getWarehouseStats(organizationId, parseInt(warehouseId));
   }
 
   /**
    * GET single gate pass by ID
    */
   @Get(':id')
-  async getGatePassById(
-    @Request() req: any,
-    @Param('id') id: string,
-  ) {
+  async getGatePassById(@Request() req: any, @Param('id') id: string) {
     const organizationId = req.user.organizationId;
 
     return this.gatePassesService.getById(organizationId, parseInt(id));
@@ -77,10 +68,7 @@ export class GatePassesController {
    */
   @Post('from-bill/:billId')
   @HttpCode(HttpStatus.CREATED)
-  async createFromBill(
-    @Request() req: any,
-    @Param('billId') billId: string,
-  ) {
+  async createFromBill(@Request() req: any, @Param('billId') billId: string) {
     const organizationId = req.user.organizationId;
 
     return this.gatePassesService.createFromBill(organizationId, parseInt(billId));
@@ -114,18 +102,11 @@ export class GatePassesController {
    * POST - Complete picking: Mark all items as picked
    */
   @Post(':id/complete-picking')
-  async completePicking(
-    @Request() req: any,
-    @Param('id') gatePassId: string,
-  ) {
+  async completePicking(@Request() req: any, @Param('id') gatePassId: string) {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
 
-    return this.gatePassesService.completePicking(
-      organizationId,
-      parseInt(gatePassId),
-      userId,
-    );
+    return this.gatePassesService.completePicking(organizationId, parseInt(gatePassId), userId);
   }
 
   /**
@@ -140,12 +121,7 @@ export class GatePassesController {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
 
-    return this.gatePassesService.confirm(
-      organizationId,
-      parseInt(gatePassId),
-      userId,
-      body,
-    );
+    return this.gatePassesService.confirm(organizationId, parseInt(gatePassId), userId, body);
   }
 
   /**
@@ -174,7 +150,8 @@ export class GatePassesController {
   async reportShortage(
     @Request() req: any,
     @Param('id') gatePassId: string,
-    @Body() body: {
+    @Body()
+    body: {
       items: Array<{
         billLineId: number;
         orderQuantity: number;

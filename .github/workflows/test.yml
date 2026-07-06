@@ -33,6 +33,16 @@ jobs:
       - name: Check formatting
         run: npm run format -- --check
 
+      - name: Type-check the full project (catches errors hidden files never surface)
+        run: npm run build
+
+      - name: Fail if any file has @ts-nocheck (masks real errors - see CLAUDE.md)
+        run: |
+          if grep -rl "@ts-nocheck" src/ --include="*.ts" | grep -v "\.spec\.ts$"; then
+            echo "::error::@ts-nocheck found in the files listed above. This comment hides real TypeScript errors from the build - see the 'Naming Convention' section in CLAUDE.md for why this caused ~35 production bugs on 2026-07-06. Remove the comment and fix whatever errors surface instead."
+            exit 1
+          fi
+
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-latest

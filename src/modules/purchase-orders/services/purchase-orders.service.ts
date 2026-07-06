@@ -5,6 +5,7 @@ import {
   CreatePurchaseOrderDto,
   ConfirmReceiptDto,
   SetProductReorderParamsDto,
+  UpdatePurchaseOrderDto,
 } from '../dto/purchase-order.dto';
 
 @Injectable()
@@ -30,11 +31,7 @@ export class PurchaseOrdersService {
     return `PO-${sequence}`;
   }
 
-  async create(
-    organizationId: number,
-    _userId: number,
-    createDto: CreatePurchaseOrderDto,
-  ) {
+  async create(organizationId: number, userId: number, createDto: CreatePurchaseOrderDto) {
     const vendor = await this.prisma.vendor.findFirst({
       where: { id: createDto.vendorId, organizationId },
     });
@@ -48,7 +45,7 @@ export class PurchaseOrdersService {
     const products = await this.prisma.product.findMany({
       where: {
         organizationId,
-        id: { in: createDto.items.map((i) => i.productId) },
+        id: { in: createDto.items.map(i => i.productId) },
       },
     });
 
@@ -59,23 +56,22 @@ export class PurchaseOrdersService {
     const purchaseOrder = await this.prisma.purchaseOrder.create({
       data: {
         organizationId,
-        poNumber,
+        po_number: poNumber,
         vendorId: createDto.vendorId,
         status: 'DRAFT',
-        poDate: new Date(),
-        items: {
+        created_by: userId,
+        PurchaseOrderItem: {
           createMany: {
-            data: createDto.items.map((item) => ({
-              organizationId,
+            data: createDto.items.map(item => ({
               productId: item.productId,
-              quantityOrdered: item.quantityOrdered,
+              quantity_ordered: item.quantityOrdered,
             })),
           },
         },
       },
       include: {
         vendor: true,
-        items: true,
+        PurchaseOrderItem: true,
       },
     });
 
@@ -90,7 +86,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: true,
+          PurchaseOrderItem: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -113,7 +109,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: true,
+          PurchaseOrderItem: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -136,7 +132,7 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: true,
+          PurchaseOrderItem: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -153,7 +149,7 @@ export class PurchaseOrdersService {
       where: { id: poId, organizationId },
       include: {
         vendor: true,
-        items: true,
+        PurchaseOrderItem: true,
         PurchaseOrderReceipt: true,
       },
     });
@@ -185,7 +181,7 @@ export class PurchaseOrdersService {
       },
       include: {
         vendor: true,
-        items: true,
+        PurchaseOrderItem: true,
       },
     });
   }
@@ -199,7 +195,7 @@ export class PurchaseOrdersService {
     const po = await this.prisma.purchaseOrder.findFirst({
       where: { id: poId, organizationId },
       include: {
-        items: true,
+        PurchaseOrderItem: true,
         vendor: true,
       },
     });
@@ -212,9 +208,9 @@ export class PurchaseOrdersService {
       throw new BadRequestException(`Cannot receive items for PO with status ${po.status}`);
     }
 
-    await this.transactionService.run(async (tx) => {
+    await this.transactionService.run(async tx => {
       for (const receiveItem of confirmDto.items) {
-        const poItem = po.items.find((i) => i.productId === receiveItem.productId);
+        const poItem = po.PurchaseOrderItem.find(i => i.productId === receiveItem.productId);
 
         if (!poItem) {
           throw new BadRequestException(
@@ -222,7 +218,7 @@ export class PurchaseOrdersService {
           );
         }
 
-        if (receiveItem.quantityReceived > poItem.quantityOrdered) {
+        if (receiveItem.quantityReceived > poItem.quantity_ordered) {
           throw new BadRequestException(
             `Received quantity exceeds ordered quantity for product ${receiveItem.productId}`,
           );
@@ -231,12 +227,11 @@ export class PurchaseOrdersService {
         // Create receipt record
         await tx.purchaseOrderReceipt.create({
           data: {
-            organizationId,
             poId,
             productId: receiveItem.productId,
-            quantityReceived: receiveItem.quantityReceived,
-            warehouseId: receiveItem.warehouseId,
-            receivedBy: userId,
+            quantity_received: receiveItem.quantityReceived,
+            warehouse_id: receiveItem.warehouseId,
+            received_by: userId,
             remarks: confirmDto.remarks,
           },
         });
@@ -256,7 +251,7 @@ export class PurchaseOrdersService {
               organizationId,
               productId: receiveItem.productId,
               warehouseId: receiveItem.warehouseId,
-              physicalOnHand: receiveItem.quantityReceived,
+              physical_on_hand: receiveItem.quantityReceived,
               reserved: 0,
             },
           });
@@ -264,7 +259,7 @@ export class PurchaseOrdersService {
           await tx.inventory.update({
             where: { id: inventory.id },
             data: {
-              physicalOnHand: {
+              physical_on_hand: {
                 increment: receiveItem.quantityReceived,
               },
             },
@@ -276,7 +271,7 @@ export class PurchaseOrdersService {
       const allItems = await tx.purchaseOrderItem.findMany({ where: { poId } });
       const receipts = await tx.purchaseOrderReceipt.findMany({ where: { poId } });
 
-      const allReceived = allItems.every((item) => {
+      const allReceived = allItems.every(item => {
         const totalReceived = receipts
           .filter(r => r.productId === item.productId)
           .reduce((sum, r) => sum + (r as any).quantity_received, 0);
@@ -322,9 +317,9 @@ export class PurchaseOrdersService {
     return this.prisma.product.update({
       where: { id: productId },
       data: {
-        minimumQuantity: setDto.minimumQuantity,
-        reorderQuantity: setDto.reorderQuantity,
-        primaryVendorId: setDto.primaryVendorId,
+        minimum_quantity: setDto.minimumQuantity,
+        reorder_quantity: setDto.reorderQuantity,
+        primary_vendor_id: setDto.primaryVendorId,
       },
     });
   }
@@ -334,10 +329,10 @@ export class PurchaseOrdersService {
       where: {
         organizationId,
         isActive: true,
-        minimumQuantity: { gt: 0 },
+        minimum_quantity: { gt: 0 },
       },
       include: {
-        primaryVendor: true,
+        Vendor: true,
       },
     });
 
@@ -345,13 +340,13 @@ export class PurchaseOrdersService {
     const inventoryData = await this.prisma.inventory.findMany({
       where: {
         organizationId,
-        productId: { in: lowStockProducts.map((p) => p.id) },
+        productId: { in: lowStockProducts.map(p => p.id) },
       },
     });
 
     const alerts = lowStockProducts
-      .map((product) => {
-        const productInventory = inventoryData.filter((inv) => inv.productId === product.id);
+      .map(product => {
+        const productInventory = inventoryData.filter(inv => inv.productId === product.id);
         const totalAvailable = productInventory.reduce((sum, inv) => sum + inv.available, 0);
 
         if (totalAvailable <= (product as any).minimum_quantity) {
@@ -363,15 +358,14 @@ export class PurchaseOrdersService {
             currentAvailable: totalAvailable,
             shortage: (product as any).minimum_quantity - totalAvailable,
             reorderQuantity: (product as any).reorder_quantity,
-            primaryVendorId: (product as any).primary_vendor_id,
-            primaryVendor: product.primaryVendor,
+            primaryVendorId: product.primary_vendor_id,
             inventoryByWarehouse: productInventory,
           };
         }
 
         return null;
       })
-      .filter((a) => a !== null);
+      .filter(a => a !== null);
 
     return {
       totalAlerts: alerts.length,
@@ -399,21 +393,20 @@ export class PurchaseOrdersService {
       const po = await this.prisma.purchaseOrder.create({
         data: {
           organizationId,
-          poNumber,
+          po_number: poNumber,
           vendorId: alert.primaryVendorId,
           status: 'DRAFT',
-          poDate: new Date(),
-          items: {
+          created_by: _userId,
+          PurchaseOrderItem: {
             create: {
-              organizationId,
               productId: alert.productId,
-              quantityOrdered: alert.reorderQuantity || alert.shortage * 2,
+              quantity_ordered: alert.reorderQuantity || alert.shortage * 2,
             },
           },
         },
         include: {
           vendor: true,
-          items: true,
+          PurchaseOrderItem: true,
         },
       });
 
@@ -438,21 +431,23 @@ export class PurchaseOrdersService {
     const pos = await this.prisma.purchaseOrder.findMany({
       where: { vendorId, organizationId },
       include: {
-        items: true,
+        PurchaseOrderItem: true,
         PurchaseOrderReceipt: true,
       },
     });
 
     const totalOrders = pos.length;
-    const completedOrders = pos.filter((p) => p.status === 'RECEIVED').length;
-    const totalValue = pos.reduce((sum: number, p: any) => sum + (Number(p.totalAmount) || 0), 0);
+    const completedOrders = pos.filter(p => p.status === 'RECEIVED').length;
+    const totalValue = pos.reduce((sum: number, p: any) => sum + (Number(p.po_amount) || 0), 0);
 
     // Calculate average delivery days
     let totalDeliveryDays = 0;
     let deliveredCount = 0;
-    pos.forEach((po) => {
-      if (po.status === 'RECEIVED' && po.updatedAt && po.poDate) {
-        const days = Math.floor((po.updatedAt.getTime() - po.poDate.getTime()) / (1000 * 60 * 60 * 24));
+    pos.forEach(po => {
+      if (po.status === 'RECEIVED' && po.updatedAt && po.createdAt) {
+        const days = Math.floor(
+          (po.updatedAt.getTime() - po.createdAt.getTime()) / (1000 * 60 * 60 * 24),
+        );
         totalDeliveryDays += days;
         deliveredCount++;
       }
@@ -472,7 +467,7 @@ export class PurchaseOrdersService {
     };
   }
 
-  async updatePO(organizationId: number, poId: number, updateData: any) {
+  async updatePO(organizationId: number, poId: number, updateData: UpdatePurchaseOrderDto) {
     const po = await this.prisma.purchaseOrder.findFirst({
       where: { id: poId, organizationId },
     });
@@ -487,10 +482,17 @@ export class PurchaseOrdersService {
 
     return this.prisma.purchaseOrder.update({
       where: { id: poId },
-      data: updateData,
+      data: {
+        vendorId: updateData.vendorId,
+        expected_delivery_date: updateData.expectedDeliveryDate
+          ? new Date(updateData.expectedDeliveryDate)
+          : undefined,
+        manual_reference: updateData.manualReference,
+        remarks: updateData.remarks,
+      },
       include: {
         vendor: true,
-        items: true,
+        PurchaseOrderItem: true,
       },
     });
   }
@@ -536,9 +538,9 @@ export class PurchaseOrdersService {
         take,
         include: {
           vendor: true,
-          items: true,
+          PurchaseOrderItem: true,
         },
-        orderBy: { poDate: 'desc' },
+        orderBy: { createdAt: 'desc' },
       }),
       this.prisma.purchaseOrder.count({ where }),
     ]);

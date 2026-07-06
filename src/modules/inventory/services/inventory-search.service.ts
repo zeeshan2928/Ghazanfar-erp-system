@@ -7,10 +7,7 @@ import {
   FilterOperator,
   ColumnValueDto,
 } from '@common/dto/filter.dto';
-import {
-  getAllowedOperators,
-  isFieldAllowed,
-} from '@common/config/filter-config';
+import { getAllowedOperators, isFieldAllowed } from '@common/config/filter-config';
 
 export interface InventorySearchResult {
   id: number;
@@ -103,10 +100,7 @@ export class InventorySearchService {
   /**
    * Get unique values for a column
    */
-  async getColumnValues(
-    organizationId: number,
-    columnName: string,
-  ): Promise<ColumnValueDto[]> {
+  async getColumnValues(organizationId: number, columnName: string): Promise<ColumnValueDto[]> {
     this.validateColumnName(columnName);
 
     switch (columnName) {
@@ -254,19 +248,17 @@ export class InventorySearchService {
         break;
       case 'isLike':
         // Fuzzy match - treat as contains search
-        return { contains: (value as string), mode: 'insensitive' };
+        return { contains: value as string, mode: 'insensitive' };
       case 'isNotLike':
         // Fuzzy match negation
-        return { not: { contains: (value as string), mode: 'insensitive' } };
+        return { not: { contains: value as string, mode: 'insensitive' } };
     }
     return null;
   }
 
   private validateColumnName(columnName: string): void {
     if (!isFieldAllowed('stock', columnName)) {
-      throw new BadRequestException(
-        `Field '${columnName}' is not available for stock search`,
-      );
+      throw new BadRequestException(`Field '${columnName}' is not available for stock search`);
     }
   }
 
@@ -282,9 +274,7 @@ export class InventorySearchService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Invalid field '${fieldName}' for stock search`,
-      );
+      throw new BadRequestException(`Invalid field '${fieldName}' for stock search`);
     }
   }
 }

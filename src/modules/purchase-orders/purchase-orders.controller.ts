@@ -16,6 +16,7 @@ import {
   CreatePurchaseOrderDto,
   ConfirmReceiptDto,
   SetProductReorderParamsDto,
+  UpdatePurchaseOrderDto,
 } from './dto/purchase-order.dto';
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
@@ -31,10 +32,7 @@ export class PurchaseOrdersController {
   ) {}
 
   @Post()
-  create(
-    @OrgContext() { organizationId, userId }: any,
-    @Body() createDto: CreatePurchaseOrderDto,
-  ) {
+  create(@OrgContext() { organizationId, userId }: any, @Body() createDto: CreatePurchaseOrderDto) {
     return this.poService.create(organizationId, userId, createDto);
   }
 
@@ -66,24 +64,17 @@ export class PurchaseOrdersController {
   }
 
   @Get('alerts/low-stock')
-  getLowStockAlerts(
-    @OrgContext() { organizationId }: any,
-  ) {
+  getLowStockAlerts(@OrgContext() { organizationId }: any) {
     return this.poService.getLowStockAlerts(organizationId);
   }
 
   @Post('alerts/auto-create-pos')
-  autoCreatePOs(
-    @OrgContext() { organizationId, userId }: any,
-  ) {
+  autoCreatePOs(@OrgContext() { organizationId, userId }: any) {
     return this.poService.autoCreatePOsForLowStock(organizationId, userId);
   }
 
   @Get(':id')
-  getById(
-    @OrgContext() { organizationId }: any,
-    @Param('id', ParseIntPipe) poId: number,
-  ) {
+  getById(@OrgContext() { organizationId }: any, @Param('id', ParseIntPipe) poId: number) {
     return this.poService.getById(organizationId, poId);
   }
 
@@ -91,24 +82,18 @@ export class PurchaseOrdersController {
   updatePO(
     @OrgContext() { organizationId }: any,
     @Param('id', ParseIntPipe) poId: number,
-    @Body() updateData: any,
+    @Body() updateData: UpdatePurchaseOrderDto,
   ) {
     return this.poService.updatePO(organizationId, poId, updateData);
   }
 
   @Delete(':id')
-  deletePO(
-    @OrgContext() { organizationId }: any,
-    @Param('id', ParseIntPipe) poId: number,
-  ) {
+  deletePO(@OrgContext() { organizationId }: any, @Param('id', ParseIntPipe) poId: number) {
     return this.poService.deletePO(organizationId, poId);
   }
 
   @Post(':id/send')
-  send(
-    @OrgContext() { organizationId }: any,
-    @Param('id', ParseIntPipe) poId: number,
-  ) {
+  send(@OrgContext() { organizationId }: any, @Param('id', ParseIntPipe) poId: number) {
     return this.poService.send(organizationId, poId);
   }
 
@@ -140,17 +125,13 @@ export class PurchaseOrdersController {
 
   @Public()
   @Post('search')
-  async search(
-    @Body() query: SearchRequestDto,
-  ) {
+  async search(@Body() query: SearchRequestDto) {
     return this.poSearchService.search(2, query);
   }
 
   @Public()
   @Get('filters/columns/:columnName')
-  async getColumnValues(
-    @Param('columnName') columnName: string,
-  ) {
+  async getColumnValues(@Param('columnName') columnName: string) {
     return this.poSearchService.getColumnValues(2, columnName);
   }
 }

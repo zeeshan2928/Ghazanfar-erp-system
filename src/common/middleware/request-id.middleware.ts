@@ -13,7 +13,7 @@ declare global {
 @Injectable()
 export class RequestIdMiddleware implements NestMiddleware {
   use(req: Request, res: Response, next: NextFunction) {
-    req.id = req.headers['x-request-id'] as string || randomUUID();
+    req.id = (req.headers['x-request-id'] as string) || randomUUID();
     res.setHeader('x-request-id', req.id);
     next();
   }

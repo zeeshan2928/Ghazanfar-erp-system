@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { apiClient } from '../../services/api';
 
 interface ImportPreview {
   totalRows: number;
@@ -110,24 +111,40 @@ export function ExportImport() {
     setTimeout(() => setMessage(null), 3000);
   }
 
-  function handleExport() {
+  async function handleExport() {
     setIsExporting(true);
-    setTimeout(() => {
+    try {
       const config = entityConfig[selectedEntity];
-      const csvHeaders = config.fields.join(',');
-      const csvData = config.sampleData.map((row) =>
-        config.fields.map((field) => `"${row[field] || ''}"`.replace(/"/g, '""')).join(',')
-      );
+      const methodMap: Record<string, () => Promise<Blob>> = {
+        products: () => apiClient.exportProducts(),
+        bills: () => apiClient.exportBills(),
+        pos: () => apiClient.exportPurchaseOrders(),
+        customers: () => apiClient.exportCustomers(),
+        vendors: () => apiClient.exportVendors(),
+      };
 
-      const fullCsv = [csvHeaders, ...csvData].join('\n');
+      const exportMethod = methodMap[selectedEntity];
+      if (!exportMethod) {
+        showMessage('error', 'Export method not configured');
+        setIsExporting(false);
+        return;
+      }
+
+      const blob = await exportMethod();
+      const url = window.URL.createObjectURL(blob);
       const element = document.createElement('a');
-      element.setAttribute('href', 'data:text/csv;charset=utf-8,' + encodeURIComponent(fullCsv));
+      element.setAttribute('href', url);
       element.setAttribute('download', `${selectedEntity}-export-${new Date().toISOString().split('T')[0]}.csv`);
       element.click();
+      window.URL.revokeObjectURL(url);
 
       showMessage('success', `Exported ${config.label} successfully!`);
+    } catch (error) {
+      showMessage('error', `Failed to export ${selectedEntity}`);
+      console.error('Export error:', error);
+    } finally {
       setIsExporting(false);
-    }, 500);
+    }
   }
 
   function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
@@ -208,26 +225,49 @@ export function ExportImport() {
     setColumnMappings(updated);
   }
 
-  function handleImport() {
-    if (!importPreview || importPreview.validRows === 0) {
+  async function handleImport() {
+    if (!importFile || !importPreview || importPreview.validRows === 0) {
       showMessage('error', 'No valid rows to import');
       return;
     }
 
     setIsImporting(true);
-    setTimeout(() => {
-      // Simulate import
+    try {
       const config = entityConfig[selectedEntity];
-      console.log(`Importing ${importPreview.validRows} ${config.label.toLowerCase()}...`);
-      showMessage('success', `Successfully imported ${importPreview.validRows} ${config.label.toLowerCase()}!`);
-      setIsImporting(false);
+      const formData = new FormData();
+      formData.append('file', importFile);
+
+      const methodMap: Record<string, (formData: FormData) => Promise<any>> = {
+        products: (fd) => apiClient.importProducts(fd),
+        bills: (fd) => apiClient.importBills(fd),
+        pos: (fd) => apiClient.importPurchaseOrders(fd),
+        customers: (fd) => apiClient.importCustomers(fd),
+        vendors: (fd) => apiClient.importVendors(fd),
+      };
+
+      const importMethod = methodMap[selectedEntity];
+      if (!importMethod) {
+        showMessage('error', 'Import method not configured');
+        setIsImporting(false);
+        return;
+      }
+
+      const response = await importMethod(formData);
+      const successCount = response.successCount || importPreview.validRows;
+      showMessage('success', `Successfully imported ${successCount} ${config.label.toLowerCase()}!`);
+
       setImportFile(null);
       setImportPreview(null);
       setColumnMappings([]);
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }, 1000);
+    } catch (error) {
+      showMessage('error', `Failed to import ${selectedEntity}`);
+      console.error('Import error:', error);
+    } finally {
+      setIsImporting(false);
+    }
   }
 
   const config = entityConfig[selectedEntity];

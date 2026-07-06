@@ -20,5 +20,37 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 'off',
     '@typescript-eslint/explicit-module-boundary-types': 'off',
     '@typescript-eslint/no-explicit-any': 'off',
+    '@typescript-eslint/naming-convention': [
+      'warn',
+      {
+        selector: 'variable',
+        format: ['camelCase', 'UPPER_CASE'],
+        leadingUnderscore: 'allow',
+      },
+      {
+        selector: 'typeLike',
+        format: ['PascalCase'],
+      },
+      {
+        selector: 'parameterProperty',
+        format: ['camelCase'],
+      },
+      {
+        selector: 'classMethod',
+        format: ['camelCase'],
+      },
+      {
+        selector: 'classProperty',
+        format: ['camelCase'],
+      },
+      {
+        selector: 'objectLiteralProperty',
+        format: ['camelCase'],
+        filter: {
+          regex: '^(@Column|^[a-z_]+$)',
+          match: false,
+        },
+      },
+    ],
   },
 };

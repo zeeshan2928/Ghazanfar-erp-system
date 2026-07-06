@@ -1,0 +1,174 @@
+GENERIC PROMPT: HOW TO BUILD A NEW FUNCTION IN THIS CODEBASE, CORRECTLY, THE FIRST TIME
+========================================================================================
+
+PASTE THIS AT THE START OF ANY TASK THAT ADDS OR CHANGES A FUNCTION - backend, frontend,
+or full-stack. It does not matter whether the function is a small CRUD endpoint or a big
+piece of help/FOUNDATIONS.md (invoice screen, sales commission, auto-PO, manufacturing
+BOM, HR/payroll, etc.) - the sequence below applies every time.
+
+This is a PROCESS checklist, not a feature spec. It exists because on 2026-07-06 a
+single-day audit found and fixed ~35 production bugs, all caused by skipping steps in
+this exact sequence (wrong Prisma field names, code built against database tables that
+were never created, missing auth guards, unvalidated request bodies). Follow it and that
+class of bug cannot happen again.
+
+READ FIRST, DO NOT SKIP:
+  - CLAUDE.md (project root) - especially the "Naming Convention" and "Sequence for
+    writing or changing any function that touches Prisma" sections. This prompt assumes
+    you have already read that and BUILDS ON IT. It does not repeat the Prisma-naming
+    rules in detail - go read them there.
+  - help/FOUNDATIONS.md - the actual product vision document, in the user's own words.
+    If what you're building touches something described there, re-read the relevant
+    part before starting, and treat it as ground truth over anyone's memory or
+    paraphrase of it (including this file's summary below).
+
+
+STEP 0 - CLARIFY SCOPE BEFORE TOUCHING ANY CODE
+------------------------------------------------
+- Restate the requirement back in your own words. If you can't state it precisely
+  enough to know what "done" looks like, you don't understand it yet - ask.
+- Identify which layers it touches: schema only? backend only? full stack (schema +
+  backend + DTO + endpoint + frontend)?
+- If the request is ambiguous, or it's clearly one piece of a bigger system described
+  in help/FOUNDATIONS.md that hasn't been fully speced yet, SAY SO and ask rather than
+  guess. Example of the kind of ambiguity worth stopping for (not literal content to
+  build - just the pattern): "there's a fixed-amount discount field AND a percentage
+  discount field - do both apply together, or is it one-or-the-other?" That kind of
+  question, asked before writing code, is cheap. Guessing wrong and unwinding it later
+  is not.
+- If the feature is genuinely new/complex (not just extending an existing CRUD path) -
+  e.g. commission tracking, auto-PO generation, a manufacturing BOM engine, partitioned
+  data storage for performance - slow down further: write a short plan or ask several
+  clarifying questions before implementing. Today's session had to reinterpret multiple
+  status/enum mismatches after the fact because earlier code guessed at business rules
+  instead of asking. Don't repeat that.
+
+
+STEP 1 - DOES THE PRISMA MODEL ALREADY EXIST? (the step most of today's bugs came from skipping)
+--------------------------------------------------------------------------------------------------
+    grep -n "^model <ModelName> {" -A 30 prisma/schema.prisma
+
+- If it exists: read the literal field list. Don't assume casing from a sibling model,
+  from memory, or from documentation - the schema mixes snake_case and camelCase
+  PER MODEL, not globally (see CLAUDE.md for the full explanation and the list of which
+  models use which convention).
+- If it does NOT exist: STOP. This is a schema decision, not something to route around
+  in application code. Propose the model, get sign-off, and only add it via a real
+  migration.
+- Why this matters more than it sounds like it should: on 2026-07-06, NINE separate
+  features were built by skipping this exact step - Notification, AuditLog,
+  UserRoleAssignment, FieldPermission, EmailTemplate, EmailLog, VendorInvoice,
+  InvoiceModification, and the entire Labour/HR module (Employee, Attendance,
+  LeaveManagement, AttendanceBonus). Every one of them called Prisma models that were
+  never created. They sat completely broken - most silently returning nothing or
+  throwing on every call - until an unrelated audit found them. All are now stubbed
+  with clear warnings instead of crashing, but none of them actually work yet. Don't
+  add a tenth.
+
+
+STEP 2 - PICK THE RIGHT FIELD-NAMING CONVENTION
+-------------------------------------------------
+- Existing model: match its current fields exactly, field by field. Never assume.
+- Brand new model: camelCase for every field, no exceptions. That's what every model
+  added after the original legacy batch (Bill, PurchaseOrder, Vendor, GatePass,
+  WarehouseTransfer, ProductVendor, PurchaseHistory, Tax, WebsiteOrder) already does,
+  and it's Prisma's own default when no @map directive is used.
+- Adding a field to an existing model: match that model's existing convention. Don't
+  mix styles within one model (this alone caused a real bug today - WarehouseTransfer
+  was also missing an @updatedAt decorator that every other model has, so Prisma
+  required it to be supplied manually on every create - check for this kind of
+  inconsistency too, not just casing).
+
+
+STEP 3 - SCHEMA CHANGES (IF ANY)
+-----------------------------------
+- Write the migration.
+- Run: npx prisma generate
+- Verify the generated client actually exports what you expect. Gotcha found today:
+  an enum can be declared in schema.prisma but if no model field actually references
+  it, Prisma's generator silently omits it from the generated client - it will not
+  show up in @prisma/client even though it's right there in the .prisma file. If an
+  import from '@prisma/client' fails for something you just added to the schema, this
+  is the first thing to check.
+
+
+STEP 4 - BACKEND SERVICE LAYER
+----------------------------------
+- Prisma calls use the exact real field names from Step 1/2 - where, data, select,
+  include, orderBy all need real names, not guesses.
+- NEVER add "// @ts-nocheck" to a service file. CI now fails the build if this comment
+  exists anywhere in src/ (added 2026-07-06, .github/workflows/test.yml). If TypeScript
+  complains about a field name, the field name is wrong - that's the compiler doing
+  its job, not a false positive to silence.
+- Anchor any status/workflow logic (e.g. "can only edit while DRAFT") to the REAL enum
+  values that exist on that model - check the enum in schema.prisma first. Don't invent
+  status strings that feel right; today's audit found multiple places doing exactly
+  that (checking for a "DRAFT" or "CONFIRMED" bill status that didn't exist in the
+  real OrderStatus enum, silently making an entire code path unreachable).
+- If generating a sequential/unique number (invoice number, gate pass number, etc.):
+  never determine "the last one" by sorting the number STRING and taking the first
+  result. If historical rows have inconsistent zero-padding, lexicographic sort picks
+  the wrong row and you'll regenerate a number that already exists, crashing on the
+  unique constraint. Fetch all matching rows for the period and take the true numeric
+  max, or use a dedicated counter/sequence.
+
+
+STEP 5 - DTO / VALIDATION LAYER
+-----------------------------------
+- Every request body gets a real class-validator-decorated DTO class. Never
+  "@Body() data: any".
+- Why this matters concretely: main.ts already has a global ValidationPipe with
+  "whitelist: true" configured - this automatically strips any field not declared on
+  the DTO before it reaches Prisma. But it ONLY works against a real typed class. A
+  "@Body() x: any" parameter gets zero protection even though the pipe is configured
+  correctly. This exact gap let arbitrary fields flow straight into a Prisma update
+  call in purchase-orders.controller.ts's updatePO endpoint until it was fixed
+  2026-07-06 - go look at that fix (git history / PurchaseOrdersController.updatePO)
+  as the concrete before/after example.
+- DTO field names are always camelCase, regardless of what convention the underlying
+  Prisma model uses. This is the one deliberate, intentional translation boundary in
+  the whole system.
+
+
+STEP 6 - CONTROLLER / ENDPOINT LAYER
+----------------------------------------
+- Every controller needs either "@UseGuards(JwtGuard)" or an explicit "@Public()" -
+  never neither. Today's audit found vendors.controller.ts with neither: a valid JWT
+  authenticated fine at the Passport level, but since no guard ever ran, req.user was
+  never populated, and every single method in the controller silently got
+  organizationId: undefined. It looked like it should work and didn't, for every
+  method, not just one.
+- Match the REST/route-naming conventions of sibling controllers in the same module
+  family rather than inventing a new style.
+
+
+STEP 7 - FRONTEND INTEGRATION
+---------------------------------
+- Frontend interfaces/types are always camelCase, matching the API response shape -
+  never the underlying database convention, even for models that happen to be
+  snake_case in Prisma.
+- Wire new calls through the existing apiClient (frontend/src/services/api.ts)
+  following its existing method pattern, rather than scattering raw fetch() calls
+  through components.
+
+
+STEP 8 - BUILD AND VERIFY (both parts, every time)
+------------------------------------------------------
+1. npm run build            (backend - must be 0 errors; CI requires this now)
+2. cd frontend && npm run build   (frontend - must be 0 errors)
+3. Test the ACTUAL flow live - curl the endpoint or click through the real UI. A clean
+   build proves the TYPES line up. It proves nothing about business logic. The single
+   most dangerous bug found on 2026-07-06 was a typo (physicalOnHand instead of the
+   real physical_on_hand field) that compiled cleanly and only broke real inventory
+   math at runtime: it made a stock-availability check silently always pass
+   (NaN < quantity evaluates to false), letting bills reserve more stock than
+   physically existed, with no error anywhere. A type checker cannot catch that kind
+   of bug. Only running the real flow can.
+
+
+CLOSING NOTE
+---------------
+This is a process checklist, not a substitute for reading CLAUDE.md and
+help/FOUNDATIONS.md directly. If anything here ever conflicts with a newer version of
+either of those files, those files win - update this prompt to match, don't keep
+building against a stale copy of the rules.

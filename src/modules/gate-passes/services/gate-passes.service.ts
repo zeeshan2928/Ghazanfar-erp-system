@@ -34,7 +34,7 @@ export class GatePassesService {
             },
           },
         },
-        orderBy: { gatePassDate: 'desc' },
+        orderBy: { gate_pass_date: 'desc' },
         skip,
         take,
       }),
@@ -99,7 +99,7 @@ export class GatePassesService {
     userId: number,
     confirmDto: ConfirmGatePassDto,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const gatePass = await tx.gatePass.findFirst({
         where: {
           id: gatePassId,
@@ -116,14 +116,12 @@ export class GatePassesService {
       }
 
       if (gatePass.status !== 'PENDING') {
-        throw new BadRequestException(
-          `Cannot confirm gate pass with status ${gatePass.status}`,
-        );
+        throw new BadRequestException(`Cannot confirm gate pass with status ${gatePass.status}`);
       }
 
       // Update picked quantities for each item
       for (const pickedItem of confirmDto.pickedItems) {
-        const item = gatePass.items.find((i) => i.billLineId === pickedItem.billLineId);
+        const item = gatePass.items.find(i => i.billLineId === pickedItem.billLineId);
 
         if (!item) {
           throw new BadRequestException(
@@ -141,7 +139,7 @@ export class GatePassesService {
         await tx.gatePassItem.update({
           where: { id: item.id },
           data: {
-            pickedQuantity: pickedItem.pickedQuantity,
+            picked_quantity: pickedItem.pickedQuantity,
           },
         });
       }
@@ -151,8 +149,8 @@ export class GatePassesService {
         where: { id: gatePassId },
         data: {
           status: 'CONFIRMED',
-          confirmedBy: userId,
-          confirmedDate: new Date(),
+          confirmed_by: userId,
+          confirmed_date: new Date(),
           remarks: confirmDto.remarks,
         },
         include: {
@@ -173,7 +171,7 @@ export class GatePassesService {
         },
       });
 
-      // Update inventory: deduct from physicalOnHand and reserved
+      // Update inventory: deduct from physical_on_hand and reserved
       for (const item of confirmed.items) {
         await tx.inventory.update({
           where: {
@@ -184,8 +182,8 @@ export class GatePassesService {
             },
           },
           data: {
-            physicalOnHand: {
-              decrement: item.pickedQuantity,
+            physical_on_hand: {
+              decrement: item.picked_quantity,
             },
             reserved: {
               decrement: item.quantity,
@@ -204,7 +202,7 @@ export class GatePassesService {
     userId: number,
     rejectDto: RejectGatePassDto,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const gatePass = await tx.gatePass.findFirst({
         where: {
           id: gatePassId,
@@ -220,9 +218,7 @@ export class GatePassesService {
       }
 
       if (gatePass.status !== 'PENDING') {
-        throw new BadRequestException(
-          `Cannot reject gate pass with status ${gatePass.status}`,
-        );
+        throw new BadRequestException(`Cannot reject gate pass with status ${gatePass.status}`);
       }
 
       // Release reserved inventory back to available
@@ -251,8 +247,8 @@ export class GatePassesService {
         where: { id: gatePassId },
         data: {
           status: 'REJECTED',
-          confirmedBy: userId,
-          confirmedDate: new Date(),
+          confirmed_by: userId,
+          confirmed_date: new Date(),
           remarks: rejectDto.reason,
         },
         include: {
@@ -291,7 +287,7 @@ export class GatePassesService {
       pickedQuantity: number;
     }>,
   ) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       const gatePass = await tx.gatePass.findFirst({
         where: {
           id: gatePassId,
@@ -314,7 +310,7 @@ export class GatePassesService {
 
       // Update items with actual picked quantities
       for (const shortageItem of shortageItems) {
-        const item = gatePass.items.find((i) => i.billLineId === shortageItem.billLineId);
+        const item = gatePass.items.find(i => i.billLineId === shortageItem.billLineId);
 
         if (!item) {
           throw new BadRequestException(
@@ -331,7 +327,7 @@ export class GatePassesService {
         await tx.gatePassItem.update({
           where: { id: item.id },
           data: {
-            pickedQuantity: shortageItem.pickedQuantity,
+            picked_quantity: shortageItem.pickedQuantity,
           },
         });
       }
@@ -341,8 +337,8 @@ export class GatePassesService {
         where: { id: gatePassId },
         data: {
           status: 'PICKED',
-          pickedBy: userId,
-          pickedDate: new Date(),
+          picked_by: userId,
+          picked_date: new Date(),
           remarks: 'Shortage reported',
         },
         include: {
@@ -372,7 +368,7 @@ export class GatePassesService {
    * Called automatically from BillService when bill status changes to CONFIRMED
    */
   async createFromBill(organizationId: number, billId: number) {
-    return this.transactionService.run(async (tx) => {
+    return this.transactionService.run(async tx => {
       // Check if gate pass already exists for this bill
       const existing = await tx.gatePass.findFirst({
         where: {
@@ -404,8 +400,12 @@ export class GatePassesService {
         throw new NotFoundException(`Bill ${billId} not found`);
       }
 
-      if (bill.status !== 'CONFIRMED') {
-        throw new BadRequestException('Gate pass can only be created for confirmed bills');
+      // NOTE: Bill.status uses OrderStatus (PENDING_APPROVAL, APPROVED, REJECTED,
+      // FULFILLED, CANCELLED) - there is no CONFIRMED value, and bills.service.ts
+      // create() sets new bills to APPROVED. Using APPROVED here as the closest
+      // equivalent - flagged for product review.
+      if (bill.status !== 'APPROVED') {
+        throw new BadRequestException('Gate pass can only be created for approved bills');
       }
 
       // Group lines by warehouse
@@ -433,7 +433,7 @@ export class GatePassesService {
           );
         }
 
-        const available = inventory.physicalOnHand - (inventory.reserved || 0);
+        const available = inventory.physical_on_hand - (inventory.reserved || 0);
         if (available < line.quantity) {
           throw new BadRequestException(
             `Insufficient stock for ${line.product.code}. Required: ${line.quantity}, Available: ${available}`,
@@ -448,21 +448,27 @@ export class GatePassesService {
       // Create gate passes per warehouse
       const gatePasses = [];
       for (const [warehouseId, warehouseLines] of warehouseGroups.entries()) {
-        const lastGatePass = await tx.gatePass.findFirst({
+        // NOTE: sorting gate_pass_number as a string is unsafe if padding is
+        // ever inconsistent (see the identical fix in bills.service.ts) - fetch
+        // all matches and take the true numeric max instead of relying on sort.
+        const existingGatePasses = await tx.gatePass.findMany({
           where: {
             organizationId,
-            gatePassNumber: {
+            gate_pass_number: {
               startsWith: `GP-${dateStr}`,
             },
           },
-          orderBy: { gatePassNumber: 'desc' },
+          select: { gate_pass_number: true },
         });
 
-        let sequenceNum = 1;
-        if (lastGatePass) {
-          const lastSeq = parseInt(lastGatePass.gatePassNumber.split('-')[2], 10);
-          sequenceNum = lastSeq + 1;
+        let sequenceNum = 0;
+        for (const gp of existingGatePasses) {
+          const seq = parseInt(gp.gate_pass_number.split('-')[2], 10);
+          if (!isNaN(seq) && seq > sequenceNum) {
+            sequenceNum = seq;
+          }
         }
+        sequenceNum += 1;
 
         const gatePassNumber = `GP-${dateStr}-${String(sequenceNum).padStart(5, '0')}`;
 
@@ -470,18 +476,18 @@ export class GatePassesService {
         const gatePass = await tx.gatePass.create({
           data: {
             organizationId,
-            gatePassNumber,
+            gate_pass_number: gatePassNumber,
             billId,
             warehouseId,
             status: 'PENDING',
-            gatePassDate: new Date(),
+            gate_pass_date: new Date(),
             items: {
-              create: warehouseLines.map((line) => ({
+              create: warehouseLines.map(line => ({
                 organizationId,
                 billLineId: line.id,
                 productId: line.productId,
                 quantity: line.quantity,
-                pickedQuantity: 0,
+                picked_quantity: 0,
               })),
             },
           },
@@ -508,7 +514,9 @@ export class GatePassesService {
         }
       }
 
-      return gatePasses.length === 1 ? gatePasses[0] : { gatePassCount: gatePasses.length, gatePasses };
+      return gatePasses.length === 1
+        ? gatePasses[0]
+        : { gatePassCount: gatePasses.length, gatePasses };
     });
   }
 
@@ -542,7 +550,7 @@ export class GatePassesService {
       );
     }
 
-    const item = gatePass.items.find((i) => i.billLineId === billLineId);
+    const item = gatePass.items.find(i => i.billLineId === billLineId);
     if (!item) {
       throw new BadRequestException(`Bill line not found in gate pass`);
     }
@@ -556,7 +564,7 @@ export class GatePassesService {
     return this.prisma.gatePassItem.update({
       where: { id: item.id },
       data: {
-        pickedQuantity,
+        picked_quantity: pickedQuantity,
       },
       include: {
         billLine: {
@@ -598,23 +606,23 @@ export class GatePassesService {
     }
 
     // Calculate summary
-    const summary = gatePass.items.map((item) => ({
+    const summary = gatePass.items.map(item => ({
       billLineId: item.billLineId,
       required: item.quantity,
-      picked: item.pickedQuantity,
-      shortage: item.quantity - item.pickedQuantity,
-      isShortage: item.pickedQuantity < item.quantity,
+      picked: item.picked_quantity,
+      shortage: item.quantity - item.picked_quantity,
+      isShortage: item.picked_quantity < item.quantity,
     }));
 
-    const hasShortage = summary.some((s) => s.isShortage);
+    const hasShortage = summary.some(s => s.isShortage);
 
     // Update gate pass status to PICKED
     const updated = await this.prisma.gatePass.update({
       where: { id: gatePassId },
       data: {
         status: 'PICKED',
-        pickedBy: userId,
-        pickedDate: new Date(),
+        picked_by: userId,
+        picked_date: new Date(),
       },
       include: {
         items: {
@@ -676,7 +684,7 @@ export class GatePassesService {
           },
           warehouse: true,
         },
-        orderBy: { gatePassDate: 'desc' },
+        orderBy: { gate_pass_date: 'desc' },
         skip,
         take,
       }),
@@ -696,12 +704,13 @@ export class GatePassesService {
    * Get warehouse dashboard stats
    */
   async getWarehouseStats(organizationId: number, warehouseId: number) {
-    const [pending, picking, picked, confirmed] = await Promise.all([
+    // NOTE: GatePassStatus has no PICKING value (real values: PENDING, PICKED,
+    // CONFIRMED, REJECTED) - there is no distinct "actively being picked" state
+    // in this schema. Reporting the 4 real statuses instead of the fictional
+    // 5th bucket that used to be queried here.
+    const [pending, picked, confirmed, rejected] = await Promise.all([
       this.prisma.gatePass.count({
         where: { organizationId, warehouseId, status: 'PENDING' },
-      }),
-      this.prisma.gatePass.count({
-        where: { organizationId, warehouseId, status: 'PICKING' },
       }),
       this.prisma.gatePass.count({
         where: { organizationId, warehouseId, status: 'PICKED' },
@@ -709,14 +718,17 @@ export class GatePassesService {
       this.prisma.gatePass.count({
         where: { organizationId, warehouseId, status: 'CONFIRMED' },
       }),
+      this.prisma.gatePass.count({
+        where: { organizationId, warehouseId, status: 'REJECTED' },
+      }),
     ]);
 
     return {
       pending,
-      picking,
       picked,
       confirmed,
-      total: pending + picking + picked + confirmed,
+      rejected,
+      total: pending + picked + confirmed + rejected,
     };
   }
 }

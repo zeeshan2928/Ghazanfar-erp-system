@@ -13,11 +13,15 @@ export class ProductsController {
     private productsSearchService: ProductsSearchService,
   ) {}
 
+  @Post()
+  async createProduct(@Body() data: any, @OrgContext() orgContext: any) {
+    const organizationId = orgContext?.organizationId || 1; // Default to org 1 if missing
+    console.log('Creating product for org:', organizationId, 'data:', data);
+    return this.productsService.createProduct(organizationId, data);
+  }
+
   @Get(':productId/purchase-history')
-  async getPurchaseHistory(
-    @Param('productId') productId: string,
-    @OrgContext() orgContext: any,
-  ) {
+  async getPurchaseHistory(@Param('productId') productId: string, @OrgContext() orgContext: any) {
     return this.productsService.getPurchaseHistory(
       orgContext.organizationId,
       parseInt(productId, 10),
@@ -26,21 +30,12 @@ export class ProductsController {
   }
 
   @Post('search')
-  async search(
-    @Body() query: SearchRequestDto,
-    @OrgContext() orgContext: any,
-  ) {
+  async search(@Body() query: SearchRequestDto, @OrgContext() orgContext: any) {
     return this.productsSearchService.search(orgContext.organizationId, query);
   }
 
   @Get('filters/columns/:columnName')
-  async getColumnValues(
-    @Param('columnName') columnName: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.productsSearchService.getColumnValues(
-      orgContext.organizationId,
-      columnName,
-    );
+  async getColumnValues(@Param('columnName') columnName: string, @OrgContext() orgContext: any) {
+    return this.productsSearchService.getColumnValues(orgContext.organizationId, columnName);
   }
 }

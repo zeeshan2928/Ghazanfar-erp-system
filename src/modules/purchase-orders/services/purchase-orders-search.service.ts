@@ -7,17 +7,14 @@ import {
   FilterOperator,
   ColumnValueDto,
 } from '@common/dto/filter.dto';
-import {
-  getAllowedOperators,
-  isFieldAllowed,
-} from '@common/config/filter-config';
+import { getAllowedOperators, isFieldAllowed } from '@common/config/filter-config';
 
 export interface PurchaseOrderSearchResult {
   id: number;
-  poNumber: string;
-  vendorName: string;
+  po_number: string;
+  vendor_name: string;
   status: string;
-  createdDate: string;
+  created_date: string;
   amount: number;
   expectedDeliveryDate: string;
 }
@@ -38,10 +35,7 @@ export class PurchaseOrdersSearchService {
   ): Promise<FilterResponseDto<PurchaseOrderSearchResult>> {
     // Validate filters
     if (request.primaryFilter) {
-      this.validateFilter(
-        request.primaryFilter.field,
-        request.primaryFilter.operator,
-      );
+      this.validateFilter(request.primaryFilter.field, request.primaryFilter.operator);
     }
 
     if (request.columnFilters) {
@@ -65,11 +59,10 @@ export class PurchaseOrdersSearchService {
       organizationId,
     };
 
-
     // Build sort
     let orderBy: any = { createdAt: 'desc' };
     if (request.sortBy) {
-      const allowedSortFields = ['poNumber', 'status', 'createdAt'];
+      const allowedSortFields = ['po_number', 'status', 'createdAt'];
       if (allowedSortFields.includes(request.sortBy)) {
         orderBy = { [request.sortBy]: request.sortOrder || 'asc' };
       }
@@ -95,13 +88,13 @@ export class PurchaseOrdersSearchService {
     // Format results
     const data: PurchaseOrderSearchResult[] = pos.map((po: any) => ({
       id: po.id,
-      poNumber: po.poNumber,
-      vendorName: po.vendor?.name || 'N/A',
+      po_number: po.po_number,
+      vendor_name: po.vendor?.name || 'N/A',
       status: po.status,
-      createdDate: po.createdAt.toISOString().split('T')[0],
+      created_date: po.createdAt.toISOString().split('T')[0],
       amount: 0,
-      expectedDeliveryDate: po.expectedDeliveryDate
-        ? po.expectedDeliveryDate.toISOString().split('T')[0]
+      expectedDeliveryDate: po.expected_delivery_date
+        ? po.expected_delivery_date.toISOString().split('T')[0]
         : 'N/A',
     }));
 
@@ -111,16 +104,13 @@ export class PurchaseOrdersSearchService {
   /**
    * Get unique values for a column
    */
-  async getColumnValues(
-    organizationId: number,
-    columnName: string,
-  ): Promise<ColumnValueDto[]> {
+  async getColumnValues(organizationId: number, columnName: string): Promise<ColumnValueDto[]> {
     this.validateColumnName(columnName);
 
     switch (columnName) {
-      case 'poNumber':
+      case 'po_number':
         return this.getPoNumbers(organizationId);
-      case 'vendorName':
+      case 'vendor_name':
         return this.getVendorNames(organizationId);
       case 'status':
         return this.getStatuses(organizationId);
@@ -132,15 +122,15 @@ export class PurchaseOrdersSearchService {
   private async getPoNumbers(organizationId: number): Promise<ColumnValueDto[]> {
     const results = await this.prisma.purchaseOrder.findMany({
       where: { organizationId },
-      select: { poNumber: true },
-      distinct: ['poNumber'],
-      orderBy: { poNumber: 'asc' },
+      select: { po_number: true },
+      distinct: ['po_number'],
+      orderBy: { po_number: 'asc' },
       take: 100,
     });
 
     return results.map((r: any) => ({
-      value: r.poNumber,
-      label: r.poNumber,
+      value: r.po_number,
+      label: r.po_number,
     }));
   }
 
@@ -187,7 +177,7 @@ export class PurchaseOrdersSearchService {
 
     for (const filter of filters) {
       switch (filter.field) {
-        case 'vendorName':
+        case 'vendor_name':
           // Filter by vendor relationship
           const vendorCondition = this.buildCondition(filter);
           if (vendorCondition) {
@@ -195,7 +185,7 @@ export class PurchaseOrdersSearchService {
           }
           break;
 
-        case 'createdDate':
+        case 'created_date':
           // Map to createdAt field
           const dateCondition = this.buildCondition(filter);
           if (dateCondition) {
@@ -256,10 +246,10 @@ export class PurchaseOrdersSearchService {
         break;
       case 'isLike':
         // Fuzzy match - treat as contains search
-        return { contains: (value as string), mode: 'insensitive' };
+        return { contains: value as string, mode: 'insensitive' };
       case 'isNotLike':
         // Fuzzy match negation
-        return { not: { contains: (value as string), mode: 'insensitive' } };
+        return { not: { contains: value as string, mode: 'insensitive' } };
     }
     return null;
   }
@@ -284,9 +274,7 @@ export class PurchaseOrdersSearchService {
       if (error instanceof BadRequestException) {
         throw error;
       }
-      throw new BadRequestException(
-        `Invalid field '${fieldName}' for purchase orders search`,
-      );
+      throw new BadRequestException(`Invalid field '${fieldName}' for purchase orders search`);
     }
   }
 }

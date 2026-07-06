@@ -1,5 +1,5 @@
-import { IsString, IsEnum, IsBoolean, IsOptional, IsArray } from 'class-validator';
-import { EmailTemplateType } from '@prisma/client';
+import { IsString, IsEnum, IsBoolean, IsOptional } from 'class-validator';
+import { EmailTemplateType } from '../types/email-template-type.enum';
 
 export class UpdateEmailTemplateDto {
   @IsOptional()

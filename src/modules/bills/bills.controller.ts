@@ -1,4 +1,17 @@
-import { Controller, Post, Get, Put, Delete, Patch, Param, Body, UseGuards, Query, Res, HttpStatus } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Put,
+  Delete,
+  Patch,
+  Param,
+  Body,
+  UseGuards,
+  Query,
+  Res,
+  HttpStatus,
+} from '@nestjs/common';
 import { Response } from 'express';
 import { BillsService } from './services/bills.service';
 import { BillsSearchService } from './services/bills-search.service';
@@ -6,7 +19,6 @@ import { CreateBillDto, UpdateBillDto, ChangeStatusDto } from './dto/create-bill
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
-import { Public } from '@common/decorators/public.decorator';
 
 @Controller('bills')
 @UseGuards(JwtGuard)
@@ -17,15 +29,8 @@ export class BillsController {
   ) {}
 
   @Post()
-  async create(
-    @Body() createBillDto: CreateBillDto,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.billsService.create(
-      orgContext.organizationId,
-      orgContext.userId,
-      createBillDto,
-    );
+  async create(@Body() createBillDto: CreateBillDto, @OrgContext() orgContext: any) {
+    return this.billsService.create(orgContext.organizationId, orgContext.userId, createBillDto);
   }
 
   @Get()
@@ -37,22 +42,12 @@ export class BillsController {
     const skipNum = skip ? parseInt(skip, 10) : 0;
     const takeNum = take ? parseInt(take, 10) : 10;
 
-    return this.billsService.findAll(
-      orgContext.organizationId,
-      skipNum,
-      takeNum,
-    );
+    return this.billsService.findAll(orgContext.organizationId, skipNum, takeNum);
   }
 
   @Get(':billId')
-  async findById(
-    @Param('billId') billId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.billsService.findById(
-      orgContext.organizationId,
-      parseInt(billId, 10),
-    );
+  async findById(@Param('billId') billId: string, @OrgContext() orgContext: any) {
+    return this.billsService.findById(orgContext.organizationId, parseInt(billId, 10));
   }
 
   @Put(':billId')
@@ -61,22 +56,12 @@ export class BillsController {
     @Body() updateBillDto: UpdateBillDto,
     @OrgContext() orgContext: any,
   ) {
-    return this.billsService.update(
-      orgContext.organizationId,
-      parseInt(billId, 10),
-      updateBillDto,
-    );
+    return this.billsService.update(orgContext.organizationId, parseInt(billId, 10), orgContext.userId, updateBillDto);
   }
 
   @Delete(':billId')
-  async delete(
-    @Param('billId') billId: string,
-    @OrgContext() orgContext: any,
-  ) {
-    return this.billsService.delete(
-      orgContext.organizationId,
-      parseInt(billId, 10),
-    );
+  async delete(@Param('billId') billId: string, @OrgContext() orgContext: any) {
+    return this.billsService.delete(orgContext.organizationId, parseInt(billId, 10));
   }
 
   @Patch(':billId/status')
@@ -109,22 +94,13 @@ export class BillsController {
     return res.status(HttpStatus.OK).send(Buffer.from(pdfBase64, 'base64'));
   }
 
-  @Public()
   @Post('search')
-  async search(
-    @Body() query: SearchRequestDto,
-  ) {
-    return this.billsSearchService.search(2, query);
+  async search(@Body() query: SearchRequestDto, @OrgContext() orgContext: any) {
+    return this.billsSearchService.search(orgContext.organizationId, query);
   }
 
-  @Public()
   @Get('filters/columns/:columnName')
-  async getColumnValues(
-    @Param('columnName') columnName: string,
-  ) {
-    return this.billsSearchService.getColumnValues(
-      2,
-      columnName,
-    );
+  async getColumnValues(@Param('columnName') columnName: string, @OrgContext() orgContext: any) {
+    return this.billsSearchService.getColumnValues(orgContext.organizationId, columnName);
   }
 }

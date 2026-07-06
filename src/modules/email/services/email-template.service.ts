@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
-import { EmailTemplateType } from '@prisma/client';
 import * as Handlebars from 'handlebars';
+import { EmailTemplateType } from '../types/email-template-type.enum';
 
 @Injectable()
 export class EmailTemplateService {
@@ -11,22 +11,26 @@ export class EmailTemplateService {
 
   /**
    * Get email template by type
+   * NOTE: there is no EmailTemplate model in schema.prisma. Every caller
+   * already handles a null/missing template gracefully (checks
+   * `!template || !template.isActive`), so this returns null rather than
+   * inventing a schema unilaterally - needs a product/schema decision.
    */
-  async getTemplate(templateType: EmailTemplateType) {
-    try {
-      return await this.prisma.emailTemplate.findUnique({
-        where: { type: templateType },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to get template: ${error.message}`);
-      throw error;
-    }
+  async getTemplate(templateType: EmailTemplateType): Promise<any> {
+    this.logger.warn(
+      `getTemplate(${templateType}): no EmailTemplate model exists in schema.prisma - returning null`,
+    );
+    return null;
   }
 
   /**
    * Render template with data
    */
-  renderTemplate(templateType: EmailTemplateType, template: any, data: any): { subject: string; html: string } {
+  renderTemplate(
+    templateType: EmailTemplateType,
+    template: any,
+    data: any,
+  ): { subject: string; html: string } {
     try {
       const subjectTemplate = Handlebars.compile(template.subject);
       const bodyTemplate = Handlebars.compile(template.htmlBody);
@@ -121,7 +125,11 @@ export class EmailTemplateService {
         return null;
       }
 
-      const rendered = this.renderTemplate(EmailTemplateType.SHIPMENT_NOTIFICATION, template, shippingData);
+      const rendered = this.renderTemplate(
+        EmailTemplateType.SHIPMENT_NOTIFICATION,
+        template,
+        shippingData,
+      );
 
       // TODO: Integrate with email service
       this.logger.log(`Shipping notification queued for ${customerEmail}: Bill #${billId}`);
@@ -144,7 +152,11 @@ export class EmailTemplateService {
         return null;
       }
 
-      const rendered = this.renderTemplate(EmailTemplateType.DELIVERY_CONFIRMATION, template, deliveryData);
+      const rendered = this.renderTemplate(
+        EmailTemplateType.DELIVERY_CONFIRMATION,
+        template,
+        deliveryData,
+      );
 
       // TODO: Integrate with email service
       this.logger.log(`Delivery confirmation queued for ${customerEmail}: Bill #${billId}`);
@@ -167,7 +179,10 @@ export class EmailTemplateService {
         return null;
       }
 
-      const rendered = this.renderTemplate(EmailTemplateType.USER_INVITE, template, { userName, inviteLink });
+      const rendered = this.renderTemplate(EmailTemplateType.USER_INVITE, template, {
+        userName,
+        inviteLink,
+      });
 
       // TODO: Integrate with email service
       this.logger.log(`User invite email queued for ${userEmail}`);
@@ -181,44 +196,36 @@ export class EmailTemplateService {
 
   /**
    * Get all templates
+   * NOTE: no EmailTemplate model exists in schema.prisma - see getTemplate().
    */
-  async getAllTemplates(organizationId?: number) {
-    try {
-      return await this.prisma.emailTemplate.findMany({
-        where: organizationId ? { organizationId } : {},
-        orderBy: { type: 'asc' },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to get all templates: ${error.message}`);
-      throw error;
-    }
+  async getAllTemplates(_organizationId?: number): Promise<any[]> {
+    this.logger.warn('getAllTemplates(): no EmailTemplate model exists in schema.prisma');
+    return [];
   }
 
   /**
    * Update email template
+   * NOTE: no EmailTemplate model exists in schema.prisma - see getTemplate().
    */
   async updateTemplate(
     templateType: EmailTemplateType,
-    data: {
+    _data: {
       subject?: string;
       htmlBody?: string;
       textBody?: string;
       isActive?: boolean;
     },
-  ) {
-    try {
-      return await this.prisma.emailTemplate.update({
-        where: { type: templateType },
-        data,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to update template: ${error.message}`);
-      throw error;
-    }
+  ): Promise<any> {
+    this.logger.warn(
+      `updateTemplate(${templateType}): no EmailTemplate model exists in schema.prisma - no-op`,
+    );
+    return null;
   }
 
   /**
    * Log sent email
+   * NOTE: no EmailLog model exists in schema.prisma - logging to the app
+   * logger instead of persisting, so the calling flow doesn't break.
    */
   async logEmail(
     organizationId: number,
@@ -227,64 +234,29 @@ export class EmailTemplateService {
     subject: string,
     status: string = 'SENT',
     errorMessage?: string,
-    attachments: string[] = [],
-  ) {
-    try {
-      await this.prisma.emailLog.create({
-        data: {
-          organizationId,
-          templateType,
-          to,
-          subject,
-          status,
-          errorMessage,
-          attachments,
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to log email: ${error.message}`);
-    }
+    _attachments: string[] = [],
+  ): Promise<void> {
+    this.logger.log(
+      `[email-log org=${organizationId}] ${status} to=${to} subject="${subject}" template=${templateType ?? 'none'}${errorMessage ? ` error=${errorMessage}` : ''}`,
+    );
   }
 
   /**
    * Get email logs
+   * NOTE: no EmailLog model exists in schema.prisma - see logEmail().
    */
   async getEmailLogs(
-    organizationId: number,
-    filters: {
+    _organizationId: number,
+    _filters: {
       to?: string;
       status?: string;
       startDate?: Date;
       endDate?: Date;
     } = {},
-    skip: number = 0,
-    take: number = 20,
-  ) {
-    try {
-      const where: any = { organizationId };
-
-      if (filters.to) where.to = { contains: filters.to };
-      if (filters.status) where.status = filters.status;
-
-      if (filters.startDate || filters.endDate) {
-        where.sentAt = {};
-        if (filters.startDate) where.sentAt.gte = filters.startDate;
-        if (filters.endDate) where.sentAt.lte = filters.endDate;
-      }
-
-      const logs = await this.prisma.emailLog.findMany({
-        where,
-        orderBy: { sentAt: 'desc' },
-        skip,
-        take,
-      });
-
-      const total = await this.prisma.emailLog.count({ where });
-
-      return { data: logs, total };
-    } catch (error) {
-      this.logger.error(`Failed to get email logs: ${error.message}`);
-      throw error;
-    }
+    _skip: number = 0,
+    _take: number = 20,
+  ): Promise<{ data: any[]; total: number }> {
+    this.logger.warn('getEmailLogs(): no EmailLog model exists in schema.prisma');
+    return { data: [], total: 0 };
   }
 }

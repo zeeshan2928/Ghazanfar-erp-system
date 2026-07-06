@@ -1,4 +1,13 @@
-import { Controller, Get, Post, Param, Body, UseGuards, HttpStatus, HttpCode } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Param,
+  Body,
+  UseGuards,
+  HttpStatus,
+  HttpCode,
+} from '@nestjs/common';
 import { PermissionsService } from './services/permissions.service';
 import { UserRole } from '@prisma/client';
 import { JwtGuard } from '@common/guards/jwt.guard';
@@ -13,24 +22,32 @@ export class PermissionsController {
    * Get user's permissions summary
    */
   @Get('user/:userId')
-  async getUserPermissions(
-    @Param('userId') userId: string,
-    @OrgContext() orgContext?: any,
-  ) {
-    return this.permissionsService.getPermissionsSummary(orgContext.organizationId, parseInt(userId, 10));
+  async getUserPermissions(@Param('userId') userId: string, @OrgContext() orgContext?: any) {
+    return this.permissionsService.getPermissionsSummary(
+      orgContext.organizationId,
+      parseInt(userId, 10),
+    );
   }
 
   /**
    * Get entity permissions for current user
    */
   @Get('entity/:entity')
-  async getEntityPermissions(
-    @Param('entity') entity: string,
-    @OrgContext() orgContext?: any,
-  ) {
-    const role = await this.permissionsService.getUserRole(orgContext.organizationId, orgContext.userId);
-    const readableFields = await this.permissionsService.getReadableFields(orgContext.organizationId, orgContext.userId, entity);
-    const writableFields = await this.permissionsService.getWritableFields(orgContext.organizationId, orgContext.userId, entity);
+  async getEntityPermissions(@Param('entity') entity: string, @OrgContext() orgContext?: any) {
+    const role = await this.permissionsService.getUserRole(
+      orgContext.organizationId,
+      orgContext.userId,
+    );
+    const readableFields = await this.permissionsService.getReadableFields(
+      orgContext.organizationId,
+      orgContext.userId,
+      entity,
+    );
+    const writableFields = await this.permissionsService.getWritableFields(
+      orgContext.organizationId,
+      orgContext.userId,
+      entity,
+    );
     const entityPermissions = this.permissionsService.getEntityPermissionsForRole(role, entity);
 
     return {
@@ -65,7 +82,12 @@ export class PermissionsController {
     }
 
     if (field) {
-      hasPermission = await this.permissionsService.canReadField(orgContext.organizationId, orgContext.userId, entity, field);
+      hasPermission = await this.permissionsService.canReadField(
+        orgContext.organizationId,
+        orgContext.userId,
+        entity,
+        field,
+      );
       reason = `Read access to ${field} on ${entity}`;
     }
 
@@ -91,7 +113,10 @@ export class PermissionsController {
     @OrgContext() orgContext?: any,
   ) {
     // Verify caller is admin
-    const callerRole = await this.permissionsService.getUserRole(orgContext.organizationId, orgContext.userId);
+    const callerRole = await this.permissionsService.getUserRole(
+      orgContext.organizationId,
+      orgContext.userId,
+    );
     if (callerRole !== UserRole.ADMIN) {
       throw new Error('Only admins can assign roles');
     }

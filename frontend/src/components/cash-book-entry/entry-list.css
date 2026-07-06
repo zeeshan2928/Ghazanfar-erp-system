@@ -1,0 +1,344 @@
+.entry-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 16px;
+  background-color: #F2F2F7;
+  min-height: 100vh;
+}
+
+.entry-list__header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.entry-list__title {
+  font-size: 20px;
+  font-weight: 700;
+  color: #333;
+  margin: 0;
+}
+
+.entry-list__close-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background-color: #F5F5F5;
+  border-radius: 6px;
+  font-size: 18px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.entry-list__close-btn:hover {
+  background-color: #E5E5EA;
+}
+
+.entry-list__banner {
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.entry-list__banner--offline {
+  background-color: #FFF3E0;
+  border: 1px solid #FFB74D;
+  color: #E65100;
+}
+
+.entry-list__filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  background-color: white;
+  padding: 16px;
+  border-radius: 8px;
+  align-items: flex-end;
+}
+
+.entry-list__filter-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.entry-list__filter-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #666;
+  text-transform: uppercase;
+}
+
+.entry-list__filter-select,
+.entry-list__filter-input {
+  padding: 10px;
+  border: 1px solid #E5E5EA;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #333;
+  background-color: white;
+  min-height: 44px;
+  transition: all 0.2s;
+}
+
+.entry-list__filter-select:focus,
+.entry-list__filter-input:focus {
+  outline: none;
+  border-color: #2196F3;
+  box-shadow: 0 0 0 2px rgba(33,150,243,0.1);
+}
+
+.entry-list__btn {
+  padding: 10px 16px;
+  border: none;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+  white-space: nowrap;
+}
+
+.entry-list__btn--primary {
+  background-color: #2196F3;
+  color: white;
+}
+
+.entry-list__btn--primary:hover:not(:disabled) {
+  background-color: #1976D2;
+}
+
+.entry-list__btn--primary:disabled {
+  background-color: #BDBDBD;
+  cursor: not-allowed;
+}
+
+.entry-list__btn--secondary {
+  background-color: #F5F5F5;
+  color: #333;
+  border: 1px solid #E5E5EA;
+}
+
+.entry-list__btn--secondary:hover:not(:disabled) {
+  background-color: #E5E5EA;
+}
+
+.entry-list__count {
+  padding: 12px 16px;
+  background-color: white;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.entry-list__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px 20px;
+  background-color: white;
+  border-radius: 8px;
+  color: #999;
+}
+
+.entry-list__spinner {
+  width: 32px;
+  height: 32px;
+  border: 3px solid #E5E5EA;
+  border-top-color: #2196F3;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.entry-list__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 40px 20px;
+  background-color: white;
+  border-radius: 8px;
+  text-align: center;
+  color: #999;
+  min-height: 300px;
+}
+
+.entry-list__table-wrapper {
+  background-color: white;
+  border-radius: 8px;
+  overflow-x: auto;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.entry-list__table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.entry-list__thead {
+  background-color: #F5F5F5;
+  border-bottom: 1px solid #E5E5EA;
+}
+
+.entry-list__thead th {
+  padding: 12px 16px;
+  text-align: left;
+  font-weight: 700;
+  color: #333;
+  text-transform: uppercase;
+  font-size: 11px;
+}
+
+.entry-list__tbody tr {
+  border-bottom: 1px solid #E5E5EA;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.entry-list__tbody tr:hover {
+  background-color: #FAFAFA;
+}
+
+.entry-list__tbody tr:last-child {
+  border-bottom: none;
+}
+
+.entry-list__cell {
+  padding: 12px 16px;
+  color: #333;
+  min-height: 48px;
+  display: table-cell;
+  vertical-align: middle;
+}
+
+.entry-list__cell--mono {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  color: #2196F3;
+}
+
+.entry-list__cell--description {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.entry-list__cell--amount {
+  font-weight: 600;
+  text-align: right;
+  min-width: 100px;
+}
+
+.entry-list__cell--actions {
+  display: flex;
+  gap: 8px;
+  min-width: 80px;
+}
+
+.entry-list__badge {
+  display: inline-block;
+  padding: 4px 8px;
+  background-color: #E3F2FD;
+  color: #1976D2;
+  border-radius: 4px;
+  font-weight: 500;
+  font-size: 11px;
+}
+
+.entry-list__status {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 11px;
+  text-transform: uppercase;
+}
+
+.entry-list__status--pending {
+  background-color: #FFF3E0;
+  color: #E65100;
+}
+
+.entry-list__status--linked {
+  background-color: #F3E5F5;
+  color: #6A1B9A;
+}
+
+.entry-list__status--synced {
+  background-color: #E8F5E9;
+  color: #2E7D32;
+}
+
+.entry-list__action-btn {
+  width: 36px;
+  height: 36px;
+  border: none;
+  background-color: #F5F5F5;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.entry-list__action-btn:hover {
+  transform: scale(1.05);
+}
+
+.entry-list__action-btn--edit {
+  color: #2196F3;
+}
+
+.entry-list__action-btn--edit:hover {
+  background-color: #E3F2FD;
+}
+
+.entry-list__action-btn--delete {
+  color: #F44336;
+}
+
+.entry-list__action-btn--delete:hover {
+  background-color: #FFEBEE;
+}
+
+@media (max-width: 640px) {
+  .entry-list {
+    padding: 12px;
+  }
+
+  .entry-list__filters {
+    grid-template-columns: 1fr;
+  }
+
+  .entry-list__table-wrapper {
+    font-size: 12px;
+  }
+
+  .entry-list__cell {
+    padding: 10px;
+  }
+
+  .entry-list__cell--description {
+    max-width: 100px;
+  }
+}

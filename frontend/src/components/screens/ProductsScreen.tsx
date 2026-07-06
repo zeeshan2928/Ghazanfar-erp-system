@@ -127,9 +127,67 @@ export function ProductsScreen() {
     values: columnValues[col.name],
   }));
 
+  const [showAddForm, setShowAddForm] = useState(false);
+  const [formData, setFormData] = useState({ code: '', name: '', cost_price: '' });
+
+  async function handleAddProduct() {
+    try {
+      const result = await apiClient.createProduct({
+        code: formData.code,
+        name: formData.name,
+        cost_price: parseInt(formData.cost_price) || 0,
+      });
+      console.log('✅ Product created:', result);
+      setFormData({ code: '', name: '', cost_price: '' });
+      setShowAddForm(false);
+      await fetchProducts();
+      alert('✅ Product created successfully!');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to create product';
+      console.error('❌ Error creating product:', errorMsg, err);
+      alert('❌ Error: ' + errorMsg);
+    }
+  }
+
   return (
     <div style={styles.container}>
-      <h2>📦 Products</h2>
+      <div style={styles.header}>
+        <h2>📦 Products</h2>
+        <button
+          onClick={() => setShowAddForm(!showAddForm)}
+          style={styles.addBtn}
+        >
+          {showAddForm ? '❌ Cancel' : '➕ Add Product'}
+        </button>
+      </div>
+
+      {showAddForm && (
+        <div style={styles.formContainer}>
+          <input
+            type="text"
+            placeholder="Product Code (e.g., PHONE001)"
+            value={formData.code}
+            onChange={(e) => setFormData({...formData, code: e.target.value})}
+            style={styles.input}
+          />
+          <input
+            type="text"
+            placeholder="Product Name (e.g., Samsung Phone)"
+            value={formData.name}
+            onChange={(e) => setFormData({...formData, name: e.target.value})}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            placeholder="Cost Price (e.g., 50000)"
+            value={formData.cost_price}
+            onChange={(e) => setFormData({...formData, cost_price: e.target.value})}
+            style={styles.input}
+          />
+          <button onClick={handleAddProduct} style={styles.submitBtn}>Save Product</button>
+        </div>
+      )}
+
       <SearchBox onSearch={handlePrimarySearch} placeholder="Search by product name..." />
       <FilterPanel columns={filterableColumns} onFilterApply={handleColumnFilter} />
       <FilterSummary
@@ -194,6 +252,11 @@ function getStockStyle(level: string): React.CSSProperties {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { padding: '20px' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
+  addBtn: { padding: '10px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' },
+  formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end' },
+  input: { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' },
+  submitBtn: { padding: '10px 30px', backgroundColor: '#43e97b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' },
   loading: { textAlign: 'center', padding: '40px', color: '#666' },
   noResults: { textAlign: 'center', padding: '40px', color: '#999' },
   tableWrapper: { overflowX: 'auto', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '4px' },

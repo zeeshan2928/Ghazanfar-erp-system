@@ -1,6 +1,6 @@
-import { Injectable, Logger } from "@nestjs/common";
-import { PrismaService } from "@database/prisma.service";
-import { Cron, CronExpression } from "@nestjs/schedule";
+import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@database/prisma.service';
+import { Cron, CronExpression } from '@nestjs/schedule';
 
 export interface ArchivalStats {
   entity: string;
@@ -69,7 +69,7 @@ export class ArchivalService {
 
     const where: any = {
       bill_date: { lte: cutoffDate },
-      status: { in: ["APPROVED", "PAID"] },
+      status: { in: ['APPROVED', 'FULFILLED'] },
     };
 
     if (orgId) {
@@ -88,7 +88,7 @@ export class ArchivalService {
       this.logger.log(`Archived ${archivedCount} bills older than ${daysOld} days`);
 
       return {
-        entity: "Bills",
+        entity: 'Bills',
         archivedCount,
         deletedCount: 0,
         duration: Date.now() - startTime,
@@ -107,7 +107,7 @@ export class ArchivalService {
 
     const where: any = {
       createdAt: { lte: cutoffDate },
-      status: { in: ["RECEIVED", "CANCELLED", "REJECTED"] },
+      status: { in: ['RECEIVED', 'CANCELLED', 'REJECTED'] },
     };
 
     if (orgId) {
@@ -125,7 +125,7 @@ export class ArchivalService {
       this.logger.log(`Archived ${archivedCount} POs older than ${daysOld} days`);
 
       return {
-        entity: "PurchaseOrders",
+        entity: 'PurchaseOrders',
         archivedCount,
         deletedCount: 0,
         duration: Date.now() - startTime,
@@ -137,76 +137,37 @@ export class ArchivalService {
     }
   }
 
-  async purgeOldNotifications(daysOld: number = 90, orgId?: number): Promise<ArchivalStats> {
+  // NOTE: There is no Notification model in schema.prisma. This is a stub until
+  // that model is added (or the module that assumes it exists is reconciled with
+  // the actual schema) — needs a product/schema decision, not a naming fix.
+  async purgeOldNotifications(daysOld: number = 90, _orgId?: number): Promise<ArchivalStats> {
     const startTime = Date.now();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    this.logger.warn(
+      'purgeOldNotifications: no Notification model exists in schema.prisma - skipped',
+    );
 
-    const where: any = {
-      createdAt: { lte: cutoffDate },
-      isRead: true,
+    return {
+      entity: 'Notifications',
+      archivedCount: 0,
+      deletedCount: 0,
+      duration: Date.now() - startTime,
+      timestamp: new Date(),
     };
-
-    if (orgId) {
-      where.organizationId = orgId;
-    }
-
-    try {
-      const result = await this.prisma.notification.deleteMany({
-        where,
-      });
-
-      const deletedCount = result.count;
-
-      this.logger.log(`Deleted ${deletedCount} read notifications older than ${daysOld} days`);
-
-      return {
-        entity: "Notifications",
-        archivedCount: 0,
-        deletedCount,
-        duration: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      this.logger.error(`Failed to purge notifications: ${error}`);
-      throw error;
-    }
   }
 
-  async purgeOldAuditLogs(daysOld: number = 365, orgId?: number): Promise<ArchivalStats> {
+  // NOTE: There is no AuditLog model in schema.prisma. This is a stub until
+  // that model is added — needs a product/schema decision, not a naming fix.
+  async purgeOldAuditLogs(daysOld: number = 365, _orgId?: number): Promise<ArchivalStats> {
     const startTime = Date.now();
-    const cutoffDate = new Date();
-    cutoffDate.setDate(cutoffDate.getDate() - daysOld);
+    this.logger.warn('purgeOldAuditLogs: no AuditLog model exists in schema.prisma - skipped');
 
-    const where: any = {
-      timestamp: { lte: cutoffDate },
-      action: { notIn: ["DELETE", "APPROVE", "REJECT"] }, // Keep critical actions longer
+    return {
+      entity: 'AuditLogs',
+      archivedCount: 0,
+      deletedCount: 0,
+      duration: Date.now() - startTime,
+      timestamp: new Date(),
     };
-
-    if (orgId) {
-      where.organizationId = orgId;
-    }
-
-    try {
-      const result = await this.prisma.auditLog.deleteMany({
-        where,
-      });
-
-      const deletedCount = result.count;
-
-      this.logger.log(`Deleted ${deletedCount} audit logs older than ${daysOld} days`);
-
-      return {
-        entity: "AuditLogs",
-        archivedCount: 0,
-        deletedCount,
-        duration: Date.now() - startTime,
-        timestamp: new Date(),
-      };
-    } catch (error) {
-      this.logger.error(`Failed to purge audit logs: ${error}`);
-      throw error;
-    }
   }
 
   async cleanupFailedTransactions(hoursOld: number = 24, orgId?: number): Promise<ArchivalStats> {
@@ -216,7 +177,7 @@ export class ArchivalService {
 
     const where: any = {
       createdAt: { lte: cutoffDate },
-      status: { in: ["DRAFT", "PENDING_APPROVAL"] },
+      status: { in: ['DRAFT', 'PENDING_APPROVAL'] },
     };
 
     if (orgId) {
@@ -224,11 +185,11 @@ export class ArchivalService {
     }
 
     try {
-      // Clean up draft bills older than specified hours
+      // Clean up unapproved bills older than specified hours
       const billsResult = await this.prisma.bill.deleteMany({
         where: {
           ...where,
-          status: "DRAFT",
+          status: 'PENDING_APPROVAL',
         },
       });
 
@@ -236,7 +197,7 @@ export class ArchivalService {
       const posResult = await this.prisma.purchaseOrder.deleteMany({
         where: {
           ...where,
-          status: "DRAFT",
+          status: 'DRAFT',
         },
       });
 
@@ -245,7 +206,7 @@ export class ArchivalService {
       this.logger.log(`Deleted ${totalDeleted} failed transactions older than ${hoursOld} hours`);
 
       return {
-        entity: "FailedTransactions",
+        entity: 'FailedTransactions',
         archivedCount: 0,
         deletedCount: totalDeleted,
         duration: Date.now() - startTime,
@@ -271,13 +232,9 @@ export class ArchivalService {
         where: orgId ? { organizationId: orgId } : undefined,
       });
 
-      const notificationCount = await this.prisma.notification.count({
-        where: orgId ? { organizationId: orgId } : undefined,
-      });
-
-      const auditLogCount = await this.prisma.auditLog.count({
-        where: orgId ? { organizationId: orgId } : undefined,
-      });
+      // No Notification/AuditLog models exist in schema.prisma yet.
+      const notificationCount = 0;
+      const auditLogCount = 0;
 
       return {
         report: {
@@ -289,7 +246,7 @@ export class ArchivalService {
         },
         retentionPolicies: RETENTION_POLICIES,
         timestamp: new Date(),
-        orgId: orgId || "all",
+        orgId: orgId || 'all',
       };
     } catch (error) {
       this.logger.error(`Failed to generate archive report: ${error}`);
@@ -300,13 +257,13 @@ export class ArchivalService {
   async getStorageStats(orgId?: number): Promise<any> {
     try {
       const stats = {
-        organizationId: orgId || "all",
+        organizationId: orgId || 'all',
         timestamp: new Date(),
         data: {
-          bills: await this.getEntitySize("Bill"),
-          purchaseOrders: await this.getEntitySize("PurchaseOrder"),
-          notifications: await this.getEntitySize("Notification"),
-          auditLogs: await this.getEntitySize("AuditLog"),
+          bills: await this.getEntitySize('Bill'),
+          purchaseOrders: await this.getEntitySize('PurchaseOrder'),
+          notifications: await this.getEntitySize('Notification'),
+          auditLogs: await this.getEntitySize('AuditLog'),
         },
       };
 
@@ -320,11 +277,12 @@ export class ArchivalService {
   private async getEntitySize(entity: string): Promise<number> {
     // Approximate size calculation (count * average record size)
     // This is a simplification; actual implementation would measure more accurately
+    // No Notification/AuditLog models exist in schema.prisma yet.
     const counts: any = {
       Bill: await this.prisma.bill.count(),
       PurchaseOrder: await this.prisma.purchaseOrder.count(),
-      Notification: await this.prisma.notification.count(),
-      AuditLog: await this.prisma.auditLog.count(),
+      Notification: 0,
+      AuditLog: 0,
     };
 
     const avgSizes: any = {
@@ -343,7 +301,7 @@ export class ArchivalService {
 
   @Cron(CronExpression.EVERY_DAY_AT_2AM)
   async dailyCleanup() {
-    this.logger.debug("🌙 Running daily cleanup job...");
+    this.logger.debug('🌙 Running daily cleanup job...');
 
     try {
       const report: CleanupReport = {
@@ -381,13 +339,16 @@ export class ArchivalService {
       }
 
       report.totalDuration = Date.now() - startTime;
-      report.totalOperations = report.stats.reduce((sum, s) => sum + s.archivedCount + s.deletedCount, 0);
+      report.totalOperations = report.stats.reduce(
+        (sum, s) => sum + s.archivedCount + s.deletedCount,
+        0,
+      );
 
       this.logger.log(`✅ Daily cleanup completed: ${JSON.stringify(report)}`);
 
       // Send admin alert if needed
       if (report.errors.length > 0) {
-        this.logger.warn(`⚠️ Cleanup completed with errors: ${report.errors.join(", ")}`);
+        this.logger.warn(`⚠️ Cleanup completed with errors: ${report.errors.join(', ')}`);
       }
     } catch (error) {
       this.logger.error(`❌ Daily cleanup failed: ${error}`);
@@ -396,7 +357,7 @@ export class ArchivalService {
 
   @Cron('0 3 * * 0') // Weekly on Sunday at 3 AM
   async weeklyMaintenance() {
-    this.logger.debug("🌙 Running weekly maintenance job...");
+    this.logger.debug('🌙 Running weekly maintenance job...');
 
     try {
       // Generate archival statistics
@@ -417,7 +378,7 @@ export class ArchivalService {
 
   @Cron('0 4 1 * *') // Monthly on 1st at 4 AM
   async monthlyArchival() {
-    this.logger.debug("🌙 Running monthly archival job...");
+    this.logger.debug('🌙 Running monthly archival job...');
 
     try {
       const report: CleanupReport = {

@@ -1,4 +1,12 @@
-import { WebSocketGateway, SubscribeMessage, OnGatewayConnection, OnGatewayDisconnect, WebSocketServer, ConnectedSocket, MessageBody } from '@nestjs/websockets';
+import {
+  WebSocketGateway,
+  SubscribeMessage,
+  OnGatewayConnection,
+  OnGatewayDisconnect,
+  WebSocketServer,
+  ConnectedSocket,
+  MessageBody,
+} from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { Logger } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
@@ -17,16 +25,15 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   private userConnections = new Map<number, Set<string>>();
   private orgConnections = new Map<number, Set<string>>();
 
-  constructor(
-    private jwtService: JwtService,
-  ) {}
+  constructor(private jwtService: JwtService) {}
 
   /**
    * Handle client connection
    */
   async handleConnection(@ConnectedSocket() socket: Socket) {
     try {
-      const token = socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
+      const token =
+        socket.handshake.auth.token || socket.handshake.headers.authorization?.split(' ')[1];
 
       if (!token) {
         this.logger.warn('Connection rejected: no token provided');
@@ -164,7 +171,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   /**
    * Notify bill status changed
    */
-  notifyBillStatusChanged(organizationId: number, billId: number, oldStatus: string, newStatus: string, changedBy: number, changedAt: Date) {
+  notifyBillStatusChanged(
+    organizationId: number,
+    billId: number,
+    oldStatus: string,
+    newStatus: string,
+    changedBy: number,
+    changedAt: Date,
+  ) {
     const roomName = `org:${organizationId}`;
     this.server.to(roomName).emit('bill:status-changed', {
       billId,
@@ -188,7 +202,14 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   /**
    * Notify PO status changed
    */
-  notifyPOStatusChanged(organizationId: number, poId: number, oldStatus: string, newStatus: string, changedBy: number, changedAt: Date) {
+  notifyPOStatusChanged(
+    organizationId: number,
+    poId: number,
+    oldStatus: string,
+    newStatus: string,
+    changedBy: number,
+    changedAt: Date,
+  ) {
     const roomName = `org:${organizationId}`;
     this.server.to(roomName).emit('po:status-changed', {
       poId,
@@ -224,7 +245,13 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   /**
    * Notify payment received
    */
-  notifyPaymentReceived(organizationId: number, billId: number, amount: number, paymentMethod: string, receivedAt: Date) {
+  notifyPaymentReceived(
+    organizationId: number,
+    billId: number,
+    amount: number,
+    paymentMethod: string,
+    receivedAt: Date,
+  ) {
     const roomName = `org:${organizationId}`;
     this.server.to(roomName).emit('payment:received', {
       billId,

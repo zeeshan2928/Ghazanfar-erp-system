@@ -56,6 +56,24 @@ export class ConfirmReceiptDto {
   remarks?: string;
 }
 
+export class UpdatePurchaseOrderDto {
+  @IsOptional()
+  @IsNumber()
+  vendorId?: number;
+
+  @IsOptional()
+  @IsDateString()
+  expectedDeliveryDate?: string;
+
+  @IsOptional()
+  @IsString()
+  manualReference?: string;
+
+  @IsOptional()
+  @IsString()
+  remarks?: string;
+}
+
 export class SetProductReorderParamsDto {
   @IsNumber()
   minimumQuantity: number;

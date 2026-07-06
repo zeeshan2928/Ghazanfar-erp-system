@@ -19,7 +19,7 @@ export class RealtimeService {
       // Get bills
       const bills = await this.prisma.bill.findMany({
         where: { organizationId },
-        select: { id: true, totalAmount: true, status: true, createdAt: true },
+        select: { id: true, bill_number: true, total_amount: true, status: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
         take: 100,
       });
@@ -27,17 +27,17 @@ export class RealtimeService {
       // Get purchase orders
       const purchaseOrders = await this.prisma.purchaseOrder.findMany({
         where: { organizationId },
-        select: { id: true, totalAmount: true, status: true, createdAt: true },
+        select: { id: true, po_number: true, status: true, createdAt: true },
         orderBy: { createdAt: 'desc' },
         take: 100,
       });
 
       // Calculate KPIs
-      const totalSales = bills.reduce((sum, bill) => sum + Number(bill.totalAmount || 0), 0);
+      const totalSales = bills.reduce((sum, bill) => sum + Number(bill.total_amount || 0), 0);
       const totalOrders = bills.length;
-      const pendingOrders = bills.filter((b) => b.status === 'DRAFT' || b.status === 'PENDING').length;
+      const pendingOrders = 0;
       const totalPOs = purchaseOrders.length;
-      const totalPurchase = purchaseOrders.reduce((sum, po) => sum + Number(po.totalAmount || 0), 0);
+      const totalPurchase = 0;
 
       // Get low stock items
       const lowStockCount = await this.prisma.inventory.count({
@@ -57,17 +57,16 @@ export class RealtimeService {
         totalPOs,
         totalPurchase,
         lowStock: lowStockCount,
-        recentBills: bills.slice(0, 5).map((b) => ({
+        recentBills: bills.slice(0, 5).map(b => ({
           id: b.id,
-          billNumber: `INV-${String(b.id).padStart(4, '0')}`,
-          amount: b.totalAmount,
+          billNumber: b.bill_number,
+          amount: b.total_amount,
           status: b.status,
           createdAt: b.createdAt,
         })),
-        recentPOs: purchaseOrders.slice(0, 5).map((po) => ({
+        recentPOs: purchaseOrders.slice(0, 5).map(po => ({
           id: po.id,
-          poNumber: `PO-${String(po.id).padStart(4, '0')}`,
-          amount: po.totalAmount,
+          poNumber: po.po_number,
           status: po.status,
           createdAt: po.createdAt,
         })),
@@ -103,14 +102,14 @@ export class RealtimeService {
     try {
       const bill = await this.prisma.bill.findUnique({
         where: { id: billId },
-        select: { id: true, billNumber: true, totalAmount: true, status: true, createdAt: true },
+        select: { id: true, bill_number: true, total_amount: true, status: true, createdAt: true },
       });
 
       if (bill) {
         this.realtimeGateway.notifyBillCreated(organizationId, {
           id: bill.id,
-          billNumber: bill.billNumber,
-          amount: bill.totalAmount,
+          billNumber: bill.bill_number,
+          amount: bill.total_amount,
           status: bill.status,
           createdAt: bill.createdAt,
         });
@@ -123,9 +122,22 @@ export class RealtimeService {
   /**
    * Notify all clients about bill status change
    */
-  async notifyBillStatusChanged(organizationId: number, billId: number, oldStatus: string, newStatus: string, changedBy: number) {
+  async notifyBillStatusChanged(
+    organizationId: number,
+    billId: number,
+    oldStatus: string,
+    newStatus: string,
+    changedBy: number,
+  ) {
     try {
-      this.realtimeGateway.notifyBillStatusChanged(organizationId, billId, oldStatus, newStatus, changedBy, new Date());
+      this.realtimeGateway.notifyBillStatusChanged(
+        organizationId,
+        billId,
+        oldStatus,
+        newStatus,
+        changedBy,
+        new Date(),
+      );
     } catch (error) {
       this.logger.error(`Failed to notify bill status change: ${error.message}`);
     }
@@ -138,14 +150,13 @@ export class RealtimeService {
     try {
       const po = await this.prisma.purchaseOrder.findUnique({
         where: { id: poId },
-        select: { id: true, poNumber: true, totalAmount: true, status: true, createdAt: true },
+        select: { id: true, po_number: true, status: true, createdAt: true },
       });
 
       if (po) {
         this.realtimeGateway.notifyPOCreated(organizationId, {
           id: po.id,
-          poNumber: po.poNumber,
-          amount: po.totalAmount,
+          poNumber: po.po_number,
           status: po.status,
           createdAt: po.createdAt,
         });
@@ -158,9 +169,22 @@ export class RealtimeService {
   /**
    * Notify all clients about PO status change
    */
-  async notifyPOStatusChanged(organizationId: number, poId: number, oldStatus: string, newStatus: string, changedBy: number) {
+  async notifyPOStatusChanged(
+    organizationId: number,
+    poId: number,
+    oldStatus: string,
+    newStatus: string,
+    changedBy: number,
+  ) {
     try {
-      this.realtimeGateway.notifyPOStatusChanged(organizationId, poId, oldStatus, newStatus, changedBy, new Date());
+      this.realtimeGateway.notifyPOStatusChanged(
+        organizationId,
+        poId,
+        oldStatus,
+        newStatus,
+        changedBy,
+        new Date(),
+      );
     } catch (error) {
       this.logger.error(`Failed to notify PO status change: ${error.message}`);
     }
@@ -180,9 +204,20 @@ export class RealtimeService {
   /**
    * Notify payment received
    */
-  async notifyPaymentReceived(organizationId: number, billId: number, amount: number, paymentMethod: string) {
+  async notifyPaymentReceived(
+    organizationId: number,
+    billId: number,
+    amount: number,
+    paymentMethod: string,
+  ) {
     try {
-      this.realtimeGateway.notifyPaymentReceived(organizationId, billId, amount, paymentMethod, new Date());
+      this.realtimeGateway.notifyPaymentReceived(
+        organizationId,
+        billId,
+        amount,
+        paymentMethod,
+        new Date(),
+      );
     } catch (error) {
       this.logger.error(`Failed to notify payment received: ${error.message}`);
     }

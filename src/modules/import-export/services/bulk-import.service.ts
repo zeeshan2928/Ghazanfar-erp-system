@@ -1,7 +1,7 @@
-import { Injectable, BadRequestException, Logger } from "@nestjs/common";
-import { PrismaService } from "@database/prisma.service";
-import * as csv from "csv-parse";
-import { Readable } from "stream";
+import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import { PrismaService } from '@database/prisma.service';
+import * as csv from 'csv-parse';
+import { Readable } from 'stream';
 
 interface ImportError {
   row: number;
@@ -60,7 +60,7 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "Missing required fields: bill_number, customer_email, total_amount",
+              error: 'Missing required fields: bill_number, customer_email, total_amount',
             });
             continue;
           }
@@ -77,8 +77,8 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              column: "customer_email",
-              error: "Customer not found",
+              column: 'customer_email',
+              error: 'Customer not found',
               value: row.customer_email,
             });
             continue;
@@ -89,33 +89,32 @@ export class BulkImportService {
             where: {
               organizationId: orgId,
             },
-            orderBy: { createdAt: "asc" },
+            orderBy: { createdAt: 'asc' },
           });
 
           if (!admin) {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "No user found in organization",
+              error: 'No user found in organization',
             });
             continue;
           }
 
-          // @ts-ignore - Prisma type inference issue, logic is correct
           await this.prisma.bill.create({
             data: {
-              billNumber: row.billNumber || row.bill_number,
-              billDate: new Date(row.billDate || row.bill_date || Date.now()),
+              bill_number: row.bill_number,
+              bill_date: new Date(row.bill_date || Date.now()),
               customer: { connect: { id: customer.id } },
               salesman: { connect: { id: admin.id } },
-              createdByUser: { connect: { id: admin.id } },
+              User_Bill_created_byToUser: { connect: { id: admin.id } },
               organization: { connect: { id: orgId } },
-              channel: row.channel || "COUNTER",
-              subtotal: parseFloat(row.subtotal || row.totalAmount || row.total_amount),
+              channel: row.channel || 'COUNTER',
+              subtotal: parseFloat(row.subtotal || row.total_amount),
               discountPercentage: 0,
-              totalAmount: parseFloat(row.totalAmount || row.total_amount),
-              paymentMethod: row.paymentMethod || row.payment_method || "BANK_TRANSFER",
-              status: row.status || "APPROVED",
+              total_amount: parseFloat(row.total_amount),
+              payment_method: row.payment_method || 'BANK_TRANSFER',
+              status: row.status || 'APPROVED',
             },
           });
 
@@ -124,7 +123,7 @@ export class BulkImportService {
           result.failedRows++;
           result.errors.push({
             row: rowNum,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -137,7 +136,7 @@ export class BulkImportService {
       result.success = false;
       result.errors.push({
         row: 0,
-        error: error instanceof Error ? error.message : "CSV parsing failed",
+        error: error instanceof Error ? error.message : 'CSV parsing failed',
       });
       result.duration = Date.now() - startTime;
       return result;
@@ -175,7 +174,7 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "Missing required fields: po_number, vendor_name, expected_delivery_date",
+              error: 'Missing required fields: po_number, vendor_name, expected_delivery_date',
             });
             continue;
           }
@@ -191,8 +190,8 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              column: "vendor_name",
-              error: "Vendor not found",
+              column: 'vendor_name',
+              error: 'Vendor not found',
               value: row.vendor_name,
             });
             continue;
@@ -200,14 +199,14 @@ export class BulkImportService {
 
           const admin = await this.prisma.user.findFirst({
             where: { organizationId: orgId },
-            orderBy: { createdAt: "asc" },
+            orderBy: { createdAt: 'asc' },
           });
 
           if (!admin) {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "No user found in organization",
+              error: 'No user found in organization',
             });
             continue;
           }
@@ -215,10 +214,11 @@ export class BulkImportService {
           await this.prisma.purchaseOrder.create({
             data: {
               organizationId: orgId,
-              poNumber: row.poNumber || row.po_number,
+              po_number: row.po_number,
               vendorId: vendor.id,
-              status: row.status || "SENT",
-              poDate: new Date(),
+              status: row.status || 'SENT',
+              created_by: admin.id,
+              expected_delivery_date: new Date(row.expected_delivery_date),
             },
           });
 
@@ -227,7 +227,7 @@ export class BulkImportService {
           result.failedRows++;
           result.errors.push({
             row: rowNum,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -240,7 +240,7 @@ export class BulkImportService {
       result.success = false;
       result.errors.push({
         row: 0,
-        error: error instanceof Error ? error.message : "CSV parsing failed",
+        error: error instanceof Error ? error.message : 'CSV parsing failed',
       });
       result.duration = Date.now() - startTime;
       return result;
@@ -278,7 +278,7 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "Missing required fields: name, email",
+              error: 'Missing required fields: name, email',
             });
             continue;
           }
@@ -303,8 +303,8 @@ export class BulkImportService {
               name: row.name,
               email: row.email,
               phone: row.phone || null,
-              customerType: row.customerType || "RETAIL",
-              isActive: row.isActive !== "false",
+              customerType: row.customer_type || 'RETAIL',
+              isActive: row.isActive !== 'false',
             },
           });
 
@@ -313,7 +313,7 @@ export class BulkImportService {
           result.failedRows++;
           result.errors.push({
             row: rowNum,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -326,7 +326,7 @@ export class BulkImportService {
       result.success = false;
       result.errors.push({
         row: 0,
-        error: error instanceof Error ? error.message : "CSV parsing failed",
+        error: error instanceof Error ? error.message : 'CSV parsing failed',
       });
       result.duration = Date.now() - startTime;
       return result;
@@ -364,7 +364,7 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "Missing required fields: name, email",
+              error: 'Missing required fields: name, email',
             });
             continue;
           }
@@ -388,7 +388,7 @@ export class BulkImportService {
               name: row.name,
               email: row.email,
               phone: row.phone || null,
-              isActive: row.isActive !== "false",
+              isActive: row.isActive !== 'false',
             },
           });
 
@@ -397,7 +397,7 @@ export class BulkImportService {
           result.failedRows++;
           result.errors.push({
             row: rowNum,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -410,7 +410,7 @@ export class BulkImportService {
       result.success = false;
       result.errors.push({
         row: 0,
-        error: error instanceof Error ? error.message : "CSV parsing failed",
+        error: error instanceof Error ? error.message : 'CSV parsing failed',
       });
       result.duration = Date.now() - startTime;
       return result;
@@ -448,7 +448,7 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              error: "Missing required fields: product_code, warehouse_name, quantity",
+              error: 'Missing required fields: product_code, warehouse_name, quantity',
             });
             continue;
           }
@@ -464,8 +464,8 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              column: "product_code",
-              error: "Product not found",
+              column: 'product_code',
+              error: 'Product not found',
               value: row.product_code,
             });
             continue;
@@ -482,8 +482,8 @@ export class BulkImportService {
             result.failedRows++;
             result.errors.push({
               row: rowNum,
-              column: "warehouse_name",
-              error: "Warehouse not found",
+              column: 'warehouse_name',
+              error: 'Warehouse not found',
               value: row.warehouse_name,
             });
             continue;
@@ -500,14 +500,14 @@ export class BulkImportService {
               },
             },
             update: {
-              physicalOnHand: qty,
+              physical_on_hand: qty,
               available: qty,
             },
             create: {
               organizationId: orgId,
               productId: product.id,
               warehouseId: warehouse.id,
-              physicalOnHand: qty,
+              physical_on_hand: qty,
               available: qty,
             },
           });
@@ -517,7 +517,7 @@ export class BulkImportService {
           result.failedRows++;
           result.errors.push({
             row: rowNum,
-            error: error instanceof Error ? error.message : "Unknown error",
+            error: error instanceof Error ? error.message : 'Unknown error',
           });
         }
       }
@@ -530,7 +530,7 @@ export class BulkImportService {
       result.success = false;
       result.errors.push({
         row: 0,
-        error: error instanceof Error ? error.message : "CSV parsing failed",
+        error: error instanceof Error ? error.message : 'CSV parsing failed',
       });
       result.duration = Date.now() - startTime;
       return result;
@@ -550,18 +550,18 @@ export class BulkImportService {
         trim: true,
       });
 
-      parser.on("readable", function () {
+      parser.on('readable', function () {
         let record;
         while ((record = parser.read()) !== null) {
           records.push(record);
         }
       });
 
-      parser.on("error", (error) => {
+      parser.on('error', error => {
         reject(error);
       });
 
-      parser.on("end", () => {
+      parser.on('end', () => {
         resolve(records);
       });
 
@@ -570,14 +570,17 @@ export class BulkImportService {
     });
   }
 
-  async validateCSV(csvData: string, expectedColumns: string[]): Promise<{ valid: boolean; errors: string[] }> {
+  async validateCSV(
+    csvData: string,
+    expectedColumns: string[],
+  ): Promise<{ valid: boolean; errors: string[] }> {
     const errors: string[] = [];
 
     try {
       const records = await this.parseCSV(csvData);
 
       if (records.length === 0) {
-        errors.push("CSV file is empty");
+        errors.push('CSV file is empty');
         return { valid: false, errors };
       }
 
@@ -595,7 +598,7 @@ export class BulkImportService {
         errors,
       };
     } catch (error) {
-      errors.push(error instanceof Error ? error.message : "CSV validation failed");
+      errors.push(error instanceof Error ? error.message : 'CSV validation failed');
       return { valid: false, errors };
     }
   }

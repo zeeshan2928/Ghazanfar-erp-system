@@ -5,18 +5,20 @@ import { AppModule } from './app.module';
 import { AppLoggerService } from './common/logging/logger.service';
 import { GlobalExceptionFilter } from './common/filters/exception.filter';
 import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
-import { AuditInterceptor } from './common/interceptors/audit.interceptor';
-import { AuditService } from './modules/audit/services/audit.service';
 
 dotenv.config();
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const logger = app.get(AppLoggerService);
-  const auditService = app.get(AuditService);
 
   app.enableCors({
-    origin: process.env.CORS_ORIGIN || ['http://localhost:5173', 'http://localhost:3000'],
+    origin: process.env.CORS_ORIGIN || [
+      'http://localhost:5173',
+      'http://localhost:5174',
+      'http://localhost:5175',
+      'http://localhost:3000',
+    ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
@@ -33,10 +35,7 @@ async function bootstrap() {
     }),
   );
 
-  app.useGlobalInterceptors(
-    new LoggingInterceptor(logger),
-    new AuditInterceptor(auditService),
-  );
+  app.useGlobalInterceptors(new LoggingInterceptor(logger));
   app.useGlobalFilters(new GlobalExceptionFilter(logger));
 
   const port = process.env.PORT || 3000;

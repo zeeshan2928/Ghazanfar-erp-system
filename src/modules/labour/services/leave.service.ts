@@ -1,6 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 
+/**
+ * NOTE: this entire service is built against Prisma models that don't exist
+ * anywhere in schema.prisma (LeaveManagement, Attendance, and the `employee`
+ * relation used in getPendingLeaves' include). Confirmed via schema search on
+ * 2026-07-06 - same "built against a schema that was never created" pattern
+ * found across ~8 other places the same day (Notification, AuditLog,
+ * UserRoleAssignment, FieldPermission, EmailTemplate, EmailLog, VendorInvoice,
+ * InvoiceModification). LabourModule is registered in app.module.ts and has a
+ * live controller, but nothing else in the codebase calls these methods.
+ * Stubbed to log a warning and return safe defaults rather than crash -
+ * needs a product/schema decision (add the HR models, or drop the feature)
+ * before this can be made genuinely functional.
+ */
 @Injectable()
 export class LeaveService {
   private readonly logger = new Logger(LeaveService.name);
@@ -13,121 +26,38 @@ export class LeaveService {
     leaveType: string,
     startDate: Date,
     endDate: Date,
-  ) {
-    try {
-      const daysUsed = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-
-      return await this.prisma.leaveManagement.create({
-        data: {
-          organizationId,
-          employeeId,
-          leaveType,
-          startDate,
-          endDate,
-          daysUsed,
-          approvalStatus: 'PENDING',
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to apply for leave: ${(error as Error).message}`);
-      throw error;
-    }
+  ): Promise<any> {
+    this.logger.warn('applyForLeave(): no LeaveManagement model exists in schema.prisma');
+    return null;
   }
 
-  async approveLeave(organizationId: number, leaveId: number, approvedBy: number) {
-    try {
-      const leave = await this.prisma.leaveManagement.update({
-        where: { id: leaveId },
-        data: {
-          approvalStatus: 'APPROVED',
-          approvedBy,
-        },
-      });
-
-      if (leave.employeeId && leave.startDate && leave.endDate) {
-        await this.markLeaveAttendance(organizationId, leave.employeeId, leave.startDate, leave.endDate);
-      }
-
-      return leave;
-    } catch (error) {
-      this.logger.error(`Failed to approve leave: ${(error as Error).message}`);
-      throw error;
-    }
+  async approveLeave(organizationId: number, leaveId: number, approved_by: number): Promise<any> {
+    this.logger.warn('approveLeave(): no LeaveManagement model exists in schema.prisma');
+    return null;
   }
 
-  async rejectLeave(organizationId: number, leaveId: number) {
-    return this.prisma.leaveManagement.update({
-      where: { id: leaveId },
-      data: { approvalStatus: 'REJECTED' },
-    });
+  async rejectLeave(organizationId: number, leaveId: number): Promise<any> {
+    this.logger.warn('rejectLeave(): no LeaveManagement model exists in schema.prisma');
+    return null;
   }
 
-  async getLeaveHistory(organizationId: number, employeeId: number) {
-    return this.prisma.leaveManagement.findMany({
-      where: { organizationId, employeeId },
-      orderBy: { createdAt: 'desc' },
-    });
+  async getLeaveHistory(organizationId: number, employeeId: number): Promise<any[]> {
+    this.logger.warn('getLeaveHistory(): no LeaveManagement model exists in schema.prisma');
+    return [];
   }
 
   async getLeaveBalance(organizationId: number, employeeId: number) {
-    const leaves = await this.prisma.leaveManagement.findMany({
-      where: {
-        organizationId,
-        employeeId,
-        approvalStatus: 'APPROVED',
-      },
-    });
-
-    const totalDays = leaves.reduce((sum, leave) => sum + (leave.daysUsed || 0), 0);
-
+    this.logger.warn('getLeaveBalance(): no LeaveManagement model exists in schema.prisma');
     return {
       employeeId,
-      totalApprovedLeaves: leaves.length,
-      totalDaysUsed: totalDays,
-      leaves,
+      totalApprovedLeaves: 0,
+      totalDaysUsed: 0,
+      leaves: [],
     };
   }
 
-  async getPendingLeaves(organizationId: number) {
-    return this.prisma.leaveManagement.findMany({
-      where: {
-        organizationId,
-        approvalStatus: 'PENDING',
-      },
-      include: { employee: true },
-      orderBy: { createdAt: 'asc' },
-    });
-  }
-
-  private async markLeaveAttendance(organizationId: number, employeeId: number, startDate: Date, endDate: Date) {
-    const current = new Date(startDate);
-
-    while (current <= endDate) {
-      const existing = await this.prisma.attendance.findFirst({
-        where: {
-          organizationId,
-          employeeId,
-          attendanceDate: current,
-        },
-      });
-
-      if (existing) {
-        await this.prisma.attendance.update({
-          where: { id: existing.id },
-          data: { status: 'LEAVE' },
-        });
-      } else {
-        await this.prisma.attendance.create({
-          data: {
-            organizationId,
-            employeeId,
-            attendanceDate: current,
-            status: 'LEAVE',
-          },
-        });
-      }
-
-      current.setDate(current.getDate() + 1);
-    }
+  async getPendingLeaves(organizationId: number): Promise<any[]> {
+    this.logger.warn('getPendingLeaves(): no LeaveManagement model exists in schema.prisma');
+    return [];
   }
 }

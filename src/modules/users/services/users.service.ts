@@ -155,7 +155,12 @@ export class UsersService {
     return { message: 'User deleted successfully' };
   }
 
-  async changePassword(userId: number, oldPassword: string, newPassword: string, organizationId?: number) {
+  async changePassword(
+    userId: number,
+    oldPassword: string,
+    newPassword: string,
+    organizationId?: number,
+  ) {
     const where: any = { id: userId };
     if (organizationId) {
       where.organizationId = organizationId;

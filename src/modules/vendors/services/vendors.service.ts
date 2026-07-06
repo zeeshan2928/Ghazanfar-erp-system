@@ -24,11 +24,11 @@ export class VendorsService {
         name: createDto.name,
         email: createDto.email,
         phone: createDto.phone,
-        contactPerson: createDto.contact_person,
+        contact_person: createDto.contactPerson,
         address: createDto.address,
       },
       include: {
-        products: true,
+        Product: true,
       },
     });
   }
@@ -40,7 +40,7 @@ export class VendorsService {
         skip,
         take,
         include: {
-          products: true,
+          Product: true,
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -61,7 +61,7 @@ export class VendorsService {
     const vendor = await this.prisma.vendor.findFirst({
       where: { id: vendorId, organizationId },
       include: {
-        products: true,
+        Product: true,
         purchaseOrders: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -87,8 +87,14 @@ export class VendorsService {
 
     return this.prisma.vendor.update({
       where: { id: vendorId },
-      data: updateDto,
-      include: { products: true },
+      data: {
+        name: updateDto.name,
+        email: updateDto.email,
+        phone: updateDto.phone,
+        contact_person: updateDto.contactPerson,
+        address: updateDto.address,
+      },
+      include: { Product: true },
     });
   }
 
@@ -122,9 +128,9 @@ export class VendorsService {
       return this.prisma.productVendor.update({
         where: { id: existing.id },
         data: {
-          unitPrice: addDto.unit_price,
-          leadTimeDays: addDto.lead_time_days || 7,
-          lastPurchaseDate: new Date(),
+          unit_price: addDto.unitPrice,
+          lead_time_days: addDto.leadTimeDays || 7,
+          last_purchase_date: new Date(),
         },
       });
     }
@@ -132,11 +138,10 @@ export class VendorsService {
     // Create new relationship
     return this.prisma.productVendor.create({
       data: {
-        organizationId,
         productId: addDto.productId,
         vendorId: vendorId,
-        unitPrice: addDto.unit_price,
-        leadTimeDays: addDto.lead_time_days || 7,
+        unit_price: addDto.unitPrice,
+        lead_time_days: addDto.leadTimeDays || 7,
       },
     });
   }

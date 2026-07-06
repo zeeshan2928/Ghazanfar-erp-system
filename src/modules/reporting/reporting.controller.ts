@@ -9,27 +9,15 @@ export class ReportingController {
   constructor(private reportingService: ReportingService) {}
 
   @Get('gate-pass-analytics')
-  async getGatePassAnalytics(
-    @Query('days') days?: string,
-    @OrgContext() orgContext?: any,
-  ) {
+  async getGatePassAnalytics(@Query('days') days?: string, @OrgContext() orgContext?: any) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getGatePassAnalytics(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getGatePassAnalytics(orgContext.organizationId, daysNum);
   }
 
   @Get('warehouse-performance')
-  async getWarehousePerformance(
-    @Query('days') days?: string,
-    @OrgContext() orgContext?: any,
-  ) {
+  async getWarehousePerformance(@Query('days') days?: string, @OrgContext() orgContext?: any) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getWarehousePerformance(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getWarehousePerformance(orgContext.organizationId, daysNum);
   }
 
   @Get('stock-movement')
@@ -40,32 +28,18 @@ export class ReportingController {
   ) {
     const productIdNum = productId ? parseInt(productId, 10) : undefined;
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getStockMovement(
-      orgContext.organizationId,
-      productIdNum,
-      daysNum,
-    );
+    return this.reportingService.getStockMovement(orgContext.organizationId, productIdNum, daysNum);
   }
 
   @Get('bill-analytics')
-  async getBillAnalytics(
-    @Query('days') days?: string,
-    @OrgContext() orgContext?: any,
-  ) {
+  async getBillAnalytics(@Query('days') days?: string, @OrgContext() orgContext?: any) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getBillAnalytics(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getBillAnalytics(orgContext.organizationId, daysNum);
   }
 
   @Get('inventory-snapshot')
-  async getInventorySnapshot(
-    @OrgContext() orgContext?: any,
-  ) {
-    return this.reportingService.getInventorySnapshot(
-      orgContext.organizationId,
-    );
+  async getInventorySnapshot(@OrgContext() orgContext?: any) {
+    return this.reportingService.getInventorySnapshot(orgContext.organizationId);
   }
 
   @Get('sales')
@@ -76,11 +50,7 @@ export class ReportingController {
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
-    return this.reportingService.getSalesReport(
-      orgContext.organizationId,
-      start,
-      end,
-    );
+    return this.reportingService.getSalesReport(orgContext.organizationId, start, end);
   }
 
   @Get('vendors')
@@ -91,20 +61,12 @@ export class ReportingController {
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
-    return this.reportingService.getVendorReport(
-      orgContext.organizationId,
-      start,
-      end,
-    );
+    return this.reportingService.getVendorReport(orgContext.organizationId, start, end);
   }
 
   @Get('inventory')
-  async getInventoryReport(
-    @OrgContext() orgContext?: any,
-  ) {
-    return this.reportingService.getInventoryReport(
-      orgContext.organizationId,
-    );
+  async getInventoryReport(@OrgContext() orgContext?: any) {
+    return this.reportingService.getInventoryReport(orgContext.organizationId);
   }
 
   @Get('customers')
@@ -115,11 +77,7 @@ export class ReportingController {
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
-    return this.reportingService.getCustomerReport(
-      orgContext.organizationId,
-      start,
-      end,
-    );
+    return this.reportingService.getCustomerReport(orgContext.organizationId, start, end);
   }
 
   @Get('commission')
@@ -130,11 +88,7 @@ export class ReportingController {
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
-    return this.reportingService.getCommissionReport(
-      orgContext.organizationId,
-      start,
-      end,
-    );
+    return this.reportingService.getCommissionReport(orgContext.organizationId, start, end);
   }
 
   @Get('warehouse-transfer')
@@ -143,10 +97,7 @@ export class ReportingController {
     @OrgContext() orgContext?: any,
   ) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getWarehouseTransferAnalytics(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getWarehouseTransferAnalytics(orgContext.organizationId, daysNum);
   }
 
   @Get('product-performance')
@@ -157,34 +108,18 @@ export class ReportingController {
   ) {
     const start = startDate ? new Date(startDate) : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
     const end = endDate ? new Date(endDate) : new Date();
-    return this.reportingService.getProductPerformance(
-      orgContext.organizationId,
-      start,
-      end,
-    );
+    return this.reportingService.getProductPerformance(orgContext.organizationId, start, end);
   }
 
   @Get('daily-sales-trend')
-  async getDailySalesTrend(
-    @Query('days') days?: string,
-    @OrgContext() orgContext?: any,
-  ) {
+  async getDailySalesTrend(@Query('days') days?: string, @OrgContext() orgContext?: any) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getDailySalesTrend(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getDailySalesTrend(orgContext.organizationId, daysNum);
   }
 
   @Get('fulfillment-by-customer')
-  async getGateFulfillmentByCustomer(
-    @Query('days') days?: string,
-    @OrgContext() orgContext?: any,
-  ) {
+  async getGateFulfillmentByCustomer(@Query('days') days?: string, @OrgContext() orgContext?: any) {
     const daysNum = days ? parseInt(days, 10) : 30;
-    return this.reportingService.getGateFulfillmentByCustomer(
-      orgContext.organizationId,
-      daysNum,
-    );
+    return this.reportingService.getGateFulfillmentByCustomer(orgContext.organizationId, daysNum);
   }
 }

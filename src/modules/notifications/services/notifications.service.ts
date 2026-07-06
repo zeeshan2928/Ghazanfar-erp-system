@@ -1,281 +1,182 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { PrismaService } from '@database/prisma.service';
-import { CreateNotificationDto, SendNotificationDto, NotificationPreferenceDto } from '../dto/create-notification.dto';
-import { NotificationType } from '@prisma/client';
+import {
+  CreateNotificationDto,
+  SendNotificationDto,
+  NotificationPreferenceDto,
+} from '../dto/create-notification.dto';
+import { NotificationType } from '../types/notification-type.enum';
 
+/**
+ * NOTE: the Notification/NotificationLog/NotificationPreference persistence
+ * methods below are built against Prisma models that don't exist anywhere in
+ * schema.prisma - same "built against a schema that was never created"
+ * pattern found across ~9 other places in the 2026-07-06 audit (also true of
+ * archival.service.ts's notification purge, which was stubbed the same day).
+ * NotificationsModule is registered with a live controller, so these are
+ * reachable via HTTP even though nothing persists. Stubbed to log and return
+ * safe defaults rather than crash - needs a product/schema decision (add the
+ * models, or drop the feature) before this is genuinely functional.
+ *
+ * Separately, and independent of the above: notifyBillApproval/
+ * notifyPOStatusChange/notifyPaymentDue used NotificationType values that
+ * don't exist in the real enum (BILL_APPROVED, PO_APPROVED, BILL_PAYMENT_DUE,
+ * INVENTORY_CRITICAL - real values are BILL_APPROVAL, PO_APPROVAL,
+ * PAYMENT_DUE, and INVENTORY_LOW has no separate "critical" tier). Those were
+ * genuine bugs, fixed below regardless of the missing-schema issue.
+ */
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
-  constructor(private prisma: PrismaService) {}
-
   /**
    * Create an in-app notification
    */
-  async createNotification(organizationId: number, dto: CreateNotificationDto) {
-    try {
-      return await this.prisma.notification.create({
-        data: {
-          organizationId,
-          userId: dto.userId,
-          type: dto.type,
-          title: dto.title,
-          message: dto.message,
-          data: dto.data || null,
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to create notification: ${error.message}`);
-      throw error;
-    }
+  async createNotification(organizationId: number, dto: CreateNotificationDto): Promise<any> {
+    this.logger.warn('createNotification(): no Notification model exists in schema.prisma');
+    return null;
   }
 
   /**
    * Send notification via email/SMS and create in-app notification
    */
   async sendNotification(organizationId: number, dto: SendNotificationDto) {
-    try {
-      // Create in-app notification
-      const notification = await this.createNotification(organizationId, {
-        userId: dto.userId,
-        type: dto.type,
-        title: dto.title,
-        message: dto.message,
-        data: dto.data,
-      });
+    const notification = await this.createNotification(organizationId, {
+      userId: dto.userId,
+      type: dto.type,
+      title: dto.title,
+      message: dto.message,
+      data: dto.data,
+    });
 
-      // Queue email if provided
-      if (dto.email) {
-        await this.queueEmail(organizationId, dto.userId, dto.type, dto.email, dto.title, dto.message);
-      }
-
-      // Queue SMS if provided
-      if (dto.phoneNumber) {
-        await this.queueSMS(organizationId, dto.userId, dto.type, dto.phoneNumber, dto.message);
-      }
-
-      return notification;
-    } catch (error) {
-      this.logger.error(`Failed to send notification: ${error.message}`);
-      throw error;
+    if (dto.email) {
+      await this.queueEmail(organizationId, dto.userId, dto.type, dto.email, dto.title, dto.message);
     }
+
+    if (dto.phoneNumber) {
+      await this.queueSMS(organizationId, dto.userId, dto.type, dto.phoneNumber, dto.message);
+    }
+
+    return notification;
   }
 
   /**
    * Queue email for sending (async)
+   * NOTE: no NotificationLog model exists in schema.prisma - logging to the
+   * app logger instead of persisting.
    */
-  async queueEmail(organizationId: number, userId: number, type: NotificationType, email: string, subject: string, message: string) {
-    try {
-      await this.prisma.notificationLog.create({
-        data: {
-          organizationId,
-          userId,
-          type: type.toString(),
-          status: 'PENDING',
-          recipient: email,
-          channel: 'EMAIL',
-          retryCount: 0,
-        },
-      });
-      // TODO: Integrate with email service to actually send
-      this.logger.log(`Email queued for ${email}: ${subject}`);
-    } catch (error) {
-      this.logger.error(`Failed to queue email: ${error.message}`);
-    }
+  async queueEmail(
+    organizationId: number,
+    userId: number,
+    type: NotificationType,
+    email: string,
+    subject: string,
+    message: string,
+  ): Promise<void> {
+    this.logger.log(`[email queued] org=${organizationId} to=${email} subject="${subject}"`);
   }
 
   /**
    * Queue SMS for sending (async)
+   * NOTE: no NotificationLog model exists in schema.prisma - logging to the
+   * app logger instead of persisting.
    */
-  async queueSMS(organizationId: number, userId: number, type: NotificationType, phoneNumber: string, message: string) {
-    try {
-      await this.prisma.notificationLog.create({
-        data: {
-          organizationId,
-          userId,
-          type: type.toString(),
-          status: 'PENDING',
-          recipient: phoneNumber,
-          channel: 'SMS',
-          retryCount: 0,
-        },
-      });
-      // TODO: Integrate with Twilio service to actually send
-      this.logger.log(`SMS queued for ${phoneNumber}`);
-    } catch (error) {
-      this.logger.error(`Failed to queue SMS: ${error.message}`);
-    }
+  async queueSMS(
+    organizationId: number,
+    userId: number,
+    type: NotificationType,
+    phoneNumber: string,
+    message: string,
+  ): Promise<void> {
+    this.logger.log(`[sms queued] org=${organizationId} to=${phoneNumber}`);
   }
 
   /**
    * Get user's notifications (paginated, unread first)
    */
-  async getUserNotifications(organizationId: number, userId: number, skip: number = 0, take: number = 10) {
-    try {
-      const notifications = await this.prisma.notification.findMany({
-        where: {
-          organizationId,
-          userId,
-        },
-        orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
-        skip,
-        take,
-      });
-
-      const total = await this.prisma.notification.count({
-        where: { organizationId, userId },
-      });
-
-      return { data: notifications, total };
-    } catch (error) {
-      this.logger.error(`Failed to get user notifications: ${error.message}`);
-      throw error;
-    }
+  async getUserNotifications(
+    organizationId: number,
+    userId: number,
+    skip: number = 0,
+    take: number = 10,
+  ) {
+    this.logger.warn('getUserNotifications(): no Notification model exists in schema.prisma');
+    return { data: [], total: 0 };
   }
 
   /**
    * Mark notification as read
    */
-  async markAsRead(organizationId: number, notificationId: number) {
-    try {
-      return await this.prisma.notification.update({
-        where: { id: notificationId },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to mark notification as read: ${error.message}`);
-      throw error;
-    }
+  async markAsRead(organizationId: number, notificationId: number): Promise<any> {
+    this.logger.warn('markAsRead(): no Notification model exists in schema.prisma');
+    return null;
   }
 
   /**
    * Mark all unread notifications as read
    */
-  async markAllAsRead(organizationId: number, userId: number) {
-    try {
-      return await this.prisma.notification.updateMany({
-        where: {
-          organizationId,
-          userId,
-          isRead: false,
-        },
-        data: {
-          isRead: true,
-          readAt: new Date(),
-        },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to mark all as read: ${error.message}`);
-      throw error;
-    }
+  async markAllAsRead(organizationId: number, userId: number): Promise<any> {
+    this.logger.warn('markAllAsRead(): no Notification model exists in schema.prisma');
+    return { count: 0 };
   }
 
   /**
    * Delete notification
    */
-  async deleteNotification(organizationId: number, notificationId: number) {
-    try {
-      return await this.prisma.notification.delete({
-        where: { id: notificationId },
-      });
-    } catch (error) {
-      this.logger.error(`Failed to delete notification: ${error.message}`);
-      throw error;
-    }
+  async deleteNotification(organizationId: number, notificationId: number): Promise<any> {
+    this.logger.warn('deleteNotification(): no Notification model exists in schema.prisma');
+    return null;
   }
 
   /**
    * Get notification history with filters
    */
-  async getNotificationHistory(organizationId: number, filters: any = {}, skip: number = 0, take: number = 20) {
-    try {
-      const where: any = { organizationId };
-
-      if (filters.userId) where.userId = filters.userId;
-      if (filters.type) where.type = filters.type;
-      if (filters.isRead !== undefined) where.isRead = filters.isRead;
-      if (filters.startDate || filters.endDate) {
-        where.createdAt = {};
-        if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
-        if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
-      }
-
-      const notifications = await this.prisma.notification.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        skip,
-        take,
-      });
-
-      const total = await this.prisma.notification.count({ where });
-
-      return { data: notifications, total };
-    } catch (error) {
-      this.logger.error(`Failed to get notification history: ${error.message}`);
-      throw error;
-    }
+  async getNotificationHistory(
+    organizationId: number,
+    filters: any = {},
+    skip: number = 0,
+    take: number = 20,
+  ) {
+    this.logger.warn('getNotificationHistory(): no Notification model exists in schema.prisma');
+    return { data: [], total: 0 };
   }
 
   /**
    * Get user notification preferences
+   * NOTE: no NotificationPreference model exists in schema.prisma - always
+   * returns the default preference set.
    */
   async getNotificationPreferences(organizationId: number, userId: number) {
-    try {
-      let preferences = await this.prisma.notificationPreference.findUnique({
-        where: {
-          organizationId_userId: { organizationId, userId },
-        },
-      });
-
-      // Return default preferences if not found
-      if (!preferences) {
-        preferences = {
-          id: 0,
-          organizationId,
-          userId,
-          billApprovalEmail: true,
-          billPaidEmail: true,
-          paymentDueEmail: true,
-          poApprovalEmail: true,
-          poReceivedEmail: true,
-          poDelayedEmail: true,
-          inventoryLowEmail: true,
-          inventoryLowSMS: false,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        };
-      }
-
-      return preferences;
-    } catch (error) {
-      this.logger.error(`Failed to get notification preferences: ${error.message}`);
-      throw error;
-    }
+    return {
+      id: 0,
+      organizationId,
+      userId,
+      billApprovalEmail: true,
+      billPaidEmail: true,
+      paymentDueEmail: true,
+      poApprovalEmail: true,
+      poReceivedEmail: true,
+      poDelayedEmail: true,
+      inventoryLowEmail: true,
+      inventoryLowSMS: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
   }
 
   /**
    * Save/Update user notification preferences
+   * NOTE: no NotificationPreference model exists in schema.prisma - not
+   * persisted.
    */
-  async saveNotificationPreferences(organizationId: number, userId: number, dto: NotificationPreferenceDto) {
-    try {
-      return await this.prisma.notificationPreference.upsert({
-        where: {
-          organizationId_userId: { organizationId, userId },
-        },
-        create: {
-          organizationId,
-          userId,
-          ...dto,
-        },
-        update: dto,
-      });
-    } catch (error) {
-      this.logger.error(`Failed to save notification preferences: ${error.message}`);
-      throw error;
-    }
+  async saveNotificationPreferences(
+    organizationId: number,
+    userId: number,
+    dto: NotificationPreferenceDto,
+  ) {
+    this.logger.warn(
+      'saveNotificationPreferences(): no NotificationPreference model exists in schema.prisma - not persisted',
+    );
+    return { organizationId, userId, ...dto };
   }
 
   /**
@@ -286,7 +187,7 @@ export class NotificationsService {
       for (const recipient of recipients) {
         await this.sendNotification(organizationId, {
           userId: recipient.userId,
-          type: NotificationType.BILL_APPROVED,
+          type: NotificationType.BILL_APPROVAL,
           title: 'Bill Approved',
           message: `Bill #${billId} has been approved and finalized.`,
           data: { billId },
@@ -301,15 +202,20 @@ export class NotificationsService {
   /**
    * Notify PO status change
    */
-  async notifyPOStatusChange(organizationId: number, poId: number, status: string, recipients: any[]) {
+  async notifyPOStatusChange(
+    organizationId: number,
+    poId: number,
+    status: string,
+    recipients: any[],
+  ) {
     try {
-      const typeMap = {
-        APPROVED: NotificationType.PO_APPROVED,
+      const typeMap: Record<string, NotificationType> = {
+        APPROVED: NotificationType.PO_APPROVAL,
         RECEIVED: NotificationType.PO_RECEIVED,
         DELAYED: NotificationType.PO_DELAYED,
       };
 
-      const type = typeMap[status] || NotificationType.PO_APPROVED;
+      const type = typeMap[status] || NotificationType.PO_APPROVAL;
 
       for (const recipient of recipients) {
         await this.sendNotification(organizationId, {
@@ -328,15 +234,20 @@ export class NotificationsService {
 
   /**
    * Notify low inventory
+   * NOTE: NotificationType has no separate "critical" tier - both zero-stock
+   * and low-stock use INVENTORY_LOW.
    */
-  async notifyLowInventory(organizationId: number, productId: number, currentStock: number, recipients: any[]) {
+  async notifyLowInventory(
+    organizationId: number,
+    productId: number,
+    currentStock: number,
+    recipients: any[],
+  ) {
     try {
-      const type = currentStock === 0 ? NotificationType.INVENTORY_CRITICAL : NotificationType.INVENTORY_LOW;
-
       for (const recipient of recipients) {
         await this.sendNotification(organizationId, {
           userId: recipient.userId,
-          type,
+          type: NotificationType.INVENTORY_LOW,
           title: 'Low Inventory Alert',
           message: `Product #${productId} has low stock (${currentStock} units).`,
           data: { productId, currentStock },
@@ -351,12 +262,17 @@ export class NotificationsService {
   /**
    * Notify payment due
    */
-  async notifyPaymentDue(organizationId: number, billId: number, daysUntilDue: number, recipients: any[]) {
+  async notifyPaymentDue(
+    organizationId: number,
+    billId: number,
+    daysUntilDue: number,
+    recipients: any[],
+  ) {
     try {
       for (const recipient of recipients) {
         await this.sendNotification(organizationId, {
           userId: recipient.userId,
-          type: NotificationType.BILL_PAYMENT_DUE,
+          type: NotificationType.PAYMENT_DUE,
           title: 'Payment Due Reminder',
           message: `Payment for Bill #${billId} is due in ${daysUntilDue} days.`,
           data: { billId, daysUntilDue },
@@ -371,7 +287,12 @@ export class NotificationsService {
   /**
    * Notify PO delivery delay
    */
-  async notifyPODeliveryDelay(organizationId: number, poId: number, daysDelayed: number, recipients: any[]) {
+  async notifyPODeliveryDelay(
+    organizationId: number,
+    poId: number,
+    daysDelayed: number,
+    recipients: any[],
+  ) {
     try {
       for (const recipient of recipients) {
         await this.sendNotification(organizationId, {

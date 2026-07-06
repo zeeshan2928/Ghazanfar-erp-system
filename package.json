@@ -37,7 +37,8 @@
     "import:inventory": "ts-node scripts/import-inventory.ts",
     "archive:bills": "ts-node scripts/archive-old-bills.ts",
     "cleanup:all": "ts-node scripts/cleanup-database.ts",
-    "data:stats": "ts-node scripts/get-data-stats.ts"
+    "data:stats": "ts-node scripts/get-data-stats.ts",
+    "check:hidden-errors": "ts-node scripts/check-ts-nocheck-debt.ts"
   },
   "dependencies": {
     "@faker-js/faker": "^8.3.1",
@@ -50,6 +51,7 @@
     "@nestjs/schedule": "^4.1.2",
     "@nestjs/websockets": "^10.4.22",
     "@prisma/client": "^5.7.1",
+    "axios": "^1.18.1",
     "bcrypt": "^5.1.1",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.0",
@@ -78,6 +80,8 @@
     "artillery": "^2.0.0",
     "clinic": "^13.0.0",
     "eslint": "^8.56.0",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-prettier": "^5.5.6",
     "eslint-plugin-security": "^1.7.1",
     "jest": "^29.7.0",
     "jest-mock-extended": "^3.0.5",

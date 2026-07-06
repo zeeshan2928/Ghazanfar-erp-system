@@ -119,7 +119,7 @@ export class FilterService {
     // For multiple words, we need AND condition
     // Using Prisma's AND with multiple contains
     return {
-      AND: words.map((word) => ({
+      AND: words.map(word => ({
         contains: word,
         mode: 'insensitive',
       })),
@@ -251,10 +251,7 @@ export class FilterService {
   /**
    * Validate filter against allowed operators for a field
    */
-  validateFilter(
-    filter: FilterOperatorDto,
-    allowedOperators: FilterOperator[],
-  ): boolean {
+  validateFilter(filter: FilterOperatorDto, allowedOperators: FilterOperator[]): boolean {
     return allowedOperators.includes(filter.operator);
   }
 
