@@ -66,8 +66,8 @@ services:
   # Frontend React Application
   frontend:
     build:
-      context: ./frontend
-      dockerfile: ../docker/frontend/Dockerfile
+      context: .
+      dockerfile: docker/frontend/Dockerfile
     container_name: erp-frontend
     environment:
       VITE_API_URL: ${VITE_API_URL:-http://backend:3000}
