@@ -33,7 +33,6 @@ Dockerfile*
 .editorconfig
 .eslintrc*
 .prettier*
-tsconfig.json
 jest.config.js
 playwright.config.ts
 test
