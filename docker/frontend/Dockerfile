@@ -28,12 +28,10 @@ COPY docker/frontend/nginx.conf /etc/nginx/conf.d/default.conf
 # Copy built application from builder
 COPY --from=builder /app/dist /usr/share/nginx/html
 
-# Create non-root user for nginx
-RUN addgroup -g 1001 -S nginx || true && \
-    adduser -S nginx -u 1001 || true && \
-    chown -R nginx:nginx /usr/share/nginx/html /var/cache/nginx /var/log/nginx /var/run/nginx || true
-
-USER nginx
+# Runs as the base image's default user (root master process, unprivileged
+# nginx worker processes via the "user nginx;" directive in nginx.conf) -
+# a custom non-root USER here broke nginx's own privilege-drop mechanism:
+# it couldn't write its pid file or reload config, and failed to start.
 
 # Expose port
 EXPOSE 80
