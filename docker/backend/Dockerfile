@@ -25,9 +25,12 @@ FROM node:18-alpine
 
 WORKDIR /app
 
-# Install security updates and runtime dependencies
+# Install security updates and runtime dependencies - openssl is required
+# by Prisma's query engine binary (linux-musl-openssl-3.0.x target), not
+# just a "nice to have" security update; without it Prisma can't detect
+# any OpenSSL version at all and refuses to start.
 RUN apk update && apk upgrade && \
-    apk add --no-cache dumb-init curl && \
+    apk add --no-cache dumb-init curl openssl && \
     rm -rf /var/cache/apk/*
 
 # Copy from builder
