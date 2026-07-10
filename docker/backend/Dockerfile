@@ -4,8 +4,13 @@ FROM node:18-alpine as builder
 
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache python3 make g++
+# Install build dependencies - openssl must be here too, not just in the
+# runtime stage: `npm ci` triggers `prisma generate`, and Prisma detects
+# which OpenSSL-suffixed engine binary to build for at generate time, in
+# this stage. Without it here, Prisma silently falls back to generating
+# a plain "linux-musl" binary with no openssl suffix, ignoring the
+# linux-musl-openssl-3.0.x entry in binaryTargets.
+RUN apk add --no-cache python3 make g++ openssl
 
 # Copy package files
 COPY package*.json ./
