@@ -1,12 +1,57 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { AccountType, AccountCategory } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { CreateAccountDto } from '../dto/create-account.dto';
 import { UpdateAccountDto } from '../dto/update-account.dto';
 import { STARTER_COA } from '../constants/starter-coa.constant';
 
+// Every future report (Trial Balance, GL detail, Balance Sheet, Income
+// Statement, Cash Flow, etc.) is a different aggregation over the same
+// ChartOfAccount + GLPosting/JournalEntryLine data. Reports should filter
+// by organizationId + accountType + accountCategory rather than
+// re-deriving classification (e.g. current vs fixed asset) themselves.
+const ALLOWED_CATEGORIES_BY_TYPE: Record<AccountType, AccountCategory[]> = {
+  ASSET: [
+    AccountCategory.CURRENT_ASSET,
+    AccountCategory.FIXED_ASSET,
+    AccountCategory.OTHER_ASSET,
+  ],
+  LIABILITY: [
+    AccountCategory.CURRENT_LIABILITY,
+    AccountCategory.LONG_TERM_LIABILITY,
+  ],
+  EQUITY: [AccountCategory.OWNER_EQUITY],
+  REVENUE: [AccountCategory.SALES_REVENUE, AccountCategory.OTHER_REVENUE],
+  EXPENSE: [
+    AccountCategory.COGS,
+    AccountCategory.OPERATING_EXPENSE,
+    AccountCategory.NON_OPERATING_EXPENSE,
+    AccountCategory.TAX_EXPENSE,
+  ],
+};
+
 @Injectable()
 export class ChartOfAccountsService {
   constructor(private prisma: PrismaService) {}
+
+  private validateCategoryForType(
+    accountType: AccountType,
+    accountCategory?: AccountCategory | null,
+  ) {
+    if (!accountCategory) return;
+    if (!ALLOWED_CATEGORIES_BY_TYPE[accountType].includes(accountCategory)) {
+      throw new BadRequestException(
+        `Account category ${accountCategory} is not valid for account type ${accountType}`,
+      );
+    }
+  }
+
+  private validateIsCashAccount(accountType: AccountType, isCashAccount?: boolean | null) {
+    if (!isCashAccount) return;
+    if (accountType !== 'ASSET') {
+      throw new BadRequestException('Only ASSET accounts can be flagged as cash accounts');
+    }
+  }
 
   async create(organizationId: number, createDto: CreateAccountDto) {
     // Validate account code uniqueness within organization
@@ -22,6 +67,9 @@ export class ChartOfAccountsService {
         `Account code ${createDto.accountCode} already exists in this organization`,
       );
     }
+
+    this.validateCategoryForType(createDto.accountType, createDto.accountCategory);
+    this.validateIsCashAccount(createDto.accountType, createDto.isCashAccount);
 
     // Validate parent account exists and belongs to same org if provided
     if (createDto.parentAccountId) {
@@ -80,6 +128,19 @@ export class ChartOfAccountsService {
         );
       }
     }
+
+    this.validateCategoryForType(
+      updateDto.accountType ?? account.accountType,
+      updateDto.accountCategory !== undefined
+        ? updateDto.accountCategory
+        : account.accountCategory,
+    );
+    this.validateIsCashAccount(
+      updateDto.accountType ?? account.accountType,
+      updateDto.isCashAccount !== undefined
+        ? updateDto.isCashAccount
+        : account.isCashAccount,
+    );
 
     return this.prisma.chartOfAccount.update({
       where: { id },
@@ -148,6 +209,8 @@ export class ChartOfAccountsService {
             accountCode: account.accountCode,
             accountName: account.accountName,
             accountType: account.accountType as any,
+            accountCategory: account.accountCategory as any,
+            isCashAccount: (account as any).isCashAccount || false,
             description: account.description,
           },
         });
@@ -165,6 +228,8 @@ export class ChartOfAccountsService {
             accountCode: account.accountCode,
             accountName: account.accountName,
             accountType: account.accountType as any,
+            accountCategory: account.accountCategory as any,
+            isCashAccount: (account as any).isCashAccount || false,
             description: account.description,
             parentAccountId: accountMap.get(account.parentAccountId as any),
           },
@@ -177,15 +242,32 @@ export class ChartOfAccountsService {
     return { created: createdCount };
   }
 
+  // Returns the full CoA as a genuine N-level tree (root accounts with
+  // childAccounts nested arbitrarily deep), not just one level down.
   async getAccountsForOrganization(organizationId: number) {
-    return this.prisma.chartOfAccount.findMany({
+    const accounts = await this.prisma.chartOfAccount.findMany({
       where: { organizationId, isActive: true },
-      include: {
-        childAccounts: {
-          where: { isActive: true },
-        },
-      },
       orderBy: { accountCode: 'asc' },
     });
+
+    type AccountWithChildren = (typeof accounts)[number] & {
+      childAccounts: AccountWithChildren[];
+    };
+
+    const byId = new Map<number, AccountWithChildren>();
+    for (const account of accounts) {
+      byId.set(account.id, { ...account, childAccounts: [] });
+    }
+
+    const roots: AccountWithChildren[] = [];
+    for (const account of byId.values()) {
+      if (account.parentAccountId && byId.has(account.parentAccountId)) {
+        byId.get(account.parentAccountId)!.childAccounts.push(account);
+      } else {
+        roots.push(account);
+      }
+    }
+
+    return roots;
   }
 }

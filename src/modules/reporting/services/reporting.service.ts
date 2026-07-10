@@ -219,13 +219,63 @@ export class ReportingService {
 
     return {
       period: { startDate, endDate: new Date(), days },
+      // Bill.total_amount is stored in whole currency units (whatever the
+      // salesman types as unitPrice x quantity, e.g. 100 means 100 rupees,
+      // not cents) - these fields previously divided by 100 on the mistaken
+      // assumption the column held cents, silently reporting figures 100x
+      // too small.
       summary: {
         totalBills,
-        total_amount: parseFloat((totalAmount / 100).toFixed(2)),
-        avgBillAmount: parseFloat((avgBillAmount / 100).toFixed(2)),
-        totalDiscountAmount: parseFloat((totalDiscount / 100).toFixed(2)),
+        total_amount: totalAmount,
+        avgBillAmount,
+        totalDiscountAmount: totalDiscount,
       },
       byChannel,
+    };
+  }
+
+  // Count + total amount of bills grouped by status, for the Sales
+  // Dashboard's status pie chart.
+  async getBillStatusBreakdown(organizationId: number, days = 90) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const bills = await this.prisma.bill.findMany({
+      where: { organizationId, bill_date: { gte: startDate } },
+      select: { status: true, total_amount: true },
+    });
+
+    const byStatus = new Map<string, { count: number; amount: number }>();
+    bills.forEach(bill => {
+      const current = byStatus.get(bill.status) || { count: 0, amount: 0 };
+      current.count++;
+      current.amount += bill.total_amount;
+      byStatus.set(bill.status, current);
+    });
+
+    return {
+      period: { startDate, endDate: new Date(), days },
+      totalBills: bills.length,
+      byStatus: Array.from(byStatus.entries()).map(([status, data]) => ({ status, ...data })),
+    };
+  }
+
+  // Count of sales orders grouped by status (DRAFT/CONFIRMED/CONVERTED/
+  // CANCELLED) - the Sales Dashboard's funnel chart. Sales Orders are
+  // optional/secondary to direct invoicing in this business, so this can
+  // legitimately be all zeros if nobody uses them.
+  async getSalesOrderStatusBreakdown(organizationId: number) {
+    const orders = await this.prisma.salesOrder.findMany({
+      where: { organizationId },
+      select: { status: true },
+    });
+
+    const byStatus = new Map<string, number>();
+    orders.forEach(o => byStatus.set(o.status, (byStatus.get(o.status) || 0) + 1));
+
+    return {
+      totalOrders: orders.length,
+      byStatus: Array.from(byStatus.entries()).map(([status, count]) => ({ status, count })),
     };
   }
 
@@ -365,11 +415,38 @@ export class ReportingService {
     };
   }
 
+  // Count + total po_amount grouped by status - the Purchasing Dashboard's
+  // status pie chart.
+  async getPurchaseOrderStatusBreakdown(organizationId: number, days = 90) {
+    const startDate = new Date();
+    startDate.setDate(startDate.getDate() - days);
+
+    const pos = await this.prisma.purchaseOrder.findMany({
+      where: { organizationId, createdAt: { gte: startDate } },
+      select: { status: true, po_amount: true },
+    });
+
+    const byStatus = new Map<string, { count: number; amount: number }>();
+    pos.forEach(po => {
+      const current = byStatus.get(po.status) || { count: 0, amount: 0 };
+      current.count++;
+      current.amount += po.po_amount;
+      byStatus.set(po.status, current);
+    });
+
+    return {
+      period: { startDate, endDate: new Date(), days },
+      totalPOs: pos.length,
+      byStatus: Array.from(byStatus.entries()).map(([status, data]) => ({ status, ...data })),
+    };
+  }
+
   async getInventoryReport(organizationId: number) {
     const inventories = await this.prisma.inventory.findMany({
       where: { organizationId },
       include: {
         warehouse: true,
+        Product: { select: { cost_price: true } },
       },
     });
 
@@ -378,14 +455,20 @@ export class ReportingService {
     const stockLevels: any[] = [];
 
     inventories.forEach(inv => {
-      const value = inv.available + inv.reserved;
+      // Value = on-hand quantity (available + reserved is still physically
+      // in the warehouse) x unit cost - previously this summed raw
+      // quantity with no cost multiplication at all, so "totalInventoryValue"
+      // was actually just a unit count mislabeled as money.
+      const quantity = inv.available + inv.reserved;
+      const value = quantity * (inv.Product?.cost_price || 0);
       totalValue += value;
 
       stockLevels.push({
         productId: inv.productId,
         warehouseId: inv.warehouseId,
         warehouseName: inv.warehouse?.name,
-        quantity: inv.available + inv.reserved,
+        quantity,
+        value,
       });
     });
 
@@ -468,6 +551,49 @@ export class ReportingService {
       .slice(0, limit);
   }
 
+  // Real sales activity per salesman, independent of whether a commission
+  // calculation has been run for the period (CommissionCalculation only
+  // exists once someone triggers /commission/calculate - this reads
+  // straight from Bill so performance shows up immediately after a sale).
+  async getSalesmanPerformanceReport(organizationId: number, startDate: Date, endDate: Date) {
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        bill_date: { gte: startDate, lte: endDate },
+        status: { not: 'CANCELLED' },
+      },
+      include: {
+        salesman: { select: { id: true, firstName: true, lastName: true } },
+      },
+    });
+
+    const bySalesman = new Map<number, any>();
+    bills.forEach(bill => {
+      const key = bill.salesmanId;
+      const current = bySalesman.get(key) || {
+        salesmanId: key,
+        salesmanName: bill.salesman ? `${bill.salesman.firstName} ${bill.salesman.lastName}` : `#${key}`,
+        totalSales: 0,
+        billCount: 0,
+      };
+      current.totalSales += bill.total_amount;
+      current.billCount++;
+      bySalesman.set(key, current);
+    });
+
+    const bySalesmanArray = Array.from(bySalesman.values()).map(s => ({
+      ...s,
+      avgBillAmount: s.billCount > 0 ? s.totalSales / s.billCount : 0,
+    }));
+
+    return {
+      period: { startDate, endDate },
+      totalSales: bills.reduce((sum, b) => sum + b.total_amount, 0),
+      totalBills: bills.length,
+      bySalesman: bySalesmanArray.sort((a, b) => b.totalSales - a.totalSales),
+    };
+  }
+
   async getCommissionReport(organizationId: number, startDate: Date, endDate: Date) {
     const commissions = await this.prisma.commissionCalculation.findMany({
       where: {
@@ -501,7 +627,9 @@ export class ReportingService {
 
     return {
       period: { startDate, endDate },
-      totalCommission: parseFloat((totalCommission / 100).toFixed(2)),
+      // commissionAmount = baseSales x rate, and baseSales is itself whole
+      // currency units (see getBillAnalytics) - no cents conversion needed.
+      totalCommission,
       numberOfCommissions: commissions.length,
       topSalesmen: Array.from(salesmanMetrics.values())
         .sort((a, b) => b.totalCommission - a.totalCommission)
@@ -606,10 +734,12 @@ export class ReportingService {
         avgQuantityPerTransaction: parseFloat(
           (p.totalQuantity / p.numberOfTransactions).toFixed(2),
         ),
+        // line_total (source of totalRevenue) is whole currency units, not
+        // cents - see getBillAnalytics.
         avgRevenuePerTransaction: parseFloat(
-          (p.totalRevenue / p.numberOfTransactions / 100).toFixed(2),
+          (p.totalRevenue / p.numberOfTransactions).toFixed(2),
         ),
-        totalRevenue: parseFloat((p.totalRevenue / 100).toFixed(2)),
+        totalRevenue: p.totalRevenue,
       }))
       .sort((a, b) => b.totalRevenue - a.totalRevenue);
 
@@ -646,16 +776,170 @@ export class ReportingService {
       dailyData.set(dateKey, current);
     });
 
+    // bill.total_amount is whole currency units, not cents - see getBillAnalytics.
     const trend = Array.from(dailyData.values()).map(d => ({
       ...d,
-      sales: parseFloat((d.sales / 100).toFixed(2)),
-      avgBillValue: parseFloat((d.sales / d.billCount / 100).toFixed(2)),
+      sales: d.sales,
+      avgBillValue: parseFloat((d.sales / d.billCount).toFixed(2)),
     }));
 
     return {
       period: { startDate, endDate: new Date(), days },
       dailyTrend: trend,
     };
+  }
+
+  // 12-month sales total per year, for the last N years - the default
+  // landing dashboard's "this year vs last 2 years" comparison chart.
+  async getYearlyMonthlyComparison(organizationId: number, years = 3) {
+    const currentYear = new Date().getFullYear();
+    const earliestYear = currentYear - (years - 1);
+    const rangeStart = new Date(earliestYear, 0, 1);
+
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        bill_date: { gte: rangeStart },
+        status: { not: 'CANCELLED' },
+      },
+      select: { bill_date: true, total_amount: true },
+    });
+
+    const totalsByYearMonth = new Map<string, number>();
+    bills.forEach(bill => {
+      const year = bill.bill_date.getFullYear();
+      const month = bill.bill_date.getMonth();
+      const key = `${year}-${month}`;
+      totalsByYearMonth.set(key, (totalsByYearMonth.get(key) || 0) + bill.total_amount);
+    });
+
+    const monthLabels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const yearList: number[] = [];
+    for (let y = earliestYear; y <= currentYear; y++) yearList.push(y);
+
+    const rows = monthLabels.map((label, monthIndex) => {
+      const row: any = { month: label };
+      yearList.forEach(year => {
+        row[String(year)] = totalsByYearMonth.get(`${year}-${monthIndex}`) || 0;
+      });
+      return row;
+    });
+
+    return { years: yearList, rows };
+  }
+
+  // Today's collected sales, broken down by how the customer paid - the
+  // default landing dashboard's "live cash collection" pie chart.
+  async getTodayCashCollection(organizationId: number) {
+    const startOfDay = new Date();
+    startOfDay.setHours(0, 0, 0, 0);
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const bills = await this.prisma.bill.findMany({
+      where: {
+        organizationId,
+        bill_date: { gte: startOfDay, lte: endOfDay },
+        status: { not: 'CANCELLED' },
+      },
+      select: { total_amount: true, payment_method: true },
+    });
+
+    const byMethod = new Map<string, number>();
+    bills.forEach(bill => {
+      const method = bill.payment_method || 'UNSPECIFIED';
+      byMethod.set(method, (byMethod.get(method) || 0) + bill.total_amount);
+    });
+
+    return {
+      date: startOfDay.toISOString().split('T')[0],
+      totalCollected: bills.reduce((sum, b) => sum + b.total_amount, 0),
+      billCount: bills.length,
+      byMethod: Array.from(byMethod.entries()).map(([method, amount]) => ({ method, amount })),
+    };
+  }
+
+  // Expense breakdown by account category (OPERATING_EXPENSE,
+  // NON_OPERATING_EXPENSE, TAX_EXPENSE, COGS) for a period - reads posted
+  // GL activity, the same source of truth the Income Statement uses, but
+  // shaped for a simple pie/bar rather than a full statement.
+  async getExpenseBreakdown(organizationId: number, from: Date, to: Date) {
+    const expenseAccounts = await this.prisma.chartOfAccount.findMany({
+      where: { organizationId, isActive: true, accountType: 'EXPENSE' },
+    });
+
+    const postings = await this.prisma.gLPosting.findMany({
+      where: {
+        organizationId,
+        accountId: { in: expenseAccounts.map(a => a.id) },
+        postingDate: { gte: from, lte: to },
+      },
+      select: { accountId: true, debitAmount: true, creditAmount: true },
+    });
+
+    const accountById = new Map(expenseAccounts.map(a => [a.id, a]));
+    const byCategory = new Map<string, number>();
+    const byAccount = new Map<number, { accountName: string; accountCode: string; amount: number }>();
+
+    postings.forEach(p => {
+      const account = accountById.get(p.accountId);
+      if (!account) return;
+      // Expense accounts increase with debits - net debit is the real spend.
+      const amount = p.debitAmount - p.creditAmount;
+      const category = account.accountCategory || 'UNCATEGORIZED';
+      byCategory.set(category, (byCategory.get(category) || 0) + amount);
+
+      const existing = byAccount.get(account.id) || { accountName: account.accountName, accountCode: account.accountCode, amount: 0 };
+      existing.amount += amount;
+      byAccount.set(account.id, existing);
+    });
+
+    const totalExpense = Array.from(byCategory.values()).reduce((sum, v) => sum + v, 0);
+
+    return {
+      period: { from: from.toISOString().split('T')[0], to: to.toISOString().split('T')[0] },
+      totalExpense,
+      byCategory: Array.from(byCategory.entries()).map(([category, amount]) => ({ category, amount })),
+      byAccount: Array.from(byAccount.values()).sort((a, b) => b.amount - a.amount),
+    };
+  }
+
+  // Monthly expense totals for the last N months - the expense trend line.
+  async getExpenseTrend(organizationId: number, months = 6) {
+    const rangeStart = new Date();
+    rangeStart.setMonth(rangeStart.getMonth() - (months - 1));
+    rangeStart.setDate(1);
+    rangeStart.setHours(0, 0, 0, 0);
+
+    const expenseAccounts = await this.prisma.chartOfAccount.findMany({
+      where: { organizationId, isActive: true, accountType: 'EXPENSE' },
+      select: { id: true },
+    });
+
+    const postings = await this.prisma.gLPosting.findMany({
+      where: {
+        organizationId,
+        accountId: { in: expenseAccounts.map(a => a.id) },
+        postingDate: { gte: rangeStart },
+      },
+      select: { postingDate: true, debitAmount: true, creditAmount: true },
+    });
+
+    const byMonth = new Map<string, number>();
+    postings.forEach(p => {
+      const key = `${p.postingDate.getFullYear()}-${String(p.postingDate.getMonth() + 1).padStart(2, '0')}`;
+      byMonth.set(key, (byMonth.get(key) || 0) + (p.debitAmount - p.creditAmount));
+    });
+
+    const trend: { month: string; amount: number }[] = [];
+    const cursor = new Date(rangeStart);
+    for (let i = 0; i < months; i++) {
+      const key = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, '0')}`;
+      trend.push({ month: key, amount: byMonth.get(key) || 0 });
+      cursor.setMonth(cursor.getMonth() + 1);
+    }
+
+    return { months: trend };
   }
 
   async getGateFulfillmentByCustomer(organizationId: number, days = 30) {

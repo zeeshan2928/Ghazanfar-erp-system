@@ -18,6 +18,18 @@ export class UsersController {
     return this.usersService.create(createUserDto);
   }
 
+  // Admin-only "create a user with a chosen role/financial access" - distinct
+  // from the public self-registration endpoint above, which can never set
+  // role/canViewFinancials since it has no authenticated caller to check.
+  @UseGuards(JwtGuard)
+  @Post()
+  async createByAdmin(@Body() createUserDto: CreateUserDto, @OrgContext() orgContext: any) {
+    return this.usersService.create(
+      { ...createUserDto, organizationId: createUserDto.organizationId || orgContext.organizationId },
+      orgContext.role,
+    );
+  }
+
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);
@@ -26,7 +38,7 @@ export class UsersController {
   @UseGuards(JwtGuard)
   @Get('me')
   async getCurrentUser(@OrgContext() orgContext: any) {
-    return orgContext;
+    return this.usersService.findById(orgContext.userId, orgContext.organizationId);
   }
 
   @UseGuards(JwtGuard)
@@ -63,7 +75,12 @@ export class UsersController {
     @Body() updateUserDto: UpdateUserDto,
     @OrgContext() orgContext?: any,
   ) {
-    return this.usersService.update(parseInt(id, 10), updateUserDto, orgContext?.organizationId);
+    return this.usersService.update(
+      parseInt(id, 10),
+      updateUserDto,
+      orgContext?.organizationId,
+      orgContext?.role,
+    );
   }
 
   @UseGuards(JwtGuard)

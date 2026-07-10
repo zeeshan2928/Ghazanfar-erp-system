@@ -20,8 +20,9 @@ export class CreateCashBookEntryDto {
   @IsEnum(PaymentMethod)
   paymentMethod: PaymentMethod;
 
+  @IsOptional()
   @IsString()
-  referenceNumber: string;
+  referenceNumber?: string;
 
   @IsOptional()
   @IsNumber()

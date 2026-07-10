@@ -2,11 +2,14 @@ import {
   Controller,
   Get,
   Post,
+  Put,
   Param,
   Body,
   UseGuards,
   HttpStatus,
   HttpCode,
+  ForbiddenException,
+  ParseIntPipe,
 } from '@nestjs/common';
 import { PermissionsService } from './services/permissions.service';
 import { UserRole } from '@prisma/client';
@@ -144,5 +147,41 @@ export class PermissionsController {
       isValid: restrictedFields.length === 0,
       restrictedFields,
     };
+  }
+
+  // --- Real, enforced, DB-backed granular permission system ---
+
+  @Get('catalog')
+  getCatalog() {
+    return this.permissionsService.getPermissionCatalog();
+  }
+
+  @Get('user/:userId/overrides')
+  async getUserOverrides(
+    @Param('userId', ParseIntPipe) userId: number,
+    @OrgContext() orgContext?: any,
+  ) {
+    return this.permissionsService.getUserPermissionOverrides(orgContext.organizationId, userId);
+  }
+
+  @Put('user/:userId/overrides')
+  async setUserOverrides(
+    @Param('userId', ParseIntPipe) userId: number,
+    @Body() { overrides }: { overrides: { key: string; granted: boolean }[] },
+    @OrgContext() orgContext?: any,
+  ) {
+    if (orgContext.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only an admin can set permission overrides');
+    }
+    return this.permissionsService.setUserPermissionOverrides(
+      orgContext.organizationId,
+      userId,
+      overrides,
+    );
+  }
+
+  @Get('override-stats')
+  async getOverrideStats(@OrgContext() orgContext?: any) {
+    return this.permissionsService.getPermissionOverrideStats(orgContext.organizationId);
   }
 }

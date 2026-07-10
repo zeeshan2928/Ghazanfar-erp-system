@@ -2,6 +2,8 @@ import { Controller, Get, Query, UseGuards, BadRequestException, Res } from '@ne
 import { Response } from 'express';
 import { CashBookReportService } from '../services/cash-book-report.service';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('cash-book')
@@ -13,6 +15,8 @@ export class CashBookReportController {
    * GET /cash-book/kpis - Get KPIs for reconciliation
    */
   @Get('kpis')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getKPIs(
     @OrgContext() orgContext: any,
     @Query('fromDate') fromDate: string,
@@ -34,6 +38,8 @@ export class CashBookReportController {
    * GET /cash-book/cash-flow - Get cash flow analysis
    */
   @Get('cash-flow')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getCashFlow(
     @OrgContext() orgContext: any,
     @Query('groupBy') groupBy: 'day' | 'week' | 'month' = 'day',
@@ -57,6 +63,8 @@ export class CashBookReportController {
    * GET /cash-book/discrepancies - Get discrepancies
    */
   @Get('discrepancies')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getDiscrepancies(
     @OrgContext() orgContext: any,
     @Query('fromDate') fromDate?: string,
@@ -80,6 +88,8 @@ export class CashBookReportController {
    * GET /cash-book/unmatched-items - Get unmatched items by age
    */
   @Get('unmatched-items')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getUnmatchedItems(
     @OrgContext() orgContext: any,
     @Query('ageingDays') ageingDays: number = 30,
@@ -99,6 +109,8 @@ export class CashBookReportController {
    * GET /cash-book/export - Export report as PDF or Excel
    */
   @Get('export')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.export')
   async exportReport(
     @OrgContext() orgContext: any,
     @Query('format') format: 'pdf' | 'excel',

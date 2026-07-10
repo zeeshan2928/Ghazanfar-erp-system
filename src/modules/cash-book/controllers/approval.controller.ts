@@ -1,6 +1,8 @@
 import { Controller, Post, Get, Body, UseGuards, Query } from '@nestjs/common';
 import { ApprovalService } from '../services/approval.service';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('cash-book/entries')
@@ -13,6 +15,8 @@ export class ApprovalController {
    * Get entries pending approval
    */
   @Get('approval')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getEntriesPendingApproval(
     @OrgContext() orgContext: any,
     @Query('status') status?: 'pending' | 'approved' | 'rejected',
@@ -25,6 +29,8 @@ export class ApprovalController {
    * Submit approval for an entry
    */
   @Post('approve')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.approve')
   async submitApproval(
     @Body()
     body: {
@@ -50,6 +56,8 @@ export class ApprovalController {
    * Approve multiple entries
    */
   @Post('approve/bulk')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.approve')
   async approveBulk(
     @Body()
     body: {
@@ -71,6 +79,8 @@ export class ApprovalController {
    * Get approval statistics
    */
   @Get('approval/stats')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getApprovalStats(@OrgContext() orgContext: any) {
     return this.service.getPendingApprovalStats(orgContext.organizationId);
   }

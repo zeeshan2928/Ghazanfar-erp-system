@@ -26,6 +26,10 @@ export class VendorsService {
         phone: createDto.phone,
         contact_person: createDto.contactPerson,
         address: createDto.address,
+        paymentTerms: createDto.paymentTerms,
+        creditLimit: createDto.creditLimit ?? 0,
+        taxNumber: createDto.taxNumber,
+        tags: createDto.tags ?? [],
       },
       include: {
         Product: true,
@@ -61,7 +65,7 @@ export class VendorsService {
     const vendor = await this.prisma.vendor.findFirst({
       where: { id: vendorId, organizationId },
       include: {
-        Product: true,
+        ProductVendor: { include: { product: true }, orderBy: { createdAt: 'desc' } },
         purchaseOrders: {
           take: 10,
           orderBy: { createdAt: 'desc' },
@@ -93,8 +97,12 @@ export class VendorsService {
         phone: updateDto.phone,
         contact_person: updateDto.contactPerson,
         address: updateDto.address,
+        paymentTerms: updateDto.paymentTerms,
+        creditLimit: updateDto.creditLimit,
+        taxNumber: updateDto.taxNumber,
+        tags: updateDto.tags,
       },
-      include: { Product: true },
+      include: { ProductVendor: { include: { product: true } } },
     });
   }
 
@@ -168,6 +176,77 @@ export class VendorsService {
     });
 
     return { message: 'Product removed from vendor' };
+  }
+
+  /**
+   * On-time delivery %, average lead time, and price trend per product -
+   * everything is derived from data that already exists (PurchaseOrder's
+   * expected/actual delivery dates, PurchaseHistory rows keyed by vendor
+   * name) rather than needing new tracking fields.
+   */
+  async getScorecard(organizationId: number, vendorId: number) {
+    const vendor = await this.prisma.vendor.findFirst({ where: { id: vendorId, organizationId } });
+    if (!vendor) {
+      throw new NotFoundException('Vendor not found');
+    }
+
+    const deliveredPOs = await this.prisma.purchaseOrder.findMany({
+      where: {
+        organizationId,
+        vendorId,
+        status: { in: ['PARTIAL_RECEIVED', 'RECEIVED'] },
+        actual_delivery_date: { not: null },
+      },
+      select: { po_number: true, expected_delivery_date: true, actual_delivery_date: true, createdAt: true },
+    });
+
+    let onTimeCount = 0;
+    let totalLeadDays = 0;
+    let leadDaysSamples = 0;
+
+    for (const po of deliveredPOs) {
+      if (po.expected_delivery_date && po.actual_delivery_date! <= po.expected_delivery_date) {
+        onTimeCount++;
+      }
+      if (po.actual_delivery_date) {
+        const days = Math.round((po.actual_delivery_date.getTime() - po.createdAt.getTime()) / (1000 * 60 * 60 * 24));
+        totalLeadDays += days;
+        leadDaysSamples++;
+      }
+    }
+
+    const onTimeDeliveryPercent = deliveredPOs.length > 0 ? Math.round((onTimeCount / deliveredPOs.length) * 100) : null;
+    const averageLeadTimeDays = leadDaysSamples > 0 ? Math.round(totalLeadDays / leadDaysSamples) : null;
+
+    const vendorProducts = await this.prisma.productVendor.findMany({
+      where: { vendorId },
+      include: { product: true },
+    });
+
+    const priceTrend = await Promise.all(
+      vendorProducts.map(async pv => {
+        const history = await this.prisma.purchaseHistory.findMany({
+          where: { productId: pv.productId, organizationId, vendor_name: vendor.name },
+          orderBy: { po_date: 'desc' },
+          take: 10,
+        });
+        return {
+          productId: pv.productId,
+          productName: pv.product.name,
+          currentPrice: pv.unit_price,
+          history: history.map(h => ({ date: h.po_date, price: h.cost_price, poNumber: h.po_number, quantity: h.quantity_purchased })),
+        };
+      }),
+    );
+
+    return {
+      vendorId,
+      vendorName: vendor.name,
+      totalDeliveredPOs: deliveredPOs.length,
+      onTimeDeliveryPercent,
+      averageLeadTimeDays,
+      priceTrend,
+    };
   }
 
   async deactivate(organizationId: number, vendorId: number) {

@@ -1,326 +1,148 @@
 import React, { useState, useEffect } from 'react';
+import { apiClient } from '../../services/api';
 import { Pagination } from '../Pagination';
+
+const ROLES = ['ADMIN', 'SALESMAN', 'WAREHOUSE', 'ACCOUNTANT', 'MANAGER', 'DATA_ENTRY'];
 
 interface User {
   id: number;
-  name: string;
   email: string;
-  role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'VIEWER';
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
-  organization?: string;
-  created_date: string;
-  last_login?: string;
+  firstName: string;
+  lastName: string;
+  role: string;
+  canViewFinancials: boolean;
+  isActive: boolean;
+  createdAt: string;
 }
 
 interface UserFormData {
-  name: string;
   email: string;
-  password?: string;
-  confirmPassword?: string;
-  role: 'ADMIN' | 'MANAGER' | 'STAFF' | 'VIEWER';
-  organization: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+  firstName: string;
+  lastName: string;
+  password: string;
+  role: string;
+  canViewFinancials: boolean;
 }
 
-const rolePermissions: Record<string, string[]> = {
-  ADMIN: [
-    'View All Data',
-    'Create/Edit/Delete Records',
-    'Manage Users',
-    'View Reports',
-    'Export/Import Data',
-    'System Settings',
-  ],
-  MANAGER: [
-    'View All Data',
-    'Create/Edit Records',
-    'View Reports',
-    'Export/Import Data',
-  ],
-  STAFF: [
-    'View Own Data',
-    'Create/Edit Own Records',
-    'View Basic Reports',
-  ],
-  VIEWER: [
-    'View All Data',
-    'View Reports Only',
-  ],
+const EMPTY_FORM: UserFormData = {
+  email: '',
+  firstName: '',
+  lastName: '',
+  password: '',
+  role: 'SALESMAN',
+  canViewFinancials: false,
 };
 
 export function UserManagement() {
-  const [users, setUsers] = useState<User[]>([
-    {
-      id: 1,
-      name: 'Ahmed Hassan',
-      email: 'ahmed@example.com',
-      role: 'ADMIN',
-      status: 'ACTIVE',
-      organization: 'Main Office',
-      created_date: '2024-01-01',
-      last_login: '2024-12-19',
-    },
-    {
-      id: 2,
-      name: 'Fatima Khan',
-      email: 'fatima@example.com',
-      role: 'MANAGER',
-      status: 'ACTIVE',
-      organization: 'Sales Department',
-      created_date: '2024-01-05',
-      last_login: '2024-12-18',
-    },
-    {
-      id: 3,
-      name: 'Ali Muhammad',
-      email: 'ali@example.com',
-      role: 'STAFF',
-      status: 'ACTIVE',
-      organization: 'Warehouse',
-      created_date: '2024-02-10',
-      last_login: '2024-12-19',
-    },
-    {
-      id: 4,
-      name: 'Aisha Malik',
-      email: 'aisha@example.com',
-      role: 'VIEWER',
-      status: 'INACTIVE',
-      organization: 'Finance',
-      created_date: '2024-03-15',
-      last_login: '2024-12-01',
-    },
-  ]);
-  const [total, setTotal] = useState(users.length);
+  const [users, setUsers] = useState<User[]>([]);
+  const [total, setTotal] = useState(0);
   const [skip, setSkip] = useState(0);
   const [take, setTake] = useState(10);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [loading, setLoading] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterRole, setFilterRole] = useState('');
-  const [filterStatus, setFilterStatus] = useState('');
-  const [showPermissions, setShowPermissions] = useState<number | null>(null);
-  const [showPasswordChange, setShowPasswordChange] = useState<number | null>(null);
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [formData, setFormData] = useState<UserFormData>({
-    name: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
-    role: 'STAFF',
-    organization: '',
-    status: 'ACTIVE',
-  });
+  const [formData, setFormData] = useState<UserFormData>(EMPTY_FORM);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   useEffect(() => {
-    filterUsers();
-  }, [searchTerm, filterRole, filterStatus]);
+    loadUsers();
+  }, [skip, take, searchTerm]);
 
-  function filterUsers() {
-    let filtered = users;
-
-    if (searchTerm) {
-      filtered = filtered.filter((u) =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
+  async function loadUsers() {
+    try {
+      setLoading(true);
+      const result = await apiClient.getUsers(skip, take, searchTerm || undefined);
+      setUsers(result.data || []);
+      setTotal(result.total || 0);
+    } catch (error) {
+      console.error('Failed to load users:', error);
+      showMessage('error', 'Failed to load users');
+    } finally {
+      setLoading(false);
     }
-
-    if (filterRole) {
-      filtered = filtered.filter((u) => u.role === filterRole);
-    }
-
-    if (filterStatus) {
-      filtered = filtered.filter((u) => u.status === filterStatus);
-    }
-
-    setTotal(filtered.length);
-    // In a real app, this would be paginated on the server
-    // For now, client-side pagination
   }
 
   function showMessage(type: 'success' | 'error', text: string) {
     setMessage({ type, text });
-    setTimeout(() => setMessage(null), 3000);
-  }
-
-  function resetForm() {
-    setFormData({
-      name: '',
-      email: '',
-      password: '',
-      confirmPassword: '',
-      role: 'STAFF',
-      organization: '',
-      status: 'ACTIVE',
-    });
-    setEditingId(null);
+    setTimeout(() => setMessage(null), 4000);
   }
 
   function openCreateModal() {
-    resetForm();
+    setFormData(EMPTY_FORM);
+    setEditingId(null);
     setShowModal(true);
   }
 
   function openEditModal(user: User) {
     setFormData({
-      name: user.name,
       email: user.email,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      password: '',
       role: user.role,
-      organization: user.organization || '',
-      status: user.status,
+      canViewFinancials: user.canViewFinancials,
     });
     setEditingId(user.id);
     setShowModal(true);
   }
 
-  function validateEmail(email: string): boolean {
-    const re = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    return re.test(email);
-  }
-
   async function handleSaveUser() {
-    if (!formData.name || !formData.email || !formData.organization) {
+    if (!formData.email || !formData.firstName || !formData.lastName) {
       showMessage('error', 'Please fill in all required fields');
       return;
     }
-
-    if (!validateEmail(formData.email)) {
-      showMessage('error', 'Invalid email address');
-      return;
-    }
-
     if (!editingId && !formData.password) {
       showMessage('error', 'Password is required for new users');
       return;
     }
-
-    if (formData.password && formData.password !== formData.confirmPassword) {
-      showMessage('error', 'Passwords do not match');
-      return;
-    }
-
-    if (formData.password && formData.password.length < 8) {
-      showMessage('error', 'Password must be at least 8 characters long');
+    if (formData.password && formData.password.length < 6) {
+      showMessage('error', 'Password must be at least 6 characters');
       return;
     }
 
     try {
       if (editingId) {
-        const userIndex = users.findIndex((u) => u.id === editingId);
-        if (userIndex >= 0) {
-          users[userIndex] = {
-            ...users[userIndex],
-            name: formData.name,
-            email: formData.email,
-            role: formData.role,
-            organization: formData.organization,
-            status: formData.status,
-          };
-          setUsers([...users]);
-          showMessage('success', 'User updated successfully');
-        }
-      } else {
-        const newUser: User = {
-          id: Math.max(...users.map((u) => u.id), 0) + 1,
-          name: formData.name,
+        const payload: any = {
           email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
           role: formData.role,
-          status: formData.status,
-          organization: formData.organization,
-          created_date: new Date().toISOString().split('T')[0],
+          canViewFinancials: formData.canViewFinancials,
         };
-        setUsers([...users, newUser]);
+        if (formData.password) payload.password = formData.password;
+        await apiClient.updateUser(editingId, payload);
+        showMessage('success', 'User updated successfully');
+      } else {
+        await apiClient.createUser({
+          email: formData.email,
+          firstName: formData.firstName,
+          lastName: formData.lastName,
+          password: formData.password,
+          role: formData.role,
+          canViewFinancials: formData.canViewFinancials,
+        });
         showMessage('success', 'User created successfully');
       }
-
       setShowModal(false);
-      resetForm();
-      filterUsers();
-    } catch (error) {
-      showMessage('error', 'Failed to save user');
-      console.error(error);
+      await loadUsers();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Failed to save user';
+      showMessage('error', msg);
     }
   }
 
-  function handleDeleteUser(userId: number) {
-    if (!window.confirm('Are you sure you want to delete this user? This action cannot be undone.')) return;
-
+  async function handleDeactivate(user: User) {
+    if (!window.confirm(`Deactivate ${user.firstName} ${user.lastName}? They will no longer be able to log in.`)) return;
     try {
-      setUsers(users.filter((u) => u.id !== userId));
-      showMessage('success', 'User deleted successfully');
-      filterUsers();
-    } catch (error) {
-      showMessage('error', 'Failed to delete user');
-      console.error(error);
+      await apiClient.deleteUser(user.id);
+      showMessage('success', 'User deactivated');
+      await loadUsers();
+    } catch (error: any) {
+      const msg = error.response?.data?.message || 'Failed to deactivate user';
+      showMessage('error', msg);
     }
   }
-
-  function handleChangePassword(userId: number) {
-    if (!newPassword || !confirmPassword) {
-      showMessage('error', 'Please enter new password and confirmation');
-      return;
-    }
-
-    if (newPassword !== confirmPassword) {
-      showMessage('error', 'Passwords do not match');
-      return;
-    }
-
-    if (newPassword.length < 8) {
-      showMessage('error', 'Password must be at least 8 characters long');
-      return;
-    }
-
-    try {
-      // In a real app, this would call the API
-      showMessage('success', 'Password changed successfully');
-      setShowPasswordChange(null);
-      setNewPassword('');
-      setConfirmPassword('');
-    } catch (error) {
-      showMessage('error', 'Failed to change password');
-      console.error(error);
-    }
-  }
-
-  function toggleUserStatus(user: User) {
-    const newStatus = user.status === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
-    const userIndex = users.findIndex((u) => u.id === user.id);
-    if (userIndex >= 0) {
-      users[userIndex] = { ...users[userIndex], status: newStatus };
-      setUsers([...users]);
-      showMessage('success', `User ${newStatus.toLowerCase()}`);
-      filterUsers();
-    }
-  }
-
-  function getDisplayedUsers() {
-    let filtered = users;
-
-    if (searchTerm) {
-      filtered = filtered.filter((u) =>
-        u.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        u.email.toLowerCase().includes(searchTerm.toLowerCase())
-      );
-    }
-
-    if (filterRole) {
-      filtered = filtered.filter((u) => u.role === filterRole);
-    }
-
-    if (filterStatus) {
-      filtered = filtered.filter((u) => u.status === filterStatus);
-    }
-
-    return filtered.slice(skip, skip + take);
-  }
-
-  const displayedUsers = getDisplayedUsers();
-  const roles = ['ADMIN', 'MANAGER', 'STAFF', 'VIEWER'];
-  const statuses = ['ACTIVE', 'INACTIVE', 'SUSPENDED'];
 
   return (
     <div style={styles.container}>
@@ -346,39 +168,20 @@ export function UserManagement() {
           type="text"
           placeholder="Search by name or email..."
           value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
+          onChange={(e) => { setSearchTerm(e.target.value); setSkip(0); }}
           style={styles.searchInput}
         />
-        <select
-          value={filterRole}
-          onChange={(e) => setFilterRole(e.target.value)}
-          style={styles.selectInput}
-        >
-          <option value="">All Roles</option>
-          {roles.map((r) => (
-            <option key={r} value={r}>{r}</option>
-          ))}
-        </select>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          style={styles.selectInput}
-        >
-          <option value="">All Statuses</option>
-          {statuses.map((s) => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
       </div>
 
       <div style={styles.statsGrid}>
         <StatCard label="Total Users" value={total} icon="👥" />
-        <StatCard label="Active Users" value={users.filter((u) => u.status === 'ACTIVE').length} icon="✅" />
-        <StatCard label="Admins" value={users.filter((u) => u.role === 'ADMIN').length} icon="👑" />
-        <StatCard label="Managers" value={users.filter((u) => u.role === 'MANAGER').length} icon="📋" />
+        <StatCard label="Active" value={users.filter((u) => u.isActive).length} icon="✅" />
+        <StatCard label="Can View Financials" value={users.filter((u) => u.canViewFinancials).length} icon="💰" />
       </div>
 
-      {displayedUsers.length === 0 ? (
+      {loading ? (
+        <p style={styles.noResults}>Loading...</p>
+      ) : users.length === 0 ? (
         <p style={styles.noResults}>No users found</p>
       ) : (
         <>
@@ -389,64 +192,37 @@ export function UserManagement() {
                   <th style={styles.th}>Name</th>
                   <th style={styles.th}>Email</th>
                   <th style={styles.th}>Role</th>
-                  <th style={styles.th}>Organization</th>
+                  <th style={styles.th}>Financial Access</th>
                   <th style={styles.th}>Status</th>
                   <th style={styles.th}>Created</th>
-                  <th style={styles.th}>Last Login</th>
                   <th style={styles.th}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {displayedUsers.map((user) => (
+                {users.map((user) => (
                   <tr key={user.id} style={styles.tr}>
-                    <td style={styles.td}><strong>{user.name}</strong></td>
+                    <td style={styles.td}><strong>{user.firstName} {user.lastName}</strong></td>
                     <td style={styles.td}>{user.email}</td>
                     <td style={styles.td}>
                       <span style={getRoleStyle(user.role)}>{user.role}</span>
                     </td>
-                    <td style={styles.td}>{user.organization || '-'}</td>
+                    <td style={styles.td}>{user.canViewFinancials ? '💰 Yes' : '—'}</td>
                     <td style={styles.td}>
-                      <span style={getStatusStyle(user.status)}>{user.status}</span>
+                      <span style={getStatusStyle(user.isActive)}>{user.isActive ? 'Active' : 'Inactive'}</span>
                     </td>
-                    <td style={styles.td}>{new Date(user.created_date).toLocaleDateString()}</td>
-                    <td style={styles.td}>{user.last_login ? new Date(user.last_login).toLocaleDateString() : 'Never'}</td>
+                    <td style={styles.td}>{new Date(user.createdAt).toLocaleDateString()}</td>
                     <td style={styles.td}>
                       <div style={styles.actionButtons}>
-                        <button
-                          onClick={() => setShowPermissions(showPermissions === user.id ? null : user.id)}
-                          style={styles.actionBtn}
-                          title="View Permissions"
-                        >
-                          🔑
-                        </button>
-                        <button
-                          onClick={() => setShowPasswordChange(showPasswordChange === user.id ? null : user.id)}
-                          style={styles.actionBtn}
-                          title="Change Password"
-                        >
-                          🔐
-                        </button>
-                        <button
-                          onClick={() => openEditModal(user)}
-                          style={styles.actionBtn}
-                          title="Edit"
-                        >
-                          ✏️
-                        </button>
-                        <button
-                          onClick={() => toggleUserStatus(user)}
-                          style={styles.actionBtn}
-                          title={user.status === 'ACTIVE' ? 'Deactivate' : 'Activate'}
-                        >
-                          {user.status === 'ACTIVE' ? '🔒' : '🔓'}
-                        </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          style={{ ...styles.actionBtn, color: '#e74c3c' }}
-                          title="Delete"
-                        >
-                          🗑️
-                        </button>
+                        <button onClick={() => openEditModal(user)} style={styles.actionBtn} title="Edit">✏️</button>
+                        {user.isActive && (
+                          <button
+                            onClick={() => handleDeactivate(user)}
+                            style={{ ...styles.actionBtn, color: '#e74c3c' }}
+                            title="Deactivate"
+                          >
+                            🔒
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -454,66 +230,6 @@ export function UserManagement() {
               </tbody>
             </table>
           </div>
-
-          {showPermissions && (
-            <div style={styles.expandedRow}>
-              <div style={styles.expandedContent}>
-                <h4>Permissions for {users.find((u) => u.id === showPermissions)?.role}</h4>
-                <div style={styles.permissionsGrid}>
-                  {rolePermissions[users.find((u) => u.id === showPermissions)?.role || 'VIEWER']?.map((perm) => (
-                    <div key={perm} style={styles.permissionItem}>
-                      <span style={styles.permissionCheck}>✓</span>
-                      <span>{perm}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showPasswordChange && (
-            <div style={styles.expandedRow}>
-              <div style={styles.expandedContent}>
-                <h4>Change Password</h4>
-                <div style={styles.passwordForm}>
-                  <div style={styles.formGroup}>
-                    <label>New Password</label>
-                    <input
-                      type="password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      style={styles.input}
-                      placeholder="Enter new password (min 8 characters)"
-                    />
-                  </div>
-                  <div style={styles.formGroup}>
-                    <label>Confirm Password</label>
-                    <input
-                      type="password"
-                      value={confirmPassword}
-                      onChange={(e) => setConfirmPassword(e.target.value)}
-                      style={styles.input}
-                      placeholder="Confirm password"
-                    />
-                  </div>
-                  <div style={styles.actionButtons}>
-                    <button
-                      onClick={() => setShowPasswordChange(null)}
-                      style={styles.secondaryBtn}
-                    >
-                      Cancel
-                    </button>
-                    <button
-                      onClick={() => handleChangePassword(showPasswordChange)}
-                      style={styles.primaryBtn}
-                    >
-                      Update Password
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
 
           <Pagination
             currentPage={Math.floor(skip / take) + 1}
@@ -536,15 +252,25 @@ export function UserManagement() {
             </div>
 
             <div style={styles.modalBody}>
-              <div style={styles.formGroup}>
-                <label>Full Name *</label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  style={styles.input}
-                  placeholder="Enter full name"
-                />
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
+                  <label>First Name *</label>
+                  <input
+                    type="text"
+                    value={formData.firstName}
+                    onChange={(e) => setFormData({ ...formData, firstName: e.target.value })}
+                    style={styles.input}
+                  />
+                </div>
+                <div style={styles.formGroup}>
+                  <label>Last Name *</label>
+                  <input
+                    type="text"
+                    value={formData.lastName}
+                    onChange={(e) => setFormData({ ...formData, lastName: e.target.value })}
+                    style={styles.input}
+                  />
+                </div>
               </div>
 
               <div style={styles.formGroup}>
@@ -554,84 +280,48 @@ export function UserManagement() {
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   style={styles.input}
-                  placeholder="Enter email address"
                 />
               </div>
 
               <div style={styles.formGroup}>
-                <label>Organization *</label>
+                <label>{editingId ? 'New Password (leave blank to keep current)' : 'Password *'}</label>
                 <input
-                  type="text"
-                  value={formData.organization}
-                  onChange={(e) => setFormData({ ...formData, organization: e.target.value })}
+                  type="password"
+                  value={formData.password}
+                  onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                   style={styles.input}
-                  placeholder="Enter organization name"
+                  placeholder="Min 6 characters"
                 />
               </div>
 
-              <div style={styles.formRow}>
-                <div style={styles.formGroup}>
-                  <label>Role *</label>
-                  <select
-                    value={formData.role}
-                    onChange={(e) => setFormData({ ...formData, role: e.target.value as any })}
-                    style={styles.input}
-                  >
-                    {roles.map((r) => (
-                      <option key={r} value={r}>{r}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={styles.formGroup}>
-                  <label>Status *</label>
-                  <select
-                    value={formData.status}
-                    onChange={(e) => setFormData({ ...formData, status: e.target.value as any })}
-                    style={styles.input}
-                  >
-                    {statuses.map((s) => (
-                      <option key={s} value={s}>{s}</option>
-                    ))}
-                  </select>
-                </div>
+              <div style={styles.formGroup}>
+                <label>Role *</label>
+                <select
+                  value={formData.role}
+                  onChange={(e) => setFormData({ ...formData, role: e.target.value })}
+                  style={styles.input}
+                >
+                  {ROLES.map((r) => (
+                    <option key={r} value={r}>{r}</option>
+                  ))}
+                </select>
               </div>
 
-              {!editingId && (
-                <>
-                  <div style={styles.formRow}>
-                    <div style={styles.formGroup}>
-                      <label>Password *</label>
-                      <input
-                        type="password"
-                        value={formData.password || ''}
-                        onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                        style={styles.input}
-                        placeholder="Enter password (min 8 characters)"
-                      />
-                    </div>
-
-                    <div style={styles.formGroup}>
-                      <label>Confirm Password *</label>
-                      <input
-                        type="password"
-                        value={formData.confirmPassword || ''}
-                        onChange={(e) => setFormData({ ...formData, confirmPassword: e.target.value })}
-                        style={styles.input}
-                        placeholder="Confirm password"
-                      />
-                    </div>
-                  </div>
-                </>
-              )}
-
-              <div style={styles.roleInfo}>
-                <p><strong>Selected Role Permissions:</strong></p>
-                <ul style={styles.permissionsList}>
-                  {rolePermissions[formData.role].map((perm) => (
-                    <li key={perm}>{perm}</li>
-                  ))}
-                </ul>
+              <div style={styles.formGroup}>
+                <label>
+                  <input
+                    type="checkbox"
+                    checked={formData.canViewFinancials}
+                    onChange={(e) => setFormData({ ...formData, canViewFinancials: e.target.checked })}
+                    style={{ marginRight: '8px' }}
+                  />
+                  Can View Financials
+                </label>
+                <p style={styles.hint}>
+                  Grants access to the Income Statement, Balance Sheet, Vendor pricing, and cost
+                  data (Products, Purchase Orders) anywhere in the app. Independent of role — grant
+                  this only to trusted individuals, regardless of what role they otherwise hold.
+                </p>
               </div>
             </div>
 
@@ -667,26 +357,28 @@ function getRoleStyle(role: string): React.CSSProperties {
     fontSize: '12px',
     fontWeight: '500',
   };
-
-  if (role === 'ADMIN') return { ...base, backgroundColor: '#ffe5e5', color: '#721c24' };
-  if (role === 'MANAGER') return { ...base, backgroundColor: '#cfe2ff', color: '#084298' };
-  if (role === 'STAFF') return { ...base, backgroundColor: '#e7d4f5', color: '#711a87' };
-  if (role === 'VIEWER') return { ...base, backgroundColor: '#fff3cd', color: '#856404' };
-  return base;
+  const colors: Record<string, { bg: string; fg: string }> = {
+    ADMIN: { bg: '#ffe5e5', fg: '#721c24' },
+    MANAGER: { bg: '#cfe2ff', fg: '#084298' },
+    ACCOUNTANT: { bg: '#e7d4f5', fg: '#711a87' },
+    SALESMAN: { bg: '#d4edda', fg: '#155724' },
+    WAREHOUSE: { bg: '#fff3cd', fg: '#856404' },
+    DATA_ENTRY: { bg: '#e2e3e5', fg: '#383d41' },
+  };
+  const c = colors[role] || { bg: '#e2e3e5', fg: '#383d41' };
+  return { ...base, backgroundColor: c.bg, color: c.fg };
 }
 
-function getStatusStyle(status: string): React.CSSProperties {
+function getStatusStyle(isActive: boolean): React.CSSProperties {
   const base: React.CSSProperties = {
     padding: '4px 8px',
     borderRadius: '3px',
     fontSize: '12px',
     fontWeight: '500',
   };
-
-  if (status === 'ACTIVE') return { ...base, backgroundColor: '#d4edda', color: '#155724' };
-  if (status === 'INACTIVE') return { ...base, backgroundColor: '#e2e3e5', color: '#383d41' };
-  if (status === 'SUSPENDED') return { ...base, backgroundColor: '#f8d7da', color: '#721c24' };
-  return base;
+  return isActive
+    ? { ...base, backgroundColor: '#d4edda', color: '#155724' }
+    : { ...base, backgroundColor: '#e2e3e5', color: '#383d41' };
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -708,13 +400,6 @@ const styles: Record<string, React.CSSProperties> = {
     border: '1px solid #ddd',
     borderRadius: '4px',
     fontSize: '14px',
-  },
-  selectInput: {
-    padding: '10px 12px',
-    border: '1px solid #ddd',
-    borderRadius: '4px',
-    fontSize: '14px',
-    minWidth: '150px',
   },
   statsGrid: {
     display: 'grid',
@@ -784,32 +469,6 @@ const styles: Record<string, React.CSSProperties> = {
     cursor: 'pointer',
     fontSize: '12px',
   },
-  expandedRow: {
-    backgroundColor: '#f9f9f9',
-    padding: '20px',
-    margin: '12px 0',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-  },
-  expandedContent: {},
-  permissionsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '12px',
-    marginTop: '12px',
-  },
-  permissionItem: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    padding: '8px 12px',
-    backgroundColor: 'white',
-    borderRadius: '4px',
-    border: '1px solid #ddd',
-    fontSize: '13px',
-  },
-  permissionCheck: { color: '#28a745', fontWeight: 'bold', fontSize: '16px' },
-  passwordForm: { marginTop: '12px' },
   modal: {
     position: 'fixed' as const,
     top: 0,
@@ -855,16 +514,11 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     fontFamily: 'inherit',
   },
-  roleInfo: {
-    padding: '12px',
-    backgroundColor: '#f0f0f0',
-    borderRadius: '4px',
-    marginTop: '16px',
-  },
-  permissionsList: {
-    margin: '8px 0 0 20px',
-    fontSize: '13px',
-    color: '#555',
+  hint: {
+    fontSize: '12px',
+    color: '#666',
+    marginTop: '6px',
+    lineHeight: 1.4,
   },
   modalFooter: {
     display: 'flex',

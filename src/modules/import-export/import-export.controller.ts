@@ -12,6 +12,8 @@ import { Response } from 'express';
 import { ImportExportService } from './services/import-export.service';
 import { ImportRequestDto } from './dto/import-export.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('import-export')
@@ -22,6 +24,8 @@ export class ImportExportController {
   // ==================== EXPORT ENDPOINTS ====================
 
   @Get('export/products')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.export')
   async exportProducts(@OrgContext() orgContext: any, @Res() res: Response) {
     try {
       const result = await this.importExportService.exportProducts(orgContext.organizationId);
@@ -34,6 +38,8 @@ export class ImportExportController {
   }
 
   @Get('export/bills')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.export')
   async exportBills(@OrgContext() orgContext: any, @Res() res: Response) {
     try {
       const result = await this.importExportService.exportBills(orgContext.organizationId);
@@ -46,6 +52,8 @@ export class ImportExportController {
   }
 
   @Get('export/purchase-orders')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.export')
   async exportPurchaseOrders(@OrgContext() orgContext: any, @Res() res: Response) {
     try {
       const result = await this.importExportService.exportPurchaseOrders(orgContext.organizationId);
@@ -58,6 +66,8 @@ export class ImportExportController {
   }
 
   @Get('export/customers')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.export')
   async exportCustomers(@OrgContext() orgContext: any, @Res() res: Response) {
     try {
       const result = await this.importExportService.exportCustomers(orgContext.organizationId);
@@ -70,6 +80,8 @@ export class ImportExportController {
   }
 
   @Get('export/vendors')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.export')
   async exportVendors(@OrgContext() orgContext: any, @Res() res: Response) {
     try {
       const result = await this.importExportService.exportVendors(orgContext.organizationId);
@@ -84,6 +96,8 @@ export class ImportExportController {
   // ==================== IMPORT ENDPOINTS ====================
 
   @Post('import/products')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.import')
   async importProducts(@Body() request: ImportRequestDto, @OrgContext() orgContext: any) {
     try {
       if (!request.csvData) {
@@ -99,6 +113,8 @@ export class ImportExportController {
   }
 
   @Post('import/bills')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.import')
   async importBills(@Body() request: ImportRequestDto, @OrgContext() orgContext: any) {
     try {
       if (!request.csvData) {
@@ -111,6 +127,8 @@ export class ImportExportController {
   }
 
   @Post('import/purchase-orders')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.import')
   async importPurchaseOrders(@Body() request: ImportRequestDto, @OrgContext() orgContext: any) {
     try {
       if (!request.csvData) {
@@ -126,6 +144,8 @@ export class ImportExportController {
   }
 
   @Post('import/customers')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.import')
   async importCustomers(@Body() request: ImportRequestDto, @OrgContext() orgContext: any) {
     try {
       if (!request.csvData) {
@@ -141,6 +161,8 @@ export class ImportExportController {
   }
 
   @Post('import/vendors')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('import_export.import')
   async importVendors(@Body() request: ImportRequestDto, @OrgContext() orgContext: any) {
     try {
       if (!request.csvData) {

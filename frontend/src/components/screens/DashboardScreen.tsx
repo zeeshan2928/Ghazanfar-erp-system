@@ -1,456 +1,255 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import {
+  LineChart, Line, BarChart, Bar, PieChart, Pie, Cell,
+  XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
+} from 'recharts';
 import { apiClient } from '../../services/api';
 
-interface DashboardStats {
-  totalProducts: number;
-  totalVendors: number;
-  totalCustomers: number;
-  totalInventoryValue: number;
-  pendingOrders: number;
-  totalSales: number;
-  lowStockProducts: number;
-  recentBills: Array<{ id: number; billNumber: string; total: number; date: string; status: string }>;
+interface DailyTrendPoint {
+  date: string;
+  sales: number;
+  billCount: number;
+  avgBillValue: number;
 }
 
+interface YearlyComparisonRow {
+  month: string;
+  [year: string]: number | string;
+}
+
+interface CashCollectionMethod { method: string; amount: number }
+interface CashCollection {
+  totalCollected: number;
+  billCount: number;
+  byMethod: CashCollectionMethod[];
+}
+
+interface ExpenseByCategory { category: string; amount: number }
+interface ExpenseByAccount { accountName: string; accountCode: string; amount: number }
+interface ExpenseBreakdown {
+  totalExpense: number;
+  byCategory: ExpenseByCategory[];
+  byAccount: ExpenseByAccount[];
+}
+
+interface ExpenseTrendPoint { month: string; amount: number }
+
+const YEAR_COLORS = ['#94a3b8', '#2563eb', '#16a34a'];
+const CASH_METHOD_COLORS: Record<string, string> = {
+  CASH: '#16a34a',
+  CHEQUE: '#f59e0b',
+  BANK_TRANSFER: '#2563eb',
+  MOBILE_MONEY: '#a855f7',
+  UNSPECIFIED: '#94a3b8',
+};
+const EXPENSE_CATEGORY_COLORS = ['#dc2626', '#f59e0b', '#2563eb', '#a855f7', '#16a34a', '#94a3b8'];
+
 export function DashboardScreen() {
-  const [stats, setStats] = useState<DashboardStats | null>(null);
+  const [dailyTrend, setDailyTrend] = useState<DailyTrendPoint[]>([]);
+  const [yearlyComparison, setYearlyComparison] = useState<{ years: number[]; rows: YearlyComparisonRow[] }>({ years: [], rows: [] });
+  const [cashCollection, setCashCollection] = useState<CashCollection | null>(null);
+  const [expenseBreakdown, setExpenseBreakdown] = useState<ExpenseBreakdown | null>(null);
+  const [expenseTrend, setExpenseTrend] = useState<ExpenseTrendPoint[]>([]);
+  const [lowStockCount, setLowStockCount] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchDashboardData();
-    // Refresh every 30 seconds for real-time updates
-    const interval = setInterval(fetchDashboardData, 30000);
+    loadAll();
+    const interval = setInterval(loadAll, 60000);
     return () => clearInterval(interval);
   }, []);
 
-  async function fetchDashboardData() {
+  async function loadAll() {
+    setLoading(true);
     try {
-      setLoading(true);
-      // In a real app, you'd have a dedicated dashboard API endpoint
-      // For now, we'll fetch data from existing endpoints
-      const [products, customers] = await Promise.all([
-        // Simulate getting stats - in real implementation,
-        // backend would provide aggregated data
-        Promise.resolve({
-          data: [],
-          total: 2382,
-          stats: {
-            inventory_value: 125000000,
-            low_stock: 45,
-            pending_orders: 12,
-            total_sales: 45000000
-          }
-        }),
-        Promise.resolve({
-          data: [],
-          total: 10
-        })
+      const [trendR, yearlyR, cashR, expenseR, expenseTrendR, lowStockR] = await Promise.allSettled([
+        apiClient.getDailySalesTrend(30),
+        apiClient.getYearlyMonthlyComparison(3),
+        apiClient.getTodayCashCollection(),
+        apiClient.getExpenseBreakdown(),
+        apiClient.getExpenseTrend(6),
+        apiClient.getLowStockAlerts(),
       ]);
 
-      setStats({
-        totalProducts: products.total,
-        totalVendors: 15, // From our setup
-        totalCustomers: customers.total,
-        totalInventoryValue: 125000000, // 125 million PKR (example)
-        pendingOrders: 12,
-        totalSales: 45000000, // 45 million PKR YTD
-        lowStockProducts: 45,
-        recentBills: [
-          { id: 1, billNumber: 'INV-0001-2026', total: 450000, date: '2026-07-04', status: 'PAID' },
-          { id: 2, billNumber: 'INV-0002-2026', total: 320000, date: '2026-07-03', status: 'FINALIZED' },
-          { id: 3, billNumber: 'INV-0003-2026', total: 580000, date: '2026-07-02', status: 'DRAFT' },
-          { id: 4, billNumber: 'INV-0004-2026', total: 220000, date: '2026-07-01', status: 'PAID' },
-          { id: 5, billNumber: 'INV-0005-2026', total: 760000, date: '2026-06-30', status: 'FINALIZED' },
-        ]
-      });
-      setError(null);
-    } catch (err) {
-      setError('Failed to load dashboard data');
-      console.error(err);
+      if (trendR.status === 'fulfilled') setDailyTrend(trendR.value.dailyTrend || []);
+      if (yearlyR.status === 'fulfilled') setYearlyComparison(yearlyR.value);
+      if (cashR.status === 'fulfilled') setCashCollection(cashR.value);
+      if (expenseR.status === 'fulfilled') setExpenseBreakdown(expenseR.value);
+      if (expenseTrendR.status === 'fulfilled') setExpenseTrend(expenseTrendR.value.months || []);
+      if (lowStockR.status === 'fulfilled') setLowStockCount(lowStockR.value.totalAlerts ?? lowStockR.value.alerts?.length ?? 0);
     } finally {
       setLoading(false);
     }
   }
 
-  if (loading) {
-    return <div style={styles.loading}>📊 Loading Dashboard...</div>;
-  }
+  const todayPoint = dailyTrend[dailyTrend.length - 1];
+  const yesterdayPoint = dailyTrend[dailyTrend.length - 2];
+  const todaySales = todayPoint?.sales || 0;
+  const yesterdaySales = yesterdayPoint?.sales || 0;
+  const trendPercent = yesterdaySales > 0 ? ((todaySales - yesterdaySales) / yesterdaySales) * 100 : (todaySales > 0 ? 100 : 0);
+  const trendUp = trendPercent >= 0;
 
-  // For now, show mock dashboard even without API data
-  if (error) {
-    console.warn('Dashboard data error:', error);
-  }
-
-  const displayStats = stats || {
-    totalProducts: 2382,
-    totalVendors: 15,
-    totalCustomers: 10,
-    totalInventoryValue: 125000000,
-    pendingOrders: 12,
-    totalSales: 45000000,
-    lowStockProducts: 45,
-    recentBills: [
-      { id: 1, billNumber: 'INV-0001-2026', total: 450000, date: '2026-07-04', status: 'PAID' },
-      { id: 2, billNumber: 'INV-0002-2026', total: 320000, date: '2026-07-03', status: 'FINALIZED' },
-      { id: 3, billNumber: 'INV-0003-2026', total: 580000, date: '2026-07-02', status: 'DRAFT' },
-    ]
-  };
+  const monthSales = dailyTrend.reduce((sum, d) => sum + d.sales, 0);
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1>📊 Business Dashboard</h1>
-        <p style={styles.subtitle}>Real-time overview of your ERP operations</p>
-        <button onClick={fetchDashboardData} style={styles.refreshBtn}>
-          🔄 Refresh
-        </button>
+        <div>
+          <h1 style={styles.h1}>Business Overview</h1>
+          <p style={styles.subtitle}>Live snapshot of today's business</p>
+        </div>
+        <button style={styles.refreshBtn} onClick={loadAll} disabled={loading}>{loading ? 'Loading...' : '🔄 Refresh'}</button>
       </div>
 
-      {/* Main KPI Cards */}
       <div style={styles.kpiGrid}>
-        <KPICard
-          icon="📦"
-          label="Total Products"
-          value={displayStats.totalProducts.toLocaleString()}
-          color="#667eea"
-          trend={+120}
-          description="In system"
-        />
-        <KPICard
-          icon="🏢"
-          label="Vendors"
-          value={displayStats.totalVendors.toLocaleString()}
-          color="#f093fb"
-          trend={+3}
-          description="Active suppliers"
-        />
-        <KPICard
-          icon="👥"
-          label="Customers"
-          value={displayStats.totalCustomers.toLocaleString()}
-          color="#4facfe"
-          trend={+1}
-          description="Active buyers"
-        />
-        <KPICard
-          icon="💰"
-          label="Inventory Value"
-          value={`PKR ${(displayStats.totalInventoryValue / 1000000).toFixed(1)}M`}
-          color="#43e97b"
-          trend={+8.5}
-          description="Total stock value"
-        />
-        <KPICard
-          icon="⏳"
-          label="Pending Orders"
-          value={displayStats.pendingOrders.toLocaleString()}
-          color="#fa709a"
-          trend={-2}
-          description="Awaiting approval"
-        />
-        <KPICard
-          icon="📈"
-          label="YTD Sales"
-          value={`PKR ${(displayStats.totalSales / 1000000).toFixed(1)}M`}
-          color="#fee140"
-          trend={+15.3}
-          description="Year to date"
-        />
-        <KPICard
-          icon="⚠️"
-          label="Low Stock Items"
-          value={displayStats.lowStockProducts.toLocaleString()}
-          color="#ff6b9d"
-          trend={-5}
-          description="Need reorder"
-        />
-        <KPICard
-          icon="✅"
-          label="System Health"
-          value="100%"
-          color="#26de81"
-          trend={0}
-          description="All systems operational"
-        />
-      </div>
-
-      {/* Quick Actions */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>⚡ Quick Actions</h2>
-        <div style={styles.actionGrid}>
-          <ActionButton icon="📝" label="Create Bill" description="New sales invoice" />
-          <ActionButton icon="📦" label="Create PO" description="New purchase order" />
-          <ActionButton icon="📊" label="View Reports" description="Sales analytics" />
-          <ActionButton icon="⚙️" label="Settings" description="System config" />
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Today's Sales</div>
+          <div style={styles.kpiValue}>{todaySales.toLocaleString()}</div>
+          <div style={{ ...styles.kpiTrend, color: trendUp ? '#16a34a' : '#dc2626' }}>
+            {trendUp ? '▲' : '▼'} {Math.abs(trendPercent).toFixed(1)}% vs yesterday
+          </div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Last 30 Days Sales</div>
+          <div style={styles.kpiValue}>{monthSales.toLocaleString()}</div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Cash Collected Today</div>
+          <div style={styles.kpiValue}>{(cashCollection?.totalCollected || 0).toLocaleString()}</div>
+        </div>
+        <div style={styles.kpiCard}>
+          <div style={styles.kpiLabel}>Expense This Month</div>
+          <div style={styles.kpiValue}>{(expenseTrend[expenseTrend.length - 1]?.amount || 0).toLocaleString()}</div>
+        </div>
+        <div style={{ ...styles.kpiCard, ...(lowStockCount ? styles.kpiCardWarning : {}) }}>
+          <div style={styles.kpiLabel}>Low Stock Alerts</div>
+          <div style={styles.kpiValue}>{lowStockCount ?? '—'}</div>
         </div>
       </div>
 
-      {/* Recent Transactions */}
-      <div style={styles.section}>
-        <h2 style={styles.sectionTitle}>📋 Recent Bills</h2>
-        <div style={styles.tableWrapper}>
+      <div style={styles.chartCard}>
+        <h4 style={styles.chartTitle}>Day-to-Day Sales (last 30 days)</h4>
+        {dailyTrend.length === 0 ? <p>No sales recorded yet.</p> : (
+          <ResponsiveContainer width="100%" height={280}>
+            <LineChart data={dailyTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="date" tick={{ fontSize: 11 }} />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={2} dot={false} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div style={styles.chartCard}>
+        <h4 style={styles.chartTitle}>12-Month Comparison ({yearlyComparison.years.join(' vs ')})</h4>
+        {yearlyComparison.rows.length === 0 ? <p>No historical data yet.</p> : (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={yearlyComparison.rows}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              {yearlyComparison.years.map((year, i) => (
+                <Bar key={year} dataKey={String(year)} fill={YEAR_COLORS[i % YEAR_COLORS.length]} />
+              ))}
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      <div style={styles.chartsRow}>
+        <div style={styles.chartCard}>
+          <h4 style={styles.chartTitle}>Live Cash Collection (today)</h4>
+          {!cashCollection || cashCollection.byMethod.length === 0 ? <p>No collections yet today.</p> : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={cashCollection.byMethod} dataKey="amount" nameKey="method" outerRadius={80} label>
+                  {cashCollection.byMethod.map(entry => (
+                    <Cell key={entry.method} fill={CASH_METHOD_COLORS[entry.method] || '#999'} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+
+        <div style={styles.chartCard}>
+          <h4 style={styles.chartTitle}>Expense Breakdown (this fiscal year)</h4>
+          {!expenseBreakdown || expenseBreakdown.byCategory.length === 0 ? <p>No expense postings yet.</p> : (
+            <ResponsiveContainer width="100%" height={240}>
+              <PieChart>
+                <Pie data={expenseBreakdown.byCategory} dataKey="amount" nameKey="category" outerRadius={80} label>
+                  {expenseBreakdown.byCategory.map((entry, i) => (
+                    <Cell key={entry.category} fill={EXPENSE_CATEGORY_COLORS[i % EXPENSE_CATEGORY_COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+                <Legend />
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </div>
+      </div>
+
+      <div style={styles.chartCard}>
+        <h4 style={styles.chartTitle}>Expense Trend (last 6 months)</h4>
+        {expenseTrend.length === 0 ? <p>No expense data.</p> : (
+          <ResponsiveContainer width="100%" height={240}>
+            <LineChart data={expenseTrend}>
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Line type="monotone" dataKey="amount" stroke="#dc2626" strokeWidth={2} />
+            </LineChart>
+          </ResponsiveContainer>
+        )}
+      </div>
+
+      {expenseBreakdown && expenseBreakdown.byAccount.length > 0 && (
+        <div style={styles.chartCard}>
+          <h4 style={styles.chartTitle}>Top Expense Accounts (this fiscal year)</h4>
           <table style={styles.table}>
             <thead>
-              <tr style={styles.tableHeader}>
-                <th style={styles.th}>Bill Number</th>
-                <th style={styles.th}>Amount</th>
-                <th style={styles.th}>Date</th>
-                <th style={styles.th}>Status</th>
-              </tr>
+              <tr><th style={styles.th}>Account</th><th style={styles.th}>Code</th><th style={styles.th}>Amount</th></tr>
             </thead>
             <tbody>
-              {displayStats.recentBills.map((bill) => (
-                <tr key={bill.id} style={styles.tableRow}>
-                  <td style={styles.td}>{bill.billNumber}</td>
-                  <td style={styles.td}>PKR {bill.total.toLocaleString()}</td>
-                  <td style={styles.td}>{bill.date}</td>
-                  <td style={styles.td}>
-                    <span style={getStatusBadge(bill.status)}>
-                      {bill.status}
-                    </span>
-                  </td>
+              {expenseBreakdown.byAccount.slice(0, 10).map(a => (
+                <tr key={a.accountCode}>
+                  <td style={styles.td}>{a.accountName}</td>
+                  <td style={styles.td}>{a.accountCode}</td>
+                  <td style={styles.td}>{a.amount.toLocaleString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
-      </div>
-
-      {/* System Info */}
-      <div style={styles.infoBar}>
-        <span>Last updated: {new Date().toLocaleTimeString()}</span>
-        <span>Data refreshes every 30 seconds</span>
-      </div>
+      )}
     </div>
   );
-}
-
-interface KPICardProps {
-  icon: string;
-  label: string;
-  value: string;
-  color: string;
-  trend: number;
-  description: string;
-}
-
-function KPICard({ icon, label, value, color, trend, description }: KPICardProps) {
-  const trendColor = trend > 0 ? '#26de81' : trend < 0 ? '#fa709a' : '#888';
-  const trendSymbol = trend > 0 ? '↑' : trend < 0 ? '↓' : '→';
-
-  return (
-    <div style={{ ...styles.kpiCard, borderLeft: `4px solid ${color}` }}>
-      <div style={styles.kpiHeader}>
-        <span style={styles.icon}>{icon}</span>
-        <span style={styles.label}>{label}</span>
-      </div>
-      <div style={styles.kpiValue}>{value}</div>
-      <div style={styles.kpiFooter}>
-        <span style={styles.description}>{description}</span>
-        {trend !== 0 && (
-          <span style={{ ...styles.trend, color: trendColor }}>
-            {trendSymbol} {Math.abs(trend)}%
-          </span>
-        )}
-      </div>
-    </div>
-  );
-}
-
-interface ActionButtonProps {
-  icon: string;
-  label: string;
-  description: string;
-}
-
-function ActionButton({ icon, label, description }: ActionButtonProps) {
-  return (
-    <button style={styles.actionButton}>
-      <div style={styles.actionIcon}>{icon}</div>
-      <div style={styles.actionLabel}>{label}</div>
-      <div style={styles.actionDesc}>{description}</div>
-    </button>
-  );
-}
-
-function getStatusBadge(status: string): React.CSSProperties {
-  const baseStyles: React.CSSProperties = {
-    padding: '4px 8px',
-    borderRadius: '4px',
-    fontSize: '11px',
-    fontWeight: 'bold',
-  };
-
-  switch (status) {
-    case 'PAID':
-      return { ...baseStyles, backgroundColor: '#d4edda', color: '#155724' };
-    case 'FINALIZED':
-      return { ...baseStyles, backgroundColor: '#d1ecf1', color: '#0c5460' };
-    case 'DRAFT':
-      return { ...baseStyles, backgroundColor: '#fff3cd', color: '#856404' };
-    default:
-      return { ...baseStyles, backgroundColor: '#e2e3e5', color: '#383d41' };
-  }
 }
 
 const styles: Record<string, React.CSSProperties> = {
-  container: {
-    padding: '20px',
-    backgroundColor: '#f5f7fa',
-    minHeight: '100vh',
-  },
-  header: {
-    marginBottom: '30px',
-    position: 'relative',
-  },
-  subtitle: {
-    color: '#666',
-    margin: '5px 0 0 0',
-    fontSize: '14px',
-  },
-  refreshBtn: {
-    position: 'absolute',
-    top: '0',
-    right: '0',
-    padding: '8px 16px',
-    backgroundColor: '#667eea',
-    color: 'white',
-    border: 'none',
-    borderRadius: '4px',
-    cursor: 'pointer',
-    fontSize: '13px',
-  },
-  kpiGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
-    gap: '16px',
-    marginBottom: '30px',
-  },
-  kpiCard: {
-    backgroundColor: 'white',
-    padding: '16px',
-    borderRadius: '8px',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  kpiHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    marginBottom: '8px',
-  },
-  icon: {
-    fontSize: '20px',
-  },
-  label: {
-    fontSize: '12px',
-    color: '#666',
-    fontWeight: 600,
-  },
-  kpiValue: {
-    fontSize: '24px',
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: '8px',
-  },
-  kpiFooter: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    fontSize: '11px',
-  },
-  description: {
-    color: '#999',
-  },
-  trend: {
-    fontWeight: 'bold',
-  },
-  section: {
-    marginBottom: '30px',
-  },
-  sectionTitle: {
-    fontSize: '16px',
-    fontWeight: 'bold',
-    marginBottom: '16px',
-    color: '#333',
-  },
-  actionGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))',
-    gap: '12px',
-  },
-  actionButton: {
-    backgroundColor: 'white',
-    border: '1px solid #ddd',
-    borderRadius: '8px',
-    padding: '16px',
-    cursor: 'pointer',
-    textAlign: 'center',
-    transition: 'all 0.2s',
-  },
-  actionIcon: {
-    fontSize: '24px',
-    marginBottom: '8px',
-  },
-  actionLabel: {
-    fontSize: '13px',
-    fontWeight: 'bold',
-    color: '#333',
-    marginBottom: '4px',
-  },
-  actionDesc: {
-    fontSize: '11px',
-    color: '#999',
-  },
-  tableWrapper: {
-    backgroundColor: 'white',
-    borderRadius: '8px',
-    overflow: 'hidden',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.1)',
-  },
-  table: {
-    width: '100%',
-    borderCollapse: 'collapse',
-  },
-  tableHeader: {
-    backgroundColor: '#f9f9f9',
-  },
-  th: {
-    padding: '12px',
-    textAlign: 'left',
-    fontWeight: 'bold',
-    fontSize: '12px',
-    color: '#666',
-    borderBottom: '2px solid #eee',
-  },
-  tableRow: {
-    borderBottom: '1px solid #eee',
-  },
-  td: {
-    padding: '12px',
-    fontSize: '13px',
-    color: '#333',
-  },
-  infoBar: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    padding: '12px 16px',
-    backgroundColor: 'white',
-    borderRadius: '4px',
-    fontSize: '12px',
-    color: '#999',
-    marginTop: '20px',
-  },
-  loading: {
-    textAlign: 'center',
-    padding: '100px 20px',
-    fontSize: '18px',
-    color: '#666',
-  },
-  error: {
-    textAlign: 'center',
-    padding: '100px 20px',
-    fontSize: '18px',
-    color: '#d32f2f',
-  },
+  container: { padding: '20px', backgroundColor: '#f5f7fa', minHeight: '100vh' },
+  header: { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' },
+  h1: { margin: 0, fontSize: '22px' },
+  subtitle: { color: '#666', margin: '4px 0 0 0', fontSize: '14px' },
+  refreshBtn: { padding: '8px 16px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '6px', cursor: 'pointer', fontSize: '13px', fontWeight: 600 },
+  kpiGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '14px', marginBottom: '20px' },
+  kpiCard: { backgroundColor: 'white', padding: '16px', borderRadius: '8px', boxShadow: '0 2px 4px rgba(0,0,0,0.08)' },
+  kpiCardWarning: { borderLeft: '4px solid #f59e0b' },
+  kpiLabel: { fontSize: '12px', color: '#666', marginBottom: '6px' },
+  kpiValue: { fontSize: '22px', fontWeight: 700, color: '#222' },
+  kpiTrend: { fontSize: '12px', fontWeight: 700, marginTop: '4px' },
+  chartsRow: { display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' },
+  chartCard: { background: 'white', border: '1px solid #eee', borderRadius: '8px', padding: '16px', marginBottom: '16px', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' },
+  chartTitle: { margin: '0 0 8px 0' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { textAlign: 'left', borderBottom: '2px solid #ddd', padding: '8px', fontSize: '13px', color: '#555' },
+  td: { borderBottom: '1px solid #eee', padding: '8px', fontSize: '14px' },
 };

@@ -13,6 +13,8 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { GatePassesService } from '../services/gate-passes.service';
 
 @Controller('api/v1/gate-passes')
@@ -25,6 +27,8 @@ export class GatePassesController {
    * Query params: warehouseId, status, skip, take
    */
   @Get()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.view')
   async getAllGatePasses(
     @Request() req: any,
     @Query('warehouseId') warehouseId?: string,
@@ -46,6 +50,8 @@ export class GatePassesController {
    * GET warehouse dashboard stats
    */
   @Get('warehouse/:warehouseId/stats')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.view')
   async getWarehouseStats(@Request() req: any, @Param('warehouseId') warehouseId: string) {
     const organizationId = req.user.organizationId;
 
@@ -56,6 +62,8 @@ export class GatePassesController {
    * GET single gate pass by ID
    */
   @Get(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.view')
   async getGatePassById(@Request() req: any, @Param('id') id: string) {
     const organizationId = req.user.organizationId;
 
@@ -78,6 +86,8 @@ export class GatePassesController {
    * PATCH - Update picked quantity for single item
    */
   @Patch(':id/pick-item/:billLineId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.pick')
   async updatePickQuantity(
     @Request() req: any,
     @Param('id') gatePassId: string,
@@ -102,6 +112,8 @@ export class GatePassesController {
    * POST - Complete picking: Mark all items as picked
    */
   @Post(':id/complete-picking')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.pick')
   async completePicking(@Request() req: any, @Param('id') gatePassId: string) {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
@@ -113,6 +125,8 @@ export class GatePassesController {
    * POST - Confirm gate pass: Validates picked quantities and updates inventory
    */
   @Post(':id/confirm')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.confirm')
   async confirmGatePass(
     @Request() req: any,
     @Param('id') gatePassId: string,
@@ -129,6 +143,8 @@ export class GatePassesController {
    */
   @Post(':id/reject')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.reject')
   async rejectGatePass(
     @Request() req: any,
     @Param('id') gatePassId: string,
@@ -143,10 +159,28 @@ export class GatePassesController {
   }
 
   /**
+   * POST - Record a print event for a gate pass. First print always
+   * succeeds; a second+ print is a reprint and is ADMIN-only (hard rule,
+   * not a togglable permission). Call this right before window.print(),
+   * and use the returned isDuplicate flag to render a DUPLICATE watermark.
+   */
+  @Post(':id/record-print')
+  @HttpCode(HttpStatus.OK)
+  async recordPrint(@Request() req: any, @Param('id') gatePassId: string) {
+    return this.gatePassesService.recordPrint(
+      req.user.organizationId,
+      parseInt(gatePassId, 10),
+      req.user.role,
+    );
+  }
+
+  /**
    * POST - Report shortage: Staff marks items not available for picking
    */
   @Post(':id/report-shortage')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('gatepasses.report_shortage')
   async reportShortage(
     @Request() req: any,
     @Param('id') gatePassId: string,

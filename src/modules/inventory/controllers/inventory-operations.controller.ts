@@ -12,6 +12,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryOperationsService } from '../services/inventory-operations.service';
 
 @Controller('api/v1/inventory/operations')
@@ -24,6 +26,8 @@ export class InventoryOperationsController {
    * Body: { productId, warehouseId, openingBalance? }
    */
   @Post('create')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.set_levels')
   async createInventory(
     @Request() req: any,
     @Body()
@@ -49,6 +53,8 @@ export class InventoryOperationsController {
    */
   @Post('stock-in')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.stock_in')
   async stockIn(
     @Request() req: any,
     @Body()
@@ -80,6 +86,8 @@ export class InventoryOperationsController {
    */
   @Post('stock-out')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.stock_out')
   async stockOut(
     @Request() req: any,
     @Body()
@@ -111,6 +119,8 @@ export class InventoryOperationsController {
    */
   @Post('adjust')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.adjust')
   async adjustStock(
     @Request() req: any,
     @Body()
@@ -142,6 +152,8 @@ export class InventoryOperationsController {
    */
   @Post('transfers/initiate')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.transfer')
   async initiateTransfer(
     @Request() req: any,
     @Body()
@@ -172,6 +184,8 @@ export class InventoryOperationsController {
    * Params: transferId
    */
   @Patch('transfers/:transferId/confirm')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.transfer')
   async confirmTransfer(@Request() req: any, @Param('transferId') transferId: string) {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
@@ -188,6 +202,8 @@ export class InventoryOperationsController {
    * Query: limit?, offset?
    */
   @Get('movements/:inventoryId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getMovementHistory(
     @Request() req: any,
     @Param('inventoryId') inventoryId: string,
@@ -209,6 +225,8 @@ export class InventoryOperationsController {
    * Query: warehouseId?, limit?, offset?
    */
   @Get('transfers/history')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getTransferHistory(
     @Request() req: any,
     @Query('warehouseId') warehouseId?: string,
@@ -229,6 +247,8 @@ export class InventoryOperationsController {
    * GET - Get inventory summary across all warehouses
    */
   @Get('summary')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getInventorySummary(@Request() req: any) {
     const organizationId = req.user.organizationId;
 

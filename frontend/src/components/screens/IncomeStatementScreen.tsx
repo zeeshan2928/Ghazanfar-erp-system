@@ -8,14 +8,27 @@ interface IncomeStatementLine {
   amount: number;
 }
 
+interface IncomeStatementSubsection {
+  category: string;
+  label: string;
+  lines: IncomeStatementLine[];
+  total: number;
+}
+
+interface IncomeStatementSection {
+  section: string;
+  subsections: IncomeStatementSubsection[];
+  total: number;
+}
+
 interface IncomeStatement {
   period: {
     from: string;
     to: string;
   };
-  revenues: IncomeStatementLine[];
+  revenue: IncomeStatementSection;
+  expenses: IncomeStatementSection;
   totalRevenue: number;
-  expenses: IncomeStatementLine[];
   totalExpenses: number;
   netIncome: number;
 }
@@ -101,31 +114,50 @@ export function IncomeStatementScreen() {
             </p>
           </div>
 
-          {/* REVENUES */}
+          {/* REVENUE */}
           <div style={styles.section}>
-            <h4 style={styles.sectionTitle}>REVENUES</h4>
-            <table style={styles.table}>
-              <tbody>
-                {incomeStatement.revenues.length > 0 ? (
-                  incomeStatement.revenues.map((line) => (
-                    <tr key={line.accountId} style={styles.tr}>
-                      <td style={{ ...styles.td, paddingLeft: '30px' }}>
-                        {line.accountCode} - {line.accountName}
+            <h4 style={styles.sectionTitle}>REVENUE</h4>
+            {incomeStatement.revenue.subsections.length > 0 ? (
+              incomeStatement.revenue.subsections.map((sub) => (
+                <table key={sub.category} style={styles.table}>
+                  <tbody>
+                    <tr>
+                      <td colSpan={2} style={styles.subsectionTitle}>{sub.label}</td>
+                    </tr>
+                    {sub.lines.map((line) => (
+                      <tr key={line.accountId} style={styles.tr}>
+                        <td style={{ ...styles.td, paddingLeft: '30px' }}>
+                          {line.accountCode} - {line.accountName}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right' as const }}>
+                          PKR {formatCurrency(line.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={styles.tr}>
+                      <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
+                        Total {sub.label}
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'right' as const }}>
-                        PKR {formatCurrency(line.amount)}
+                      <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                        PKR {formatCurrency(sub.total)}
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  </tbody>
+                </table>
+              ))
+            ) : (
+              <table style={styles.table}>
+                <tbody>
                   <tr style={styles.tr}>
-                    <td style={styles.td} colSpan={2}>
-                      No revenue accounts
-                    </td>
+                    <td style={styles.td} colSpan={2}>No revenue accounts</td>
                   </tr>
-                )}
+                </tbody>
+              </table>
+            )}
+            <table style={styles.table}>
+              <tbody>
                 <tr style={{ ...styles.tr, borderTop: '1px solid #333' }}>
-                  <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Revenues</td>
+                  <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Revenue</td>
                   <td
                     style={{
                       ...styles.td,
@@ -143,26 +175,45 @@ export function IncomeStatementScreen() {
           {/* EXPENSES */}
           <div style={styles.section}>
             <h4 style={styles.sectionTitle}>EXPENSES</h4>
-            <table style={styles.table}>
-              <tbody>
-                {incomeStatement.expenses.length > 0 ? (
-                  incomeStatement.expenses.map((line) => (
-                    <tr key={line.accountId} style={styles.tr}>
-                      <td style={{ ...styles.td, paddingLeft: '30px' }}>
-                        {line.accountCode} - {line.accountName}
+            {incomeStatement.expenses.subsections.length > 0 ? (
+              incomeStatement.expenses.subsections.map((sub) => (
+                <table key={sub.category} style={styles.table}>
+                  <tbody>
+                    <tr>
+                      <td colSpan={2} style={styles.subsectionTitle}>{sub.label}</td>
+                    </tr>
+                    {sub.lines.map((line) => (
+                      <tr key={line.accountId} style={styles.tr}>
+                        <td style={{ ...styles.td, paddingLeft: '30px' }}>
+                          {line.accountCode} - {line.accountName}
+                        </td>
+                        <td style={{ ...styles.td, textAlign: 'right' as const }}>
+                          PKR {formatCurrency(line.amount)}
+                        </td>
+                      </tr>
+                    ))}
+                    <tr style={styles.tr}>
+                      <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
+                        Total {sub.label}
                       </td>
-                      <td style={{ ...styles.td, textAlign: 'right' as const }}>
-                        PKR {formatCurrency(line.amount)}
+                      <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                        PKR {formatCurrency(sub.total)}
                       </td>
                     </tr>
-                  ))
-                ) : (
+                  </tbody>
+                </table>
+              ))
+            ) : (
+              <table style={styles.table}>
+                <tbody>
                   <tr style={styles.tr}>
-                    <td style={styles.td} colSpan={2}>
-                      No expense accounts
-                    </td>
+                    <td style={styles.td} colSpan={2}>No expense accounts</td>
                   </tr>
-                )}
+                </tbody>
+              </table>
+            )}
+            <table style={styles.table}>
+              <tbody>
                 <tr style={{ ...styles.tr, borderTop: '1px solid #333' }}>
                   <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Expenses</td>
                   <td
@@ -265,6 +316,13 @@ const styles = {
     marginBottom: '10px',
     borderBottom: '1px solid #333',
     paddingBottom: '5px',
+  },
+  subsectionTitle: {
+    fontSize: '14px',
+    fontWeight: 'bold' as const,
+    paddingTop: '10px',
+    paddingBottom: '5px',
+    color: '#555',
   },
   table: {
     width: '100%' as const,

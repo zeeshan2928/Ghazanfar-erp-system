@@ -1,20 +1,26 @@
-import { Controller, Get, Query } from '@nestjs/common';
+import { Controller, Get, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { OrgContext } from '../../../common/decorators/org-context.decorator';
-import { Public } from '../../../common/decorators/public.decorator';
+import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { FinancialAccessGuard } from '../../../common/guards/financial-access.guard';
 import { BalanceSheetService } from '../services/balance-sheet.service';
 import { IncomeStatementService } from '../services/income-statement.service';
+import { GeneralLedgerService } from '../services/general-ledger.service';
+import { CashJournalsService } from '../services/cash-journals.service';
 
 @Controller('gl-reporting')
+@UseGuards(JwtGuard)
 export class GLReportingController {
   constructor(
     private balanceSheetService: BalanceSheetService,
     private incomeStatementService: IncomeStatementService,
+    private generalLedgerService: GeneralLedgerService,
+    private cashJournalsService: CashJournalsService,
   ) {}
 
   @Get('balance-sheet')
-  @Public()
+  @UseGuards(FinancialAccessGuard)
   async getBalanceSheet(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('asOf') asOf?: string,
   ) {
     return this.balanceSheetService.getBalanceSheet(
@@ -24,9 +30,9 @@ export class GLReportingController {
   }
 
   @Get('income-statement')
-  @Public()
+  @UseGuards(FinancialAccessGuard)
   async getIncomeStatement(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('from') from?: string,
     @Query('to') to?: string,
   ) {
@@ -38,5 +44,47 @@ export class GLReportingController {
       fromDate,
       toDate,
     );
+  }
+
+  @Get('general-ledger')
+  async getGeneralLedger(
+    @OrgContext() { organizationId }: any,
+    @Query('accountId', ParseIntPipe) accountId: number,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fromDate = from ? new Date(from) : new Date(new Date().getFullYear(), 0, 1);
+    const toDate = to ? new Date(to) : new Date();
+
+    return this.generalLedgerService.getAccountLedger(
+      organizationId,
+      accountId,
+      fromDate,
+      toDate,
+    );
+  }
+
+  @Get('cash-receipts-journal')
+  async getCashReceiptsJournal(
+    @OrgContext() { organizationId }: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fromDate = from ? new Date(from) : new Date(new Date().getFullYear(), 0, 1);
+    const toDate = to ? new Date(to) : new Date();
+
+    return this.cashJournalsService.getCashReceiptsJournal(organizationId, fromDate, toDate);
+  }
+
+  @Get('cash-disbursements-journal')
+  async getCashDisbursementsJournal(
+    @OrgContext() { organizationId }: any,
+    @Query('from') from?: string,
+    @Query('to') to?: string,
+  ) {
+    const fromDate = from ? new Date(from) : new Date(new Date().getFullYear(), 0, 1);
+    const toDate = to ? new Date(to) : new Date();
+
+    return this.cashJournalsService.getCashDisbursementsJournal(organizationId, fromDate, toDate);
   }
 }

@@ -12,9 +12,23 @@ export class ProductsService {
         code: data.code,
         name: data.name,
         cost_price: parseInt(data.costPrice || data.cost_price) || 0,
+        categoryId: data.categoryId ? parseInt(data.categoryId) : undefined,
+        brandId: data.brandId ? parseInt(data.brandId) : undefined,
         isActive: true,
       },
     });
+  }
+
+  async getById(organizationId: number, productId: number) {
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, organizationId },
+    });
+
+    if (!product) {
+      throw new NotFoundException('Product not found');
+    }
+
+    return product;
   }
 
   async getPurchaseHistory(organizationId: number, productId: number, limit = 5) {

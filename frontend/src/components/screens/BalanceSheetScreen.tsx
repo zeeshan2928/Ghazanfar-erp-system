@@ -8,22 +8,26 @@ interface BalanceSheetLine {
   amount: number;
 }
 
-interface BalanceSheetSection {
-  name: string;
+interface BalanceSheetSubsection {
+  category: string;
+  label: string;
   lines: BalanceSheetLine[];
-  subtotal: number;
+  total: number;
+}
+
+interface BalanceSheetSection {
+  section: string;
+  subsections: BalanceSheetSubsection[];
+  total: number;
 }
 
 interface BalanceSheet {
-  period: {
-    from: string;
-    to: string;
-  };
+  asOfDate: string;
   assets: BalanceSheetSection;
   liabilities: BalanceSheetSection;
   equity: BalanceSheetSection;
   totalAssets: number;
-  totalLiabilitiesEquity: number;
+  totalLiabilitiesAndEquity: number;
   isBalanced: boolean;
 }
 
@@ -90,18 +94,35 @@ export function BalanceSheetScreen() {
           {/* ASSETS */}
           <div style={styles.section}>
             <h4 style={styles.sectionTitle}>ASSETS</h4>
-            <table style={styles.table}>
-              <tbody>
-                {balanceSheet.assets.lines.map((line) => (
-                  <tr key={line.accountId} style={styles.tr}>
-                    <td style={{ ...styles.td, paddingLeft: '30px' }}>
-                      {line.accountCode} - {line.accountName}
+            {balanceSheet.assets.subsections.map((sub) => (
+              <table key={sub.category} style={styles.table}>
+                <tbody>
+                  <tr>
+                    <td colSpan={2} style={styles.subsectionTitle}>{sub.label}</td>
+                  </tr>
+                  {sub.lines.map((line) => (
+                    <tr key={line.accountId} style={styles.tr}>
+                      <td style={{ ...styles.td, paddingLeft: '30px' }}>
+                        {line.accountCode} - {line.accountName}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: 'right' as const }}>
+                        PKR {formatCurrency(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={styles.tr}>
+                    <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
+                      Total {sub.label}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right' as const }}>
-                      PKR {formatCurrency(line.amount)}
+                    <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                      PKR {formatCurrency(sub.total)}
                     </td>
                   </tr>
-                ))}
+                </tbody>
+              </table>
+            ))}
+            <table style={styles.table}>
+              <tbody>
                 <tr style={{ ...styles.tr, borderTop: '2px solid #333' }}>
                   <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Assets</td>
                   <td
@@ -118,65 +139,81 @@ export function BalanceSheetScreen() {
             </table>
           </div>
 
-          {/* LIABILITIES */}
+          {/* LIABILITIES & EQUITY */}
           <div style={styles.section}>
             <h4 style={styles.sectionTitle}>LIABILITIES & EQUITY</h4>
 
-            <h5 style={styles.subsectionTitle}>Liabilities</h5>
-            <table style={styles.table}>
-              <tbody>
-                {balanceSheet.liabilities.lines.map((line) => (
-                  <tr key={line.accountId} style={styles.tr}>
-                    <td style={{ ...styles.td, paddingLeft: '30px' }}>
-                      {line.accountCode} - {line.accountName}
+            {balanceSheet.liabilities.subsections.map((sub) => (
+              <table key={sub.category} style={styles.table}>
+                <tbody>
+                  <tr>
+                    <td colSpan={2} style={styles.subsectionTitle}>{sub.label}</td>
+                  </tr>
+                  {sub.lines.map((line) => (
+                    <tr key={line.accountId} style={styles.tr}>
+                      <td style={{ ...styles.td, paddingLeft: '30px' }}>
+                        {line.accountCode} - {line.accountName}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: 'right' as const }}>
+                        PKR {formatCurrency(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={styles.tr}>
+                    <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
+                      Total {sub.label}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right' as const }}>
-                      PKR {formatCurrency(line.amount)}
+                    <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                      PKR {formatCurrency(sub.total)}
                     </td>
                   </tr>
-                ))}
+                </tbody>
+              </table>
+            ))}
+            <table style={styles.table}>
+              <tbody>
                 <tr style={styles.tr}>
-                  <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
-                    Total Liabilities
-                  </td>
-                  <td
-                    style={{
-                      ...styles.td,
-                      textAlign: 'right' as const,
-                      fontWeight: 'bold' as const,
-                    }}
-                  >
-                    PKR {formatCurrency(balanceSheet.liabilities.subtotal)}
+                  <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Liabilities</td>
+                  <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                    PKR {formatCurrency(balanceSheet.liabilities.total)}
                   </td>
                 </tr>
               </tbody>
             </table>
 
-            <h5 style={styles.subsectionTitle}>Equity</h5>
-            <table style={styles.table}>
-              <tbody>
-                {balanceSheet.equity.lines.map((line) => (
-                  <tr key={line.accountId} style={styles.tr}>
-                    <td style={{ ...styles.td, paddingLeft: '30px' }}>
-                      {line.accountCode} - {line.accountName}
+            {balanceSheet.equity.subsections.map((sub) => (
+              <table key={sub.category} style={styles.table}>
+                <tbody>
+                  <tr>
+                    <td colSpan={2} style={styles.subsectionTitle}>{sub.label}</td>
+                  </tr>
+                  {sub.lines.map((line) => (
+                    <tr key={line.accountId} style={styles.tr}>
+                      <td style={{ ...styles.td, paddingLeft: '30px' }}>
+                        {line.accountCode} - {line.accountName}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: 'right' as const }}>
+                        PKR {formatCurrency(line.amount)}
+                      </td>
+                    </tr>
+                  ))}
+                  <tr style={styles.tr}>
+                    <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
+                      Total {sub.label}
                     </td>
-                    <td style={{ ...styles.td, textAlign: 'right' as const }}>
-                      PKR {formatCurrency(line.amount)}
+                    <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                      PKR {formatCurrency(sub.total)}
                     </td>
                   </tr>
-                ))}
+                </tbody>
+              </table>
+            ))}
+            <table style={styles.table}>
+              <tbody>
                 <tr style={styles.tr}>
-                  <td style={{ ...styles.td, paddingLeft: '20px', fontWeight: 'bold' as const }}>
-                    Total Equity
-                  </td>
-                  <td
-                    style={{
-                      ...styles.td,
-                      textAlign: 'right' as const,
-                      fontWeight: 'bold' as const,
-                    }}
-                  >
-                    PKR {formatCurrency(balanceSheet.equity.subtotal)}
+                  <td style={{ ...styles.td, fontWeight: 'bold' as const }}>Total Equity</td>
+                  <td style={{ ...styles.td, textAlign: 'right' as const, fontWeight: 'bold' as const }}>
+                    PKR {formatCurrency(balanceSheet.equity.total)}
                   </td>
                 </tr>
                 <tr style={{ ...styles.tr, borderTop: '2px solid #333' }}>
@@ -190,7 +227,7 @@ export function BalanceSheetScreen() {
                       fontWeight: 'bold' as const,
                     }}
                   >
-                    PKR {formatCurrency(balanceSheet.totalLiabilitiesEquity)}
+                    PKR {formatCurrency(balanceSheet.totalLiabilitiesAndEquity)}
                   </td>
                 </tr>
               </tbody>

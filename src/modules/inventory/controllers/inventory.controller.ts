@@ -12,6 +12,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryReservationService } from '../services/inventory-reservation.service';
 import { InventoryOperationsService } from '../services/inventory-operations.service';
 
@@ -27,6 +29,8 @@ export class InventoryController {
    * POST - Create inventory for a product in a warehouse
    */
   @Post()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.set_levels')
   async createInventory(
     @Request() req: any,
     @Body() body: { productId: number; warehouseId: number; openingBalance?: number },
@@ -45,6 +49,8 @@ export class InventoryController {
    * POST - Check availability for multiple products
    */
   @Post('check-availability')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async checkAvailability(
     @Request() req: any,
     @Body()
@@ -61,6 +67,8 @@ export class InventoryController {
    * GET - Get status of single inventory item with reservations
    */
   @Get(':productId/warehouse/:warehouseId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getInventoryStatus(
     @Request() req: any,
     @Param('productId') productId: string,
@@ -79,6 +87,8 @@ export class InventoryController {
    * GET - Reservation history for an inventory item
    */
   @Get(':inventoryId/reservations')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getReservationHistory(@Request() req: any, @Param('inventoryId') inventoryId: string) {
     const organizationId = req.user.organizationId;
 
@@ -92,6 +102,8 @@ export class InventoryController {
    * GET - Detect shortage items in warehouse
    */
   @Get('shortages')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getShortages(@Request() req: any, @Query('warehouseId') warehouseId?: string) {
     const organizationId = req.user.organizationId;
 
@@ -109,6 +121,8 @@ export class InventoryController {
    * GET - Full warehouse inventory status
    */
   @Get('warehouse/:warehouseId/status')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getWarehouseInventoryStatus(
     @Request() req: any,
     @Param('warehouseId') warehouseId: string,
@@ -123,6 +137,8 @@ export class InventoryController {
    */
   @Delete('reservations/:reservationId')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.release_reservation')
   async releaseReservation(
     @Request() req: any,
     @Param('reservationId') reservationId: string,

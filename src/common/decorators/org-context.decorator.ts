@@ -5,6 +5,8 @@ export interface OrgContextType {
   userId?: number;
   email?: string;
   role?: string;
+  canViewFinancials?: boolean;
+  permissions?: Record<string, boolean>;
 }
 
 export const OrgContext = createParamDecorator(
@@ -18,6 +20,8 @@ export const OrgContext = createParamDecorator(
         userId: user.sub,
         email: user.email,
         role: user.role,
+        canViewFinancials: user.canViewFinancials,
+        permissions: user.permissions,
       };
     }
 

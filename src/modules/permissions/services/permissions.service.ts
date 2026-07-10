@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { UserRole } from '@prisma/client';
+import { PERMISSION_CATALOG, ALL_PERMISSION_KEYS } from '@common/config/permission-catalog';
 
 // NOTE: this permission matrix was designed for an 8-role model (ADMIN,
 // MANAGER, ACCOUNTANT, SALESMAN, WAREHOUSE_STAFF, LABOUR_STAFF, STAFF, VIEWER)
@@ -600,5 +601,83 @@ export class PermissionsService {
       this.logger.error(`Failed to validate update data: ${error.message}`);
       return [];
     }
+  }
+
+  // --- Real, enforced, DB-backed granular permission system ---
+  // Everything below is separate from the in-memory ENTITY_PERMISSIONS/
+  // DEFAULT_FIELD_PERMISSIONS matrix above (which is unenforced and built
+  // against a role model that doesn't match the real UserRole enum). This
+  // is backed by the actual UserPermission table and is what
+  // ActionPermissionGuard checks against.
+
+  getPermissionCatalog() {
+    return PERMISSION_CATALOG;
+  }
+
+  // Merges the catalog with this user's stored overrides - default-allow,
+  // so a key with no row is reported as granted:true.
+  async getUserPermissionOverrides(organizationId: number, userId: number) {
+    const rows = await this.prisma.userPermission.findMany({
+      where: { organizationId, userId },
+    });
+    const overrideByKey = new Map(rows.map((r) => [r.permissionKey, r.granted]));
+
+    return PERMISSION_CATALOG.map((mod) => ({
+      module: mod.module,
+      label: mod.label,
+      permissions: mod.permissions.map((p) => ({
+        key: p.key,
+        label: p.label,
+        granted: overrideByKey.has(p.key) ? overrideByKey.get(p.key)! : true,
+      })),
+    }));
+  }
+
+  // Caller must be ADMIN - checked by the controller before calling this,
+  // mirroring the existing assignRole check pattern.
+  async setUserPermissionOverrides(
+    organizationId: number,
+    userId: number,
+    overrides: { key: string; granted: boolean }[],
+  ) {
+    const validKeys = new Set(ALL_PERMISSION_KEYS);
+    const filtered = overrides.filter((o) => validKeys.has(o.key));
+
+    await this.prisma.$transaction(
+      filtered.map((o) =>
+        this.prisma.userPermission.upsert({
+          where: { userId_permissionKey: { userId, permissionKey: o.key } },
+          create: { organizationId, userId, permissionKey: o.key, granted: o.granted },
+          update: { granted: o.granted },
+        }),
+      ),
+    );
+
+    return this.getUserPermissionOverrides(organizationId, userId);
+  }
+
+  // Org-wide summary of custom restrictions in place - the Administration
+  // Dashboard's "users with custom permission restrictions" KPI + most-
+  // restricted-permissions table. Only granted:false rows are real
+  // restrictions (default-allow model - see UserPermission in schema.prisma).
+  async getPermissionOverrideStats(organizationId: number) {
+    const restrictedRows = await this.prisma.userPermission.findMany({
+      where: { organizationId, granted: false },
+      select: { userId: true, permissionKey: true },
+    });
+
+    const usersWithRestrictions = new Set(restrictedRows.map((r) => r.userId)).size;
+
+    const byKey = new Map<string, number>();
+    restrictedRows.forEach((r) => byKey.set(r.permissionKey, (byKey.get(r.permissionKey) || 0) + 1));
+
+    return {
+      usersWithRestrictions,
+      totalRestrictions: restrictedRows.length,
+      mostRestrictedKeys: Array.from(byKey.entries())
+        .map(([permissionKey, count]) => ({ permissionKey, count }))
+        .sort((a, b) => b.count - a.count)
+        .slice(0, 10),
+    };
   }
 }

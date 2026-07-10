@@ -1,4 +1,5 @@
-import { IsEmail, IsString, MinLength, IsOptional, IsNumber } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsNumber, IsEnum, IsBoolean } from 'class-validator';
+import { UserRole } from '@prisma/client';
 
 export class CreateUserDto {
   @IsEmail()
@@ -17,6 +18,15 @@ export class CreateUserDto {
   @IsNumber()
   @IsOptional()
   organizationId?: number;
+
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole;
+
+  // Only an ADMIN caller may set this - enforced in UsersService, not here.
+  @IsBoolean()
+  @IsOptional()
+  canViewFinancials?: boolean;
 }
 
 export class UpdateUserDto {
@@ -36,6 +46,15 @@ export class UpdateUserDto {
   @IsString()
   @MinLength(6)
   password?: string;
+
+  @IsEnum(UserRole)
+  @IsOptional()
+  role?: UserRole;
+
+  // Only an ADMIN caller may set this - enforced in UsersService, not here.
+  @IsBoolean()
+  @IsOptional()
+  canViewFinancials?: boolean;
 }
 
 export class ChangePasswordDto {

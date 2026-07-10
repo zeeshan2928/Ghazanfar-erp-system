@@ -157,3 +157,31 @@ jaisa kai sorting , filtering, next bill, previous bill, shorcuts, agar mai kiss
 aap iss ko long long soch lo phir jawab daina,
 meri erp system mai yeah function hona chahiyai kai yeah kissi bhi file maslan excel sai data add kar sakai , like user, vedors, opening balances, sales man, warehouses, previous transactions
 inventory items and their opeing balances, account heads, account tables, general entry, etc.
+Vendor scorecard —  price trend per product over time (the data for this already exists in ProductVendor/PurchaseOrderReceipt). Best price highlighting, reorder suggestion auto ( auto po creations ) printablt transfer slip . through me questions
+my version of auto po generation is this i ll set the low order, and min order qunatiy in product creation or edititng screen, when the product hit that low, a notification will appear on software dashboard, saari products aik jagha per jaama hotee jaai ga jab waha per hamarai pass auto generate ya manual generate ka option ho ga, 
+agar aik product aik sai ziadah vendors sai aa rahee hai tu vendor select kiyai ja sakai gai
+jb ham create ka button press karain gai to po create ho jaai ga aur us ki recipts, print out ho sakai ge
+lekin vendor kai behalf per uski invoice us waqt he bannai ge jab maal wasoo ho jaai ga
+Heads that DO apply — status against each
+Accounts Receivable (Customers/Sales)
+✅ Built: Customer List, Customer Sales History, Customer Transaction History, Aged Receivables
+❌ Missing: Cash Receipts Journal, Sales Journal, Invoice Register (as a dedicated report), Items Sold to Customers, Sales Taxes/Taxable-Exempt report
+
+Accounts Payable (Vendors/Purchases)
+✅ Built: Vendor List, Vendor Ledgers/Statement, Aged Payables, PO Register/Report, Items Purchased from Vendors
+❌ Missing: Cash Disbursements Journal, Cash Requirements, Check Register (no cheque-tracking module exists at all)
+
+General Ledger: Account Information
+✅ Built: Chart of Accounts, General Journal (journal entries list), Account Variance (Budget vs Actual)
+❌ Missing: General Ledger (per-account transaction detail — not built), General Ledger Trial Balance (your next target), Cash Account Register, Working Trial Balance
+
+Financial Statements
+✅ Built: Balance Sheet, Income Statement (core versions, just enhanced with category subsections)
+❌ Missing: Cash Flow Statement, Retained Earnings Statement, Statement of Changes, multi-period/budget Income Statement variants
+
+Inventory/Stock
+✅ Built: Item List/Master List (Products), Inventory Reorder Worksheet (our ReorderScreen)
+❌ Missing: Inventory Valuation Report, Inventory Stock Status detail report, COGS Journal, Physical Inventory count sheet
+
+Account Reconciliation
+❌ Entirely missing — no bank account model exists yet at all (matches the earlier gap already flagged in the accounting-reports doc)

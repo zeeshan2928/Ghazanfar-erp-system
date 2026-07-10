@@ -603,7 +603,7 @@ export class InventoryOperationsService {
     const inventories = await this.prisma.inventory.findMany({
       where: { organizationId },
       include: {
-        Product: { select: { code: true, name: true } },
+        Product: { select: { code: true, name: true, cost_price: true } },
         warehouse: { select: { name: true } },
       },
     });
@@ -624,6 +624,7 @@ export class InventoryOperationsService {
           totalQty: 0,
           totalReserved: 0,
           totalAvailable: 0,
+          totalValue: 0,
         };
       }
 
@@ -632,6 +633,12 @@ export class InventoryOperationsService {
       summary.byWarehouse[warehouseName].totalReserved += inv.reserved || 0;
       summary.byWarehouse[warehouseName].totalAvailable +=
         inv.physical_on_hand - (inv.reserved || 0);
+
+      // On-hand quantity x unit cost - this was previously never
+      // accumulated at all (stuck at 0), so totalValue always reported 0.
+      const itemValue = inv.physical_on_hand * (inv.Product?.cost_price || 0);
+      summary.totalValue += itemValue;
+      summary.byWarehouse[warehouseName].totalValue += itemValue;
 
       // Check for low stock
       const available = inv.physical_on_hand - (inv.reserved || 0);

@@ -15,7 +15,15 @@ export class ArApAgingService {
   constructor(private prisma: PrismaService) {}
 
   // Generates AR aging report (customer/bill aging)
+  //
+  // This recomputes the FULL current snapshot every call - without clearing
+  // prior rows first, every re-run (a real daily cron, or just someone
+  // clicking "generate" twice) accumulates duplicate rows on top of each
+  // other and silently inflates the reported receivables. Same bug already
+  // fixed on the AP side (generateApAging) - mirroring that fix here.
   async generateArAging(organizationId: number, asOfDate: Date = new Date()): Promise<void> {
+    await this.prisma.arAging.deleteMany({ where: { organizationId } });
+
     const bills = await this.prisma.bill.findMany({
       where: {
         organizationId,
@@ -67,14 +75,28 @@ export class ArApAgingService {
   }
 
   // Generates AP aging report (vendor/PO aging)
+  //
+  // Payable is booked only against what's actually been received - a PO
+  // that's been SENT but nothing has arrived yet carries zero payable
+  // weight, by design (confirmed with the user: "vendor ka invoice tab
+  // banega jab maal wasool ho jayega"). That's why the status filter below
+  // excludes plain SENT, and "outstanding" is computed from received
+  // quantity x unit_cost per item rather than the PO's full ordered
+  // po_amount.
   async generateApAging(organizationId: number, asOfDate: Date = new Date()): Promise<void> {
+    // This recomputes the FULL current snapshot every call - without
+    // clearing prior rows first, every re-run (a real daily cron, or just
+    // someone clicking "generate" twice) accumulates duplicate rows on top
+    // of each other and silently inflates the reported payables.
+    await this.prisma.apAging.deleteMany({ where: { organizationId } });
+
     const purchaseOrders = await this.prisma.purchaseOrder.findMany({
       where: {
         organizationId,
         isActive: true,
-        status: { in: ['SENT', 'PARTIAL_RECEIVED', 'RECEIVED'] },
+        status: { in: ['PARTIAL_RECEIVED', 'RECEIVED'] },
       },
-      include: { vendor: true },
+      include: { vendor: true, PurchaseOrderItem: true },
     });
 
     const agingRecords: Array<{
@@ -88,8 +110,12 @@ export class ArApAgingService {
     }> = [];
 
     for (const po of purchaseOrders) {
-      const outstanding = (po.po_amount || 0) - (po.amount_paid || 0);
-      if (outstanding <= 0) continue; // Skip fully paid POs
+      const receivedValue = po.PurchaseOrderItem.reduce(
+        (sum, item) => sum + item.quantity_received * item.unit_cost,
+        0,
+      );
+      const outstanding = receivedValue - (po.amount_paid || 0);
+      if (outstanding <= 0) continue; // Nothing received yet, or fully paid
 
       // Calculate days overdue from due_date or created_date
       const referenceDate = po.due_date || po.createdAt;

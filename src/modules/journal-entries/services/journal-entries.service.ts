@@ -3,12 +3,14 @@ import { PrismaService } from '../../../database/prisma.service';
 import { CreateJournalEntryDto } from '../dto/create-journal-entry.dto';
 import { ReverseEntryDto } from '../dto/reverse-entry.dto';
 import { GLPostingService } from './gl-posting.service';
+import { TransactionSequenceService } from '../../../common/services/transaction-sequence.service';
 
 @Injectable()
 export class JournalEntriesService {
   constructor(
     private prisma: PrismaService,
     private glPostingService: GLPostingService,
+    private transactionSequenceService: TransactionSequenceService,
   ) {}
 
   async create(
@@ -37,15 +39,23 @@ export class JournalEntriesService {
       throw new BadRequestException('One or more accounts not found');
     }
 
+    const entryNumber = await this.transactionSequenceService.getNext(
+      organizationId,
+      'JOURNAL_ENTRY',
+      'JE',
+    );
+
     // Create entry in DRAFT status with lines
     const entry = await this.prisma.journalEntry.create({
       data: {
         organizationId,
+        entryNumber,
         entryDate: new Date(createDto.entryDate),
         reference: createDto.reference,
         description: createDto.description,
         memo: createDto.memo,
         status: 'DRAFT',
+        createdBy: userId,
         lines: {
           createMany: {
             data: createDto.lines.map((line) => ({
@@ -149,7 +159,7 @@ export class JournalEntriesService {
     );
 
     // Map to trial balance format
-    return accounts
+    const trialBalanceAccounts = accounts
       .map((account) => {
         const balance = balances.get(account.id);
         return {
@@ -162,6 +172,18 @@ export class JournalEntriesService {
           balance: balance?.balance || 0,
         };
       })
-      .filter((item) => item.debit > 0 || item.credit > 0);
+      .filter((item) => item.debit > 0 || item.credit > 0)
+      .sort((a, b) => a.accountCode.localeCompare(b.accountCode));
+
+    const totalDebit = trialBalanceAccounts.reduce((sum, a) => sum + a.debit, 0);
+    const totalCredit = trialBalanceAccounts.reduce((sum, a) => sum + a.credit, 0);
+
+    return {
+      asOfDate: asOfDate.toISOString().split('T')[0],
+      accounts: trialBalanceAccounts,
+      totalDebit,
+      totalCredit,
+      isBalanced: totalDebit === totalCredit,
+    };
   }
 }

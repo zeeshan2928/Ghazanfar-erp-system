@@ -17,6 +17,8 @@ import {
   NotificationPreferenceDto,
 } from './dto/create-notification.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('notifications')
@@ -28,6 +30,8 @@ export class NotificationsController {
    * Get user's notifications (paginated, unread first)
    */
   @Get()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('notifications.view')
   async getNotifications(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
@@ -48,6 +52,8 @@ export class NotificationsController {
    * Get notification history with filters
    */
   @Get('history')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('notifications.view')
   async getHistory(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
@@ -79,6 +85,8 @@ export class NotificationsController {
    */
   @Post(':id/read')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('notifications.manage')
   async markAsRead(@Param('id') notificationId: string, @OrgContext() orgContext?: any) {
     return this.notificationsService.markAsRead(
       orgContext.organizationId,
@@ -91,6 +99,8 @@ export class NotificationsController {
    */
   @Post('mark-all/read')
   @HttpCode(HttpStatus.OK)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('notifications.manage')
   async markAllAsRead(@OrgContext() orgContext?: any) {
     return this.notificationsService.markAllAsRead(orgContext.organizationId, orgContext.userId);
   }
@@ -100,6 +110,8 @@ export class NotificationsController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('notifications.manage')
   async deleteNotification(@Param('id') notificationId: string, @OrgContext() orgContext?: any) {
     await this.notificationsService.deleteNotification(
       orgContext.organizationId,

@@ -329,10 +329,11 @@ interface GatePassView {
 }
 
 interface SavedInvoice {
+  id: number;
   bill_number: string;
   total_amount: number;
   bill_date: string;
-  customer?: { name: string; phone: string };
+  customer?: { name: string; phone: string; email?: string };
   lines?: Array<{ quantity: number; unit_price: number; line_total: number; product?: { name: string; code: string } }>;
   gatePasses?: GatePassView[];
 }
@@ -360,6 +361,7 @@ export function InvoiceScreen() {
   const [customerPhone, setCustomerPhone] = useState('');
   const [salesmanId, setSalesmanId] = useState<number | ''>('');
   const [channel, setChannel] = useState('COUNTER');
+  const [creditStatus, setCreditStatus] = useState<{ creditLimit: number; outstandingBalance: number; availableCredit: number } | null>(null);
   const [paymentMethod, setPaymentMethod] = useState('CASH');
   const [discountType, setDiscountType] = useState<'PERCENTAGE' | 'FIXED'>('PERCENTAGE');
   const [discountValue, setDiscountValue] = useState('');
@@ -394,6 +396,13 @@ export function InvoiceScreen() {
   const [walkInSaving, setWalkInSaving] = useState(false);
   const [walkInError, setWalkInError] = useState('');
   const walkInPhoneDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Quick-add product popup - same idea as the Walk-in customer quick-add,
+  // for when a product doesn't exist yet while building an invoice.
+  const [quickAddProductOpen, setQuickAddProductOpen] = useState(false);
+  const [quickAddProductForm, setQuickAddProductForm] = useState({ code: '', name: '', categoryId: '', brandId: '', costPrice: '' });
+  const [quickAddProductSaving, setQuickAddProductSaving] = useState(false);
+  const [quickAddProductError, setQuickAddProductError] = useState('');
 
   // Product picker: sortable/filterable table of products, opened per line
   const [productPicker, setProductPicker] = useState<{ lineIndex: number } | null>(null);
@@ -437,6 +446,19 @@ export function InvoiceScreen() {
   const [gatePassQueueIndex, setGatePassQueueIndex] = useState(0);
   const [printingGatePass, setPrintingGatePass] = useState<GatePassView | null>(null);
   const [printingInvoice, setPrintingInvoice] = useState<SavedInvoice | null>(null);
+  const [gatePassCopies, setGatePassCopies] = useState(2);
+  const [gatePassIsDuplicate, setGatePassIsDuplicate] = useState(false);
+  const [printingGatePassBusy, setPrintingGatePassBusy] = useState(false);
+
+  // Invoice delivery: download / WhatsApp (wa.me, text pre-filled, PDF
+  // attached manually since there's no official WhatsApp file-send API) /
+  // email (real SMTP wiring, see MailerService - no-ops with a clear reason
+  // until credentials are configured).
+  const [downloadingInvoicePdf, setDownloadingInvoicePdf] = useState(false);
+  const [whatsappPhonePrompt, setWhatsappPhonePrompt] = useState(false);
+  const [whatsappPhoneInput, setWhatsappPhoneInput] = useState('');
+  const [sendingInvoiceEmail, setSendingInvoiceEmail] = useState(false);
+  const [invoiceEmailStatus, setInvoiceEmailStatus] = useState<string | null>(null);
 
   useEffect(() => {
     loadReferenceData();
@@ -497,6 +519,21 @@ export function InvoiceScreen() {
     if (txSearchOpen) fetchTxSearch();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [txSearchOpen, txPrimaryFilter, txColumnFilters, txSkip]);
+
+  // Credit-limit indicator - part of the invoice screen's "360 view": shows
+  // how much of this customer's credit limit is already used up by unpaid
+  // bills before another sale is added on top.
+  useEffect(() => {
+    if (!customerId) {
+      setCreditStatus(null);
+      return;
+    }
+    let cancelled = false;
+    apiClient.getCustomerCreditStatus(customerId as number)
+      .then(status => { if (!cancelled) setCreditStatus(status); })
+      .catch(() => { if (!cancelled) setCreditStatus(null); });
+    return () => { cancelled = true; };
+  }, [customerId]);
 
   // Click-outside closes the search popover (it isn't a full-screen modal,
   // so it needs the same pattern the product picker uses).
@@ -633,6 +670,66 @@ export function InvoiceScreen() {
     }
   }
 
+  // Opens in a real separate browser window (not an in-app popup) - this app
+  // has no client-side router, so rather than adding one just for this, the
+  // ledger is rendered as a small self-contained HTML document written
+  // directly into a blank window, the same technique already used for
+  // printable documents elsewhere in this screen.
+  async function openCustomerLedger() {
+    if (!customerId) return;
+    try {
+      const ledger = await apiClient.getCustomerLedger(customerId as number);
+      const rows = ledger.entries.map(e => `
+        <tr>
+          <td>${e.billDate.split('T')[0]}</td>
+          <td>${e.billNumber}</td>
+          <td>${e.status}</td>
+          <td style="text-align:right">${e.totalAmount}</td>
+          <td style="text-align:right">${e.amountPaid}</td>
+          <td style="text-align:right">${e.outstanding}</td>
+          <td style="text-align:right"><strong>${e.runningBalance}</strong></td>
+        </tr>
+      `).join('');
+
+      const html = `
+        <html>
+          <head>
+            <title>Ledger - ${ledger.customer.name}</title>
+            <style>
+              body { font-family: Arial, sans-serif; padding: 24px; color: #222; }
+              h2 { margin-bottom: 4px; }
+              table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+              th, td { border: 1px solid #ddd; padding: 8px; font-size: 13px; }
+              th { background: #f5f5f5; text-align: left; }
+              .summary { margin-top: 16px; font-size: 15px; font-weight: bold; }
+            </style>
+          </head>
+          <body>
+            <h2>${ledger.customer.name}</h2>
+            <div>Phone: ${ledger.customer.phone || 'N/A'} | Credit Limit: ${ledger.customer.creditLimit}</div>
+            <table>
+              <thead>
+                <tr>
+                  <th>Date</th><th>Bill #</th><th>Status</th><th>Total</th><th>Paid</th><th>Outstanding</th><th>Running Balance</th>
+                </tr>
+              </thead>
+              <tbody>${rows || '<tr><td colspan="7">No bills for this customer</td></tr>'}</tbody>
+            </table>
+            <div class="summary">Total Outstanding: ${ledger.totalOutstanding}</div>
+          </body>
+        </html>
+      `;
+
+      const ledgerWindow = window.open('', '_blank');
+      if (ledgerWindow) {
+        ledgerWindow.document.write(html);
+        ledgerWindow.document.close();
+      }
+    } catch (err) {
+      setError('Failed to load customer ledger');
+    }
+  }
+
   async function openProductHistory(productId: number | '') {
     if (!productId) return;
     try {
@@ -662,6 +759,48 @@ export function InvoiceScreen() {
       setStockPopup({ lineIndex: index, rows: stock });
     } catch (err) {
       console.error('Failed to load stock across warehouses', err);
+    }
+  }
+
+  function openQuickAddProduct() {
+    setQuickAddProductForm({ code: '', name: '', categoryId: '', brandId: '', costPrice: '' });
+    setQuickAddProductError('');
+    setQuickAddProductOpen(true);
+  }
+
+  function updateQuickAddProductField(field: keyof typeof quickAddProductForm, value: string) {
+    setQuickAddProductForm(prev => ({ ...prev, [field]: value }));
+  }
+
+  async function submitQuickAddProduct() {
+    setQuickAddProductError('');
+    if (!quickAddProductForm.name.trim()) {
+      setQuickAddProductError('Product name is required');
+      return;
+    }
+    if (!quickAddProductForm.code.trim()) {
+      setQuickAddProductError('Product code is required');
+      return;
+    }
+
+    setQuickAddProductSaving(true);
+    try {
+      const created = await apiClient.createProduct({
+        code: quickAddProductForm.code.trim(),
+        name: quickAddProductForm.name.trim(),
+        categoryId: quickAddProductForm.categoryId || undefined,
+        brandId: quickAddProductForm.brandId || undefined,
+        costPrice: quickAddProductForm.costPrice || undefined,
+      });
+      setProducts(prev => [...prev, created]);
+      setQuickAddProductOpen(false);
+      if (productPicker) {
+        await handleLineProductPick(productPicker.lineIndex, created.id);
+      }
+    } catch (err: any) {
+      setQuickAddProductError(err.response?.data?.message || 'Failed to create product');
+    } finally {
+      setQuickAddProductSaving(false);
     }
   }
 
@@ -913,6 +1052,22 @@ export function InvoiceScreen() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [lastFocusedLineIndex, lines.length]);
 
+  // Once the invoice is shown (after gate passes are printed/skipped), a
+  // single Escape closes that view so the next invoice can start - the form
+  // underneath is already reset (resetForm() ran right after save).
+  useEffect(() => {
+    if (!printingInvoice) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.preventDefault();
+      setPrintingInvoice(null);
+      setInvoiceEmailStatus(null);
+      setWhatsappPhonePrompt(false);
+    }
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [printingInvoice]);
+
   useEffect(() => {
     if (productPicker) {
       setHighlightedIndex(0);
@@ -1036,16 +1191,104 @@ export function InvoiceScreen() {
   function afterGatePassPrint() {
     const nextIndex = gatePassQueueIndex + 1;
     setPrintingGatePass(null);
+    setGatePassIsDuplicate(false);
     if (nextIndex < gatePassQueue.length) {
       setGatePassQueueIndex(nextIndex);
     } else {
       setGatePassQueue([]);
       setGatePassQueueIndex(0);
+      // Gate-pass queue finished (nothing left to skip past) - move on to
+      // the invoice print view, matching the original intended flow.
+      if (savedInvoice) setPrintingInvoice(savedInvoice);
+    }
+  }
+
+  // Records the print event server-side BEFORE actually printing, so the
+  // popup can't be used to silently print a second physical copy - the
+  // button is disabled for the duration of the call, and once print
+  // completes the queue auto-advances instead of leaving the same
+  // "Print this gate pass" button sitting there clickable again.
+  async function doPrintGatePass() {
+    if (!printingGatePass || printingGatePassBusy) return;
+    setPrintingGatePassBusy(true);
+    try {
+      const result = await apiClient.recordGatePassPrint(printingGatePass.id);
+      setGatePassIsDuplicate(result.isDuplicate);
+      // Let the DUPLICATE watermark actually paint before the print dialog opens.
+      await new Promise(resolve => setTimeout(resolve, 50));
+      window.print();
+      afterGatePassPrint();
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to print gate pass');
+    } finally {
+      setPrintingGatePassBusy(false);
     }
   }
 
   function doPrint() {
     window.print();
+  }
+
+  async function downloadInvoicePdf() {
+    if (!printingInvoice || downloadingInvoicePdf) return;
+    setDownloadingInvoicePdf(true);
+    try {
+      const blob = await apiClient.exportBillPDF(printingInvoice.id);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${printingInvoice.bill_number}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+    } catch (err: any) {
+      alert(err.response?.data?.message || 'Failed to download invoice PDF');
+    } finally {
+      setDownloadingInvoicePdf(false);
+    }
+  }
+
+  // wa.me can only pre-fill text, not attach a file - the customer's PDF
+  // must already be downloaded (see downloadInvoicePdf) and attached by hand
+  // in the WhatsApp window this opens. If there's no phone on file, ask for
+  // one inline rather than silently failing.
+  function sendInvoiceOnWhatsApp(phoneOverride?: string) {
+    if (!printingInvoice) return;
+    const phone = (phoneOverride ?? printingInvoice.customer?.phone ?? '').trim();
+    if (!phone) {
+      setWhatsappPhoneInput('');
+      setWhatsappPhonePrompt(true);
+      return;
+    }
+    const digitsOnly = phone.replace(/[^\d]/g, '');
+    const message =
+      `Invoice ${printingInvoice.bill_number}\n` +
+      `Date: ${printingInvoice.bill_date.split('T')[0]}\n` +
+      `Total: ${printingInvoice.total_amount}\n\n` +
+      `Please find your invoice PDF attached.`;
+    window.open(`https://wa.me/${digitsOnly}?text=${encodeURIComponent(message)}`, '_blank');
+  }
+
+  function confirmWhatsappPhone() {
+    const phone = whatsappPhoneInput.trim();
+    if (!phone) return;
+    setWhatsappPhonePrompt(false);
+    sendInvoiceOnWhatsApp(phone);
+  }
+
+  async function sendInvoiceViaEmail() {
+    if (!printingInvoice || sendingInvoiceEmail) return;
+    setSendingInvoiceEmail(true);
+    setInvoiceEmailStatus(null);
+    try {
+      const result = await apiClient.sendInvoiceEmail(printingInvoice.id);
+      setInvoiceEmailStatus(result.sent ? `Emailed to ${result.to}` : (result.reason || 'Email not sent'));
+    } catch (err: any) {
+      setInvoiceEmailStatus(err.response?.data?.message || 'Failed to send email');
+    } finally {
+      setSendingInvoiceEmail(false);
+    }
   }
 
   return (
@@ -1205,6 +1448,51 @@ export function InvoiceScreen() {
         </div>
       )}
 
+      {quickAddProductOpen && (
+        <div style={styles.popupOverlay} onClick={() => setQuickAddProductOpen(false)}>
+          <div style={styles.popup} onClick={e => e.stopPropagation()}>
+            <h4 style={styles.popupTitle}>Quick Add Product</h4>
+            {quickAddProductError && <div style={styles.errorBanner}>{quickAddProductError}</div>}
+
+            <div style={styles.grid3}>
+              <div style={styles.field}>
+                <label style={styles.label}>Product Code *</label>
+                <input style={styles.input} value={quickAddProductForm.code} onChange={e => updateQuickAddProductField('code', e.target.value)} />
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Product Name *</label>
+                <input style={styles.input} value={quickAddProductForm.name} onChange={e => updateQuickAddProductField('name', e.target.value)} />
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Category</label>
+                <select style={styles.input} value={quickAddProductForm.categoryId} onChange={e => updateQuickAddProductField('categoryId', e.target.value)}>
+                  <option value="">Select category...</option>
+                  {getDistinctCategories().map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Brand</label>
+                <select style={styles.input} value={quickAddProductForm.brandId} onChange={e => updateQuickAddProductField('brandId', e.target.value)}>
+                  <option value="">Select brand...</option>
+                  {getDistinctBrands().map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+                </select>
+              </div>
+              <div style={styles.field}>
+                <label style={styles.label}>Cost Price</label>
+                <input style={styles.input} type="number" value={quickAddProductForm.costPrice} onChange={e => updateQuickAddProductField('costPrice', e.target.value)} />
+              </div>
+            </div>
+
+            <div style={styles.inlineRow}>
+              <button style={styles.saveBtn} disabled={quickAddProductSaving} onClick={submitQuickAddProduct}>
+                {quickAddProductSaving ? 'Saving...' : 'Create product'}
+              </button>
+              <button style={styles.smallBtn} onClick={() => setQuickAddProductOpen(false)}>Cancel</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {error && <div style={styles.errorBanner}>{error}</div>}
 
       <div style={styles.card}>
@@ -1252,10 +1540,32 @@ export function InvoiceScreen() {
               >
                 History
               </button>
+              <button
+                type="button"
+                style={styles.smallBtn}
+                disabled={!customerId}
+                onClick={openCustomerLedger}
+                title="Open full running-balance ledger in a new window"
+              >
+                📒
+              </button>
               <button type="button" style={styles.smallBtn} onClick={openWalkInPopup} title="Add a walk-in customer">
                 🚶 Walk-in
               </button>
             </div>
+            {creditStatus && (
+              <div style={{
+                ...styles.creditIndicator,
+                ...(creditStatus.availableCredit < 0
+                  ? styles.creditIndicatorOver
+                  : creditStatus.creditLimit > 0 && creditStatus.outstandingBalance / creditStatus.creditLimit >= 0.8
+                    ? styles.creditIndicatorWarning
+                    : styles.creditIndicatorOk),
+              }}>
+                Credit: {creditStatus.outstandingBalance} / {creditStatus.creditLimit} used
+                {creditStatus.availableCredit < 0 && ' - OVER LIMIT'}
+              </div>
+            )}
           </div>
 
           <div style={styles.field}>
@@ -1402,6 +1712,7 @@ export function InvoiceScreen() {
                           }}
                         />
                         <button style={styles.smallBtn} onClick={() => setProductFilters(emptyProductFilters())}>Clear</button>
+                        <button style={styles.smallBtn} onClick={openQuickAddProduct} title="Add a new product">+ Quick Add</button>
                         <button style={styles.smallBtn} onClick={() => { setProductPicker(null); setOpenFilterColumn(null); }}>✕</button>
                       </div>
 
@@ -1829,15 +2140,29 @@ export function InvoiceScreen() {
               Print gate pass {gatePassQueueIndex + 1} of {gatePassQueue.length}
             </h4>
             <p>{printingGatePass.gate_pass_number} — {printingGatePass.warehouse?.name}</p>
+            <label style={styles.copiesLabel}>
+              Copies:{' '}
+              <select
+                value={gatePassCopies}
+                onChange={e => setGatePassCopies(parseInt(e.target.value, 10))}
+                style={styles.copiesSelect}
+              >
+                <option value={1}>1</option>
+                <option value={2}>2</option>
+                <option value={3}>3</option>
+              </select>
+            </label>
             <div style={styles.inlineRow}>
-              <button style={styles.saveBtn} onClick={doPrint}>Print this gate pass</button>
-              <button style={styles.smallBtn} onClick={afterGatePassPrint}>Skip</button>
+              <button style={styles.saveBtn} onClick={doPrintGatePass} disabled={printingGatePassBusy}>
+                {printingGatePassBusy ? 'Printing...' : 'Print this gate pass'}
+              </button>
+              <button style={styles.smallBtn} onClick={afterGatePassPrint} disabled={printingGatePassBusy}>Skip</button>
             </div>
           </div>
 
           {/* Print-only content for this gate pass - hidden on screen, shown by @media print */}
           <div id="print-area" style={styles.printAreaHidden}>
-            <GatePassPrintDocument gatePass={printingGatePass} onAfterPrint={afterGatePassPrint} />
+            <GatePassPrintDocument gatePass={printingGatePass} copies={gatePassCopies} isDuplicate={gatePassIsDuplicate} />
           </div>
         </div>
       )}
@@ -1849,8 +2174,32 @@ export function InvoiceScreen() {
             <h4 style={styles.popupTitle}>Print invoice {printingInvoice.bill_number}</h4>
             <div style={styles.inlineRow}>
               <button style={styles.saveBtn} onClick={doPrint}>Print invoice</button>
-              <button style={styles.smallBtn} onClick={() => setPrintingInvoice(null)}>Close</button>
+              <button style={styles.smallBtn} onClick={downloadInvoicePdf} disabled={downloadingInvoicePdf}>
+                {downloadingInvoicePdf ? 'Downloading...' : 'Download PDF'}
+              </button>
+              <button style={styles.smallBtn} onClick={() => sendInvoiceOnWhatsApp()}>Send on WhatsApp</button>
+              <button style={styles.smallBtn} onClick={sendInvoiceViaEmail} disabled={sendingInvoiceEmail}>
+                {sendingInvoiceEmail ? 'Sending...' : 'Email invoice'}
+              </button>
+              <button style={styles.smallBtn} onClick={() => setPrintingInvoice(null)}>Close (Esc)</button>
             </div>
+
+            {whatsappPhonePrompt && (
+              <div style={styles.inlineRow}>
+                <input
+                  style={styles.input}
+                  placeholder="Customer WhatsApp number"
+                  value={whatsappPhoneInput}
+                  onChange={e => setWhatsappPhoneInput(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Enter') confirmWhatsappPhone(); }}
+                  autoFocus
+                />
+                <button style={styles.saveBtn} onClick={confirmWhatsappPhone}>Open WhatsApp</button>
+                <button style={styles.smallBtn} onClick={() => setWhatsappPhonePrompt(false)}>Cancel</button>
+              </div>
+            )}
+
+            {invoiceEmailStatus && <p>{invoiceEmailStatus}</p>}
           </div>
 
           <div id="print-area" style={styles.printAreaHidden}>
@@ -1955,9 +2304,20 @@ function CheckboxFilter({
   );
 }
 
-function GatePassPrintDocument({ gatePass }: { gatePass: GatePassView; onAfterPrint: () => void }) {
+const GATE_PASS_COPY_HEADINGS = ['WAREHOUSE COPY', 'OFFICE COPY', 'DRIVER COPY'];
+
+function GatePassPrintDocument({
+  gatePass,
+  copies = 2,
+  isDuplicate = false,
+}: {
+  gatePass: GatePassView;
+  copies?: number;
+  isDuplicate?: boolean;
+}) {
   const Copy = ({ heading }: { heading: string }) => (
     <div style={printStyles.gatePassCopy}>
+      {isDuplicate && <div style={printStyles.duplicateWatermark}>DUPLICATE</div>}
       <h3 style={printStyles.gatePassHeading}>{heading}</h3>
       <p style={printStyles.gatePassMeta}>Gate Pass #: {gatePass.gate_pass_number}</p>
       <p style={printStyles.gatePassMeta}>Warehouse: {gatePass.warehouse?.name}</p>
@@ -1980,11 +2340,16 @@ function GatePassPrintDocument({ gatePass }: { gatePass: GatePassView; onAfterPr
     </div>
   );
 
+  const headings = GATE_PASS_COPY_HEADINGS.slice(0, Math.max(1, Math.min(copies, 3)));
+
   return (
     <div>
-      <Copy heading="WAREHOUSE COPY" />
-      <div style={printStyles.pageBreak} />
-      <Copy heading="OFFICE COPY" />
+      {headings.map((heading, i) => (
+        <React.Fragment key={heading}>
+          <Copy heading={heading} />
+          {i < headings.length - 1 && <div style={printStyles.pageBreak} />}
+        </React.Fragment>
+      ))}
     </div>
   );
 }
@@ -2069,6 +2434,12 @@ const styles: Record<string, React.CSSProperties> = {
   popupOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 },
   popup: { background: 'white', borderRadius: '8px', padding: '20px', width: '600px', maxWidth: '90vw', maxHeight: '80vh', overflowY: 'auto' },
   popupTitle: { marginTop: 0 },
+  copiesLabel: { display: 'block', marginTop: '10px', fontSize: '13px', color: '#555' },
+  copiesSelect: { marginLeft: '6px', padding: '4px 8px', borderRadius: '4px', border: '1px solid #ccc' },
+  creditIndicator: { marginTop: '6px', padding: '4px 10px', borderRadius: '4px', fontSize: '12px', fontWeight: 600, display: 'inline-block' },
+  creditIndicatorOk: { background: '#e6f4ea', color: '#1e7e34' },
+  creditIndicatorWarning: { background: '#fff3cd', color: '#856404' },
+  creditIndicatorOver: { background: '#f8d7da', color: '#721c24' },
   printAreaHidden: { display: 'none' },
   pickerAnchored: {
     position: 'absolute',
@@ -2126,7 +2497,20 @@ const styles: Record<string, React.CSSProperties> = {
 };
 
 const printStyles: Record<string, React.CSSProperties> = {
-  gatePassCopy: { width: '78mm', fontFamily: 'monospace', fontSize: '12px' },
+  gatePassCopy: { width: '78mm', fontFamily: 'monospace', fontSize: '12px', position: 'relative' },
+  duplicateWatermark: {
+    position: 'absolute',
+    top: '40%',
+    left: '50%',
+    transform: 'translate(-50%, -50%) rotate(-30deg)',
+    fontSize: '28px',
+    fontWeight: 800,
+    color: 'rgba(200, 0, 0, 0.35)',
+    border: '3px solid rgba(200, 0, 0, 0.35)',
+    padding: '4px 16px',
+    letterSpacing: '4px',
+    pointerEvents: 'none',
+  },
   gatePassHeading: { textAlign: 'center', margin: '0 0 8px' },
   gatePassMeta: { margin: '2px 0' },
   gatePassTable: { width: '100%', borderCollapse: 'collapse', marginTop: '8px' },

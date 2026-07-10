@@ -11,6 +11,8 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryCriticalFeaturesService } from '../services/inventory-critical-features.service';
 
 @Controller('api/v1/inventory/critical')
@@ -23,6 +25,8 @@ export class InventoryCriticalController {
    */
   @Post('levels/set')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.set_levels')
   async setStockLevels(
     @Request() req: any,
     @Body()
@@ -50,6 +54,8 @@ export class InventoryCriticalController {
    * GET - Get reorder alerts (items below minimum)
    */
   @Get('alerts/reorder')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getReorderAlerts(@Request() req: any) {
     const organizationId = req.user.organizationId;
 
@@ -61,6 +67,8 @@ export class InventoryCriticalController {
    */
   @Post('reconciliation/start')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.reconcile')
   async startReconciliation(@Request() req: any) {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
@@ -72,6 +80,8 @@ export class InventoryCriticalController {
    * PATCH - Record physical count for an item
    */
   @Patch('reconciliation/count/:itemId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.reconcile')
   async recordPhysicalCount(
     @Request() req: any,
     @Param('itemId') itemId: string,
@@ -90,6 +100,8 @@ export class InventoryCriticalController {
    * PATCH - Approve reconciliation and apply adjustments
    */
   @Patch('reconciliation/:reconciliationId/approve')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.reconcile_approve')
   async approveReconciliation(
     @Request() req: any,
     @Param('reconciliationId') reconciliationId: string,
@@ -109,6 +121,8 @@ export class InventoryCriticalController {
    */
   @Post('returns/customer')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.process_return')
   async processCustomerReturn(
     @Request() req: any,
     @Body()
@@ -137,6 +151,8 @@ export class InventoryCriticalController {
    */
   @Post('holds/place')
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.hold')
   async placeStockHold(
     @Request() req: any,
     @Body()
@@ -164,6 +180,8 @@ export class InventoryCriticalController {
    * PATCH - Release stock hold
    */
   @Patch('holds/:holdId/release')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.hold')
   async releaseStockHold(@Request() req: any, @Param('holdId') holdId: string) {
     const organizationId = req.user.organizationId;
     const userId = req.user.sub;
@@ -175,6 +193,8 @@ export class InventoryCriticalController {
    * GET - Get inventory summary with min/max levels
    */
   @Get('summary-with-levels')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
   async getInventorySummaryWithLevels(@Request() req: any) {
     const organizationId = req.user.organizationId;
 

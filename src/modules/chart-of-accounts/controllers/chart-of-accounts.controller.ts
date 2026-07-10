@@ -7,46 +7,54 @@ import {
   Param,
   Body,
   ParseIntPipe,
+  UseGuards,
 } from '@nestjs/common';
 import { OrgContext } from '../../../common/decorators/org-context.decorator';
-import { Public } from '../../../common/decorators/public.decorator';
+import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { ChartOfAccountsService } from '../services/chart-of-accounts.service';
 import { CreateAccountDto } from '../dto/create-account.dto';
 import { UpdateAccountDto } from '../dto/update-account.dto';
 import { SeedCoAResponseDto } from '../dto/seed-coa.dto';
 
 @Controller('chart-of-accounts')
+@UseGuards(JwtGuard)
 export class ChartOfAccountsController {
   constructor(private readonly service: ChartOfAccountsService) {}
 
   @Post()
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.edit')
   async create(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Body() createDto: CreateAccountDto,
   ) {
     return this.service.create(organizationId, createDto);
   }
 
   @Get()
-  @Public()
-  async findAll(@OrgContext() organizationId: number) {
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.view')
+  async findAll(@OrgContext() { organizationId }: any) {
     return this.service.findAll(organizationId);
   }
 
   @Get(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.view')
   async findOne(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.service.findOne(organizationId, id);
   }
 
   @Patch(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.edit')
   async update(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateAccountDto,
   ) {
@@ -54,18 +62,20 @@ export class ChartOfAccountsController {
   }
 
   @Delete(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.delete')
   async remove(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Param('id', ParseIntPipe) id: number,
   ) {
     return this.service.remove(organizationId, id);
   }
 
   @Post('seed/starter')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.edit')
   async seedStarter(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
   ): Promise<SeedCoAResponseDto> {
     const result = await this.service.seedStarterCoA(organizationId);
     return {
@@ -75,8 +85,9 @@ export class ChartOfAccountsController {
   }
 
   @Get('tree/hierarchy')
-  @Public()
-  async getHierarchy(@OrgContext() organizationId: number) {
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('chart_of_accounts.view')
+  async getHierarchy(@OrgContext() { organizationId }: any) {
     return this.service.getAccountsForOrganization(organizationId);
   }
 }

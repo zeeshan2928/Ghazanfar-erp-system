@@ -22,6 +22,11 @@ interface Product {
   stock_level: string;
 }
 
+interface VendorOption {
+  id: number;
+  name: string;
+}
+
 interface ColumnConfig {
   name: string;
   label: string;
@@ -50,11 +55,23 @@ export function ProductsScreen() {
   useEffect(() => {
     fetchProducts();
     preloadColumnValues();
+    fetchVendors();
   }, []);
 
   useEffect(() => {
     fetchProducts();
   }, [primaryFilter, columnFilters, skip, take]);
+
+  const [vendors, setVendors] = useState<VendorOption[]>([]);
+
+  async function fetchVendors() {
+    try {
+      const result = await apiClient.getVendors(0, 100);
+      setVendors((result.data || []).map((v: any) => ({ id: v.id, name: v.name })));
+    } catch (error) {
+      console.error('Failed to load vendors:', error);
+    }
+  }
 
   async function preloadColumnValues() {
     try {
@@ -128,7 +145,15 @@ export function ProductsScreen() {
   }));
 
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ code: '', name: '', cost_price: '' });
+  const [formData, setFormData] = useState({
+    code: '',
+    name: '',
+    cost_price: '',
+    minimum_quantity: '',
+    reorder_quantity: '',
+    primary_vendor_id: '',
+  });
+  const [newProductMediaFiles, setNewProductMediaFiles] = useState<File[]>([]);
 
   async function handleAddProduct() {
     try {
@@ -138,13 +163,66 @@ export function ProductsScreen() {
         cost_price: parseInt(formData.cost_price) || 0,
       });
       console.log('✅ Product created:', result);
-      setFormData({ code: '', name: '', cost_price: '' });
+
+      if (formData.minimum_quantity || formData.reorder_quantity || formData.primary_vendor_id) {
+        await apiClient.setProductReorderParams(result.id, {
+          minimumQuantity: parseInt(formData.minimum_quantity) || 0,
+          reorderQuantity: parseInt(formData.reorder_quantity) || 0,
+          primaryVendorId: formData.primary_vendor_id ? parseInt(formData.primary_vendor_id) : undefined,
+        });
+      }
+
+      for (const file of newProductMediaFiles) {
+        await apiClient.uploadProductMedia(result.id, file);
+      }
+
+      setFormData({ code: '', name: '', cost_price: '', minimum_quantity: '', reorder_quantity: '', primary_vendor_id: '' });
+      setNewProductMediaFiles([]);
       setShowAddForm(false);
       await fetchProducts();
       alert('✅ Product created successfully!');
     } catch (err: any) {
       const errorMsg = err.response?.data?.message || err.message || 'Failed to create product';
       console.error('❌ Error creating product:', errorMsg, err);
+      alert('❌ Error: ' + errorMsg);
+    }
+  }
+
+  const [editingProductId, setEditingProductId] = useState<number | null>(null);
+  const [editFormData, setEditFormData] = useState({
+    minimum_quantity: '',
+    reorder_quantity: '',
+    primary_vendor_id: '',
+  });
+
+  async function openEditReorder(productId: number) {
+    try {
+      const product = await apiClient.getProductById(productId);
+      setEditFormData({
+        minimum_quantity: product.minimum_quantity != null ? String(product.minimum_quantity) : '',
+        reorder_quantity: product.reorder_quantity != null ? String(product.reorder_quantity) : '',
+        primary_vendor_id: product.primary_vendor_id != null ? String(product.primary_vendor_id) : '',
+      });
+      setEditingProductId(productId);
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to load product';
+      alert('❌ Error: ' + errorMsg);
+    }
+  }
+
+  async function handleSaveReorderSettings() {
+    if (editingProductId == null) return;
+    try {
+      await apiClient.setProductReorderParams(editingProductId, {
+        minimumQuantity: parseInt(editFormData.minimum_quantity) || 0,
+        reorderQuantity: parseInt(editFormData.reorder_quantity) || 0,
+        primaryVendorId: editFormData.primary_vendor_id ? parseInt(editFormData.primary_vendor_id) : undefined,
+      });
+      setEditingProductId(null);
+      await fetchProducts();
+      alert('✅ Reorder settings saved!');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Failed to save reorder settings';
       alert('❌ Error: ' + errorMsg);
     }
   }
@@ -184,7 +262,70 @@ export function ProductsScreen() {
             onChange={(e) => setFormData({...formData, cost_price: e.target.value})}
             style={styles.input}
           />
+          <input
+            type="number"
+            placeholder="Min Quantity (reorder threshold)"
+            value={formData.minimum_quantity}
+            onChange={(e) => setFormData({...formData, minimum_quantity: e.target.value})}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            placeholder="Reorder Quantity"
+            value={formData.reorder_quantity}
+            onChange={(e) => setFormData({...formData, reorder_quantity: e.target.value})}
+            style={styles.input}
+          />
+          <select
+            value={formData.primary_vendor_id}
+            onChange={(e) => setFormData({...formData, primary_vendor_id: e.target.value})}
+            style={styles.input}
+          >
+            <option value="">— No primary vendor —</option>
+            {vendors.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/gif,image/webp,video/mp4"
+            multiple
+            onChange={(e) => setNewProductMediaFiles(Array.from(e.target.files || []))}
+            style={styles.input}
+          />
           <button onClick={handleAddProduct} style={styles.submitBtn}>Save Product</button>
+        </div>
+      )}
+
+      {editingProductId !== null && (
+        <div style={styles.formContainer}>
+          <span style={{ fontWeight: 600, fontSize: '13px' }}>Reorder Settings</span>
+          <input
+            type="number"
+            placeholder="Min Quantity (reorder threshold)"
+            value={editFormData.minimum_quantity}
+            onChange={(e) => setEditFormData({...editFormData, minimum_quantity: e.target.value})}
+            style={styles.input}
+          />
+          <input
+            type="number"
+            placeholder="Reorder Quantity"
+            value={editFormData.reorder_quantity}
+            onChange={(e) => setEditFormData({...editFormData, reorder_quantity: e.target.value})}
+            style={styles.input}
+          />
+          <select
+            value={editFormData.primary_vendor_id}
+            onChange={(e) => setEditFormData({...editFormData, primary_vendor_id: e.target.value})}
+            style={styles.input}
+          >
+            <option value="">— No primary vendor —</option>
+            {vendors.map((v) => (
+              <option key={v.id} value={v.id}>{v.name}</option>
+            ))}
+          </select>
+          <button onClick={handleSaveReorderSettings} style={styles.submitBtn}>Save</button>
+          <button onClick={() => setEditingProductId(null)} style={styles.addBtn}>Cancel</button>
         </div>
       )}
 
@@ -211,6 +352,7 @@ export function ProductsScreen() {
                   <th style={styles.th}>Code</th>
                   <th style={styles.th}>Cost</th>
                   <th style={styles.th}>Stock</th>
+                  <th style={styles.th}></th>
                 </tr>
               </thead>
               <tbody>
@@ -221,6 +363,11 @@ export function ProductsScreen() {
                     <td style={styles.td}>Rs {p.cost_price.toLocaleString()}</td>
                     <td style={styles.td}>
                       <span style={getStockStyle(p.stock_level)}>{p.stock_level}</span>
+                    </td>
+                    <td style={styles.td}>
+                      <button onClick={() => openEditReorder(p.id)} style={styles.reorderBtn}>
+                        ✏️ Reorder Settings
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -257,6 +404,7 @@ const styles: Record<string, React.CSSProperties> = {
   formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end' },
   input: { flex: 1, padding: '10px', border: '1px solid #ddd', borderRadius: '4px', fontSize: '14px' },
   submitBtn: { padding: '10px 30px', backgroundColor: '#43e97b', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontWeight: '600' },
+  reorderBtn: { padding: '6px 10px', backgroundColor: '#f5f5f5', border: '1px solid #ddd', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' },
   loading: { textAlign: 'center', padding: '40px', color: '#666' },
   noResults: { textAlign: 'center', padding: '40px', color: '#999' },
   tableWrapper: { overflowX: 'auto', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '4px' },

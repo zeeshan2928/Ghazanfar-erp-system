@@ -1,5 +1,7 @@
 import { Controller, Get, Post, Delete, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { BillMatchingService } from '../services/bill-matching.service';
 
 @Controller('api/cash-book')
@@ -8,6 +10,8 @@ export class BillMatchingController {
   constructor(private readonly billMatchingService: BillMatchingService) {}
 
   @Get('bills/unmatched')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getUnmatchedBills(@Req() req: any) {
     const organizationId = req.user?.organizationId;
     if (!organizationId) throw new Error('Unauthorized');
@@ -16,6 +20,8 @@ export class BillMatchingController {
   }
 
   @Get('matches/candidates/:billId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getMatchingCandidates(@Param('billId') billId: string, @Req() req: any) {
     const organizationId = req.user?.organizationId;
     if (!organizationId) throw new Error('Unauthorized');
@@ -24,6 +30,8 @@ export class BillMatchingController {
   }
 
   @Post('matches')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.match')
   async matchBillToEntry(
     @Body() dto: { billId: number; entryId: number; reason?: string },
     @Req() req: any,
@@ -42,6 +50,8 @@ export class BillMatchingController {
   }
 
   @Delete('matches/:matchId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.match')
   async undoMatch(@Param('matchId') matchId: string, @Req() req: any) {
     const organizationId = req.user?.organizationId;
     if (!organizationId) throw new Error('Unauthorized');
@@ -50,6 +60,8 @@ export class BillMatchingController {
   }
 
   @Post('matches/batch-auto')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.match')
   async batchAutoMatch(@Req() req: any) {
     const organizationId = req.user?.organizationId;
     const userId = req.user?.sub;

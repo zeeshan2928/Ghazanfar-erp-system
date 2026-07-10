@@ -2,6 +2,8 @@ import { Controller, Get, Post, Param, Body, UseGuards, Query } from '@nestjs/co
 import { WebsiteOrdersService } from './services/website-orders.service';
 import { ApproveWebsiteOrderDto, RejectWebsiteOrderDto } from './dto/website-order.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('website-orders')
@@ -10,6 +12,8 @@ export class WebsiteOrdersController {
   constructor(private websiteOrdersService: WebsiteOrdersService) {}
 
   @Get('pending')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('website_orders.view')
   async getPending(
     @Query('skip') skip?: string,
     @Query('take') take?: string,
@@ -22,11 +26,15 @@ export class WebsiteOrdersController {
   }
 
   @Get(':orderId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('website_orders.view')
   async getById(@Param('orderId') orderId: string, @OrgContext() orgContext: any) {
     return this.websiteOrdersService.getById(orgContext.organizationId, orderId);
   }
 
   @Post(':orderId/approve')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('website_orders.approve')
   async approve(
     @Param('orderId') orderId: string,
     @Body() approveDto: ApproveWebsiteOrderDto,
@@ -41,6 +49,8 @@ export class WebsiteOrdersController {
   }
 
   @Post(':orderId/reject')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('website_orders.reject')
   async reject(
     @Param('orderId') orderId: string,
     @Body() rejectDto: RejectWebsiteOrderDto,

@@ -1,11 +1,12 @@
 import { Module } from '@nestjs/common';
 import { DatabaseModule } from '../../database/database.module';
+import { CommonModule } from '../../common/common.module';
 import { JournalEntriesService } from './services/journal-entries.service';
 import { GLPostingService } from './services/gl-posting.service';
 import { JournalEntriesController } from './controllers/journal-entries.controller';
 
 @Module({
-  imports: [DatabaseModule],
+  imports: [DatabaseModule, CommonModule],
   providers: [JournalEntriesService, GLPostingService],
   controllers: [JournalEntriesController],
   exports: [JournalEntriesService, GLPostingService],

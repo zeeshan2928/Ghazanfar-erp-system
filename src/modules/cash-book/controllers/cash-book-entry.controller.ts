@@ -16,6 +16,8 @@ import { CreateCashBookEntryDto } from '../dto/create-entry.dto';
 import { UpdateCashBookEntryDto } from '../dto/update-entry.dto';
 import { LinkBillDto } from '../dto/link-bill.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('cash-book/entries')
@@ -29,6 +31,8 @@ export class CashBookEntryController {
    */
   @Post()
   @HttpCode(HttpStatus.CREATED)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.create')
   async create(@Body() createDto: CreateCashBookEntryDto, @OrgContext() orgContext: any) {
     return this.service.createEntry(orgContext.organizationId, orgContext.userId, createDto);
   }
@@ -38,6 +42,8 @@ export class CashBookEntryController {
    * Get all entries with filters and pagination
    */
   @Get()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async findAll(
     @OrgContext() orgContext: any,
     @Query('category') category?: string,
@@ -71,6 +77,8 @@ export class CashBookEntryController {
    * Get a single entry by ID
    */
   @Get(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async findOne(@Param('id') id: string, @OrgContext() orgContext: any) {
     return this.service.getEntryById(orgContext.organizationId, parseInt(id, 10));
   }
@@ -80,6 +88,8 @@ export class CashBookEntryController {
    * Update a cash book entry
    */
   @Put(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.edit')
   async update(
     @Param('id') id: string,
     @Body() updateDto: UpdateCashBookEntryDto,
@@ -94,6 +104,8 @@ export class CashBookEntryController {
    */
   @Delete(':id')
   @HttpCode(HttpStatus.NO_CONTENT)
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.delete')
   async delete(@Param('id') id: string, @OrgContext() orgContext: any) {
     await this.service.deleteEntry(orgContext.organizationId, parseInt(id, 10));
   }
@@ -103,6 +115,8 @@ export class CashBookEntryController {
    * Link an entry to a bill for reconciliation
    */
   @Post(':id/link-bill')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.edit')
   async linkBill(
     @Param('id') id: string,
     @Body() linkDto: LinkBillDto,
@@ -116,6 +130,8 @@ export class CashBookEntryController {
    * Post/finalize an entry
    */
   @Post(':id/post')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.post')
   async postEntry(@Param('id') id: string, @OrgContext() orgContext: any) {
     return this.service.postEntry(orgContext.organizationId, parseInt(id, 10));
   }
@@ -125,6 +141,8 @@ export class CashBookEntryController {
    * Get cash book summary/dashboard data
    */
   @Get('summary/data')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('cash_book.view')
   async getSummary(
     @OrgContext() orgContext: any,
     @Query('dateFrom') dateFrom?: string,

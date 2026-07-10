@@ -4,10 +4,14 @@ import { CreateCashBookEntryDto } from '../dto/create-entry.dto';
 import { UpdateCashBookEntryDto } from '../dto/update-entry.dto';
 import { LinkBillDto } from '../dto/link-bill.dto';
 import { ICashBookEntry, EntryStatus } from '../entities/cash-book-entry.entity';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
 
 @Injectable()
 export class CashBookEntryService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private transactionSequenceService: TransactionSequenceService,
+  ) {}
 
   /**
    * Create a new cash book entry
@@ -31,10 +35,17 @@ export class CashBookEntryService {
       }
     }
 
+    const entryNumber = await this.transactionSequenceService.getNext(
+      organizationId,
+      'CASH_BOOK_ENTRY',
+      'CB',
+    );
+
     // Create entry
     const entry = await this.prisma.cashBookEntry.create({
       data: {
         organizationId,
+        entryNumber,
         date: createDto.date,
         amount: createDto.amount,
         description: createDto.description,

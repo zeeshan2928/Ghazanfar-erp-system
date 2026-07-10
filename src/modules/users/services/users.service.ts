@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { CreateUserDto } from '../dto/create-user.dto';
 import { PasswordService } from './password.service';
@@ -10,7 +11,16 @@ export class UsersService {
     private passwordService: PasswordService,
   ) {}
 
-  async create(createUserDto: CreateUserDto) {
+  // role and canViewFinancials may only be set by an ADMIN caller - a
+  // freshly-registering user or a non-admin editing someone else's record
+  // can't grant themselves (or anyone) elevated role/financial access.
+  private assertCanSetPrivilegedFields(data: { role?: UserRole; canViewFinancials?: boolean }, callerRole?: UserRole) {
+    if ((data.role !== undefined || data.canViewFinancials !== undefined) && callerRole !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only an admin can set role or financial access');
+    }
+  }
+
+  async create(createUserDto: CreateUserDto, callerRole?: UserRole) {
     const existingUser = await this.prisma.user.findUnique({
       where: { email: createUserDto.email },
     });
@@ -18,6 +28,8 @@ export class UsersService {
     if (existingUser) {
       throw new BadRequestException('User with this email already exists');
     }
+
+    this.assertCanSetPrivilegedFields(createUserDto, callerRole);
 
     const hashedPassword = await this.passwordService.hashPassword(createUserDto.password);
 
@@ -28,6 +40,8 @@ export class UsersService {
         firstName: createUserDto.firstName,
         lastName: createUserDto.lastName,
         organizationId: createUserDto.organizationId || 1,
+        role: createUserDto.role,
+        canViewFinancials: createUserDto.canViewFinancials,
       },
     });
 
@@ -61,6 +75,8 @@ export class UsersService {
           firstName: true,
           lastName: true,
           organizationId: true,
+          role: true,
+          canViewFinancials: true,
           isActive: true,
           createdAt: true,
           updatedAt: true,
@@ -92,6 +108,8 @@ export class UsersService {
         firstName: true,
         lastName: true,
         organizationId: true,
+        role: true,
+        canViewFinancials: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
@@ -111,7 +129,7 @@ export class UsersService {
     });
   }
 
-  async update(id: number, updateData: Partial<CreateUserDto>, organizationId?: number) {
+  async update(id: number, updateData: Partial<CreateUserDto>, organizationId?: number, callerRole?: UserRole) {
     const where: any = { id };
     if (organizationId) {
       where.organizationId = organizationId;
@@ -121,6 +139,8 @@ export class UsersService {
     if (!user) {
       throw new BadRequestException('User not found');
     }
+
+    this.assertCanSetPrivilegedFields(updateData, callerRole);
 
     const data: any = { ...updateData };
 
@@ -188,20 +208,24 @@ export class UsersService {
   }
 
   async getStats(organizationId: number) {
-    const total = await this.prisma.user.count({
-      where: { organizationId, isActive: true },
+    // Previously `total` was counted with isActive:true already applied, so
+    // `active = total - inactive` produced a nonsensical negative/near-zero
+    // number instead of a real active count - fixed to count total
+    // unconditionally, active/inactive as their own separate counts.
+    const users = await this.prisma.user.findMany({
+      where: { organizationId },
+      select: { role: true, isActive: true, canViewFinancials: true },
     });
 
-    const inactive = await this.prisma.user.count({
-      where: { organizationId, isActive: false },
-    });
-
-    const active = total - inactive;
+    const byRole = new Map<string, number>();
+    users.forEach(u => byRole.set(u.role, (byRole.get(u.role) || 0) + 1));
 
     return {
-      total,
-      active,
-      inactive,
+      total: users.length,
+      active: users.filter(u => u.isActive).length,
+      inactive: users.filter(u => !u.isActive).length,
+      canViewFinancials: users.filter(u => u.canViewFinancials).length,
+      byRole: Array.from(byRole.entries()).map(([role, count]) => ({ role, count })),
       timestamp: new Date(),
     };
   }

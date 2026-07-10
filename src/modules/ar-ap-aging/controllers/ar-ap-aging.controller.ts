@@ -1,17 +1,17 @@
-import { Controller, Get, Post, Query, HttpCode } from '@nestjs/common';
+import { Controller, Get, Post, Query, HttpCode, UseGuards } from '@nestjs/common';
 import { OrgContext } from '../../../common/decorators/org-context.decorator';
-import { Public } from '../../../common/decorators/public.decorator';
+import { JwtGuard } from '../../../common/guards/jwt.guard';
 import { ArApAgingService } from '../services/ar-ap-aging.service';
 
 @Controller('ar-ap-aging')
+@UseGuards(JwtGuard)
 export class ArApAgingController {
   constructor(private agingService: ArApAgingService) {}
 
   @Post('generate/ar')
   @HttpCode(200)
-  @Public()
   async generateArAging(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('asOfDate') asOfDate?: string,
   ) {
     const date = asOfDate ? new Date(asOfDate) : new Date();
@@ -21,9 +21,8 @@ export class ArApAgingController {
 
   @Post('generate/ap')
   @HttpCode(200)
-  @Public()
   async generateApAging(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('asOfDate') asOfDate?: string,
   ) {
     const date = asOfDate ? new Date(asOfDate) : new Date();
@@ -32,9 +31,8 @@ export class ArApAgingController {
   }
 
   @Get('report/ar')
-  @Public()
   async getArAgingReport(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('customerId') customerId?: string,
     @Query('asOfDate') asOfDate?: string,
   ) {
@@ -45,9 +43,8 @@ export class ArApAgingController {
   }
 
   @Get('report/ap')
-  @Public()
   async getApAgingReport(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('vendorId') vendorId?: string,
     @Query('asOfDate') asOfDate?: string,
   ) {
@@ -58,9 +55,8 @@ export class ArApAgingController {
   }
 
   @Get('report/combined')
-  @Public()
   async getCombinedAgingReport(
-    @OrgContext() organizationId: number,
+    @OrgContext() { organizationId }: any,
     @Query('asOfDate') asOfDate?: string,
   ) {
     const date = asOfDate ? new Date(asOfDate) : new Date();

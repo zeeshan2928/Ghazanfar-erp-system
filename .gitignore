@@ -7,10 +7,17 @@ yarn-error.log*
 # Build
 dist/
 
+# Uploaded product media (local disk storage - see MediaStorageService)
+uploads/
+
 # Environment
 .env
 .env.local
 .env.*.local
+
+# Credential/token files that end up in logs/ during local dev - never commit
+logs/.token
+*.token
 
 # IDE
 .idea/

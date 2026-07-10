@@ -1,14 +1,17 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
+import { MailerService } from '@common/services/mailer.service';
 import { CreateBillDto, DiscountType, TransactionType } from '../dto/create-bill.dto';
 import { OrderStatus } from '@prisma/client';
+import * as PDFDocument from 'pdfkit';
 
 @Injectable()
 export class BillsService {
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
+    private mailerService: MailerService,
   ) {}
 
   // Dedicated counter, incremented atomically inside the same transaction as
@@ -693,51 +696,96 @@ export class BillsService {
       throw new BadRequestException('Bill not found');
     }
 
-    // Generate a simple text representation (can be enhanced with pdfkit library)
-    const pdfContent = this.generatePDFContent(bill);
+    const pdfBuffer = await this.generatePDFBuffer(bill);
 
-    // Return as base64 encoded string
-    return Buffer.from(pdfContent).toString('base64');
+    return pdfBuffer.toString('base64');
   }
 
-  private generatePDFContent(bill: any): string {
-    let content = `
-====================================
-            BILL DOCUMENT
-====================================
+  async sendInvoiceEmail(organizationId: number, billId: number, toEmailOverride?: string) {
+    const bill = await this.findById(organizationId, billId);
 
-Bill Number: ${bill.bill_number}
-Date: ${bill.bill_date.toISOString().split('T')[0]}
-Customer: ${bill.customer?.name || 'N/A'}
+    if (!bill) {
+      throw new BadRequestException('Bill not found');
+    }
 
-------------------------------------
-BILL ITEMS:
-------------------------------------
-`;
+    const to = toEmailOverride || bill.customer?.email;
+    if (!to) {
+      throw new BadRequestException('No email address on file for this customer - provide one to send to');
+    }
 
-    bill.lines.forEach((line: any, index: number) => {
-      content += `
-${index + 1}. Product: ${line.product?.name || 'N/A'}
-   Quantity: ${line.quantity}
-   Unit Price: ${line.unit_price}
-   Line Total: ${line.line_total}
-`;
+    const pdfBuffer = await this.generatePDFBuffer(bill);
+
+    const result = await this.mailerService.sendMail({
+      to,
+      subject: `Invoice ${bill.bill_number}`,
+      html: `<p>Dear ${bill.customer?.name || 'Customer'},</p>
+<p>Please find attached your invoice <strong>${bill.bill_number}</strong> dated ${bill.bill_date.toISOString().split('T')[0]}, totaling <strong>${bill.total_amount}</strong>.</p>
+<p>Thank you for your business.</p>`,
+      attachments: [{ filename: `${bill.bill_number}.pdf`, content: pdfBuffer }],
     });
 
-    content += `
-------------------------------------
-SUMMARY:
-------------------------------------
-Subtotal: ${bill.subtotal}
-Discount: ${bill.discount_amount}
-Tax: ${bill.tax_amount}
-TOTAL: ${bill.total_amount}
+    return { billId, to, ...result };
+  }
 
-Status: ${bill.status}
-Remarks: ${bill.remarks || 'N/A'}
-====================================
-    `;
+  private generatePDFBuffer(bill: any): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      const doc = new PDFDocument({ size: 'A4', margin: 50 });
+      const chunks: Buffer[] = [];
 
-    return content;
+      doc.on('data', (chunk) => chunks.push(chunk));
+      doc.on('end', () => resolve(Buffer.concat(chunks)));
+      doc.on('error', reject);
+
+      doc.fontSize(18).font('Helvetica-Bold').text('BILL DOCUMENT', { align: 'center' });
+      doc.moveDown(1.5);
+
+      doc.fontSize(10).font('Helvetica');
+      doc.text(`Bill Number: ${bill.bill_number}`);
+      doc.text(`Date: ${bill.bill_date.toISOString().split('T')[0]}`);
+      doc.text(`Customer: ${bill.customer?.name || 'N/A'}`);
+      doc.moveDown();
+
+      const tableTop = doc.y;
+      const columns = [
+        { label: '#', x: 50, width: 25 },
+        { label: 'Product', x: 75, width: 205 },
+        { label: 'Qty', x: 280, width: 60 },
+        { label: 'Unit Price', x: 340, width: 80 },
+        { label: 'Line Total', x: 420, width: 85 },
+      ];
+
+      doc.font('Helvetica-Bold');
+      columns.forEach((col) => doc.text(col.label, col.x, tableTop, { width: col.width }));
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(505, doc.y).stroke();
+      doc.moveDown(0.3);
+
+      doc.font('Helvetica');
+      bill.lines.forEach((line: any, index: number) => {
+        const rowY = doc.y;
+        doc.text(String(index + 1), columns[0].x, rowY, { width: columns[0].width });
+        doc.text(line.product?.name || 'N/A', columns[1].x, rowY, { width: columns[1].width });
+        doc.text(String(line.quantity), columns[2].x, rowY, { width: columns[2].width });
+        doc.text(String(line.unit_price), columns[3].x, rowY, { width: columns[3].width });
+        doc.text(String(line.line_total), columns[4].x, rowY, { width: columns[4].width });
+        doc.moveDown(0.5);
+      });
+
+      doc.moveDown(0.5);
+      doc.moveTo(50, doc.y).lineTo(505, doc.y).stroke();
+      doc.moveDown(0.5);
+
+      doc.text(`Subtotal: ${bill.subtotal}`, { align: 'right' });
+      doc.text(`Discount: ${bill.discount_amount}`, { align: 'right' });
+      doc.text(`Tax: ${bill.tax_amount}`, { align: 'right' });
+      doc.font('Helvetica-Bold').text(`TOTAL: ${bill.total_amount}`, { align: 'right' });
+      doc.font('Helvetica');
+      doc.moveDown();
+
+      doc.text(`Status: ${bill.status}`);
+      doc.text(`Remarks: ${bill.remarks || 'N/A'}`);
+
+      doc.end();
+    });
   }
 }

@@ -1,4 +1,5 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { UserRole } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
 import { ConfirmGatePassDto, RejectGatePassDto } from '../dto/confirm-gate-pass.dto';
@@ -9,6 +10,40 @@ export class GatePassesService {
     private prisma: PrismaService,
     private transactionService: TransactionService,
   ) {}
+
+  // Called by the frontend right before actually printing a gate pass (not
+  // on "skip"). First print is always allowed. Any print after that is a
+  // reprint - a hard ADMIN-only rule (not a togglable permission, since the
+  // whole point is nobody-but-admin can ever generate a second physical
+  // copy without it being visibly marked). Returns isDuplicate so the
+  // frontend can render a DUPLICATE watermark before calling window.print().
+  async recordPrint(organizationId: number, gatePassId: number, callerRole: UserRole) {
+    const gatePass = await this.prisma.gatePass.findFirst({
+      where: { id: gatePassId, organizationId },
+    });
+
+    if (!gatePass) {
+      throw new NotFoundException('Gate pass not found');
+    }
+
+    const isReprint = gatePass.printCount > 0;
+
+    if (isReprint && callerRole !== UserRole.ADMIN) {
+      throw new ForbiddenException(
+        'This gate pass has already been printed. Only an admin can reprint it.',
+      );
+    }
+
+    const updated = await this.prisma.gatePass.update({
+      where: { id: gatePassId },
+      data: {
+        printCount: { increment: 1 },
+        printedAt: gatePass.printedAt ?? new Date(),
+      },
+    });
+
+    return { isDuplicate: isReprint, printCount: updated.printCount, printedAt: updated.printedAt };
+  }
 
   async getPending(organizationId: number, warehouseId: number, skip = 0, take = 10) {
     const [gatePasses, total] = await Promise.all([

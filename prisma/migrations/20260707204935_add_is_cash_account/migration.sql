@@ -1,0 +1,1 @@
+ALTER TABLE "ChartOfAccount" ADD COLUMN "isCashAccount" BOOLEAN NOT NULL DEFAULT false;

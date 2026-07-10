@@ -1,61 +1,64 @@
-import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Param, Body, Query, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { OrgContext } from '../../../common/decorators/org-context.decorator';
-import { Public } from '../../../common/decorators/public.decorator';
+import { JwtGuard } from '../../../common/guards/jwt.guard';
+import { ActionPermissionGuard } from '../../../common/guards/action-permission.guard';
+import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { ProductCategoriesService } from '../services/product-categories.service';
 import { CreateCategoryDto, UpdateCategoryDto } from '../dto/create-category.dto';
 
 @Controller('product-categories')
+@UseGuards(JwtGuard)
 export class ProductCategoriesController {
   constructor(private readonly service: ProductCategoriesService) {}
 
   @Post()
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('product_categories.create')
   async create(
     @Body() createDto: CreateCategoryDto,
     @OrgContext() orgContext: any,
   ) {
-    const orgId = orgContext?.organizationId || orgContext;
-    return this.service.create(orgId, createDto);
+    return this.service.create(orgContext.organizationId, createDto);
   }
 
   @Get()
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('product_categories.view')
   async findAll(
     @Query('includeInactive') includeInactive?: boolean,
     @OrgContext() orgContext?: any,
   ) {
-    const orgId = orgContext?.organizationId || orgContext;
-    return this.service.findAll(orgId, includeInactive);
+    return this.service.findAll(orgContext.organizationId, includeInactive);
   }
 
   @Get(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('product_categories.view')
   async findOne(
     @Param('id', ParseIntPipe) id: number,
     @OrgContext() orgContext?: any,
   ) {
-    const orgId = orgContext?.organizationId || orgContext;
-    return this.service.findOne(orgId, id);
+    return this.service.findOne(orgContext.organizationId, id);
   }
 
   @Patch(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('product_categories.edit')
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() updateDto: UpdateCategoryDto,
     @OrgContext() orgContext?: any,
   ) {
-    const orgId = orgContext?.organizationId || orgContext;
-    return this.service.update(orgId, id, updateDto);
+    return this.service.update(orgContext.organizationId, id, updateDto);
   }
 
   @Delete(':id')
-  @Public()
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('product_categories.delete')
   async remove(
     @Param('id', ParseIntPipe) id: number,
     @OrgContext() orgContext?: any,
   ) {
-    const orgId = orgContext?.organizationId || orgContext;
-    return this.service.remove(orgId, id);
+    return this.service.remove(orgContext.organizationId, id);
   }
 }

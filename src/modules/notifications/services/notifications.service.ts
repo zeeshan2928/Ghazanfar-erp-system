@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { PrismaService } from '@database/prisma.service';
 import {
   CreateNotificationDto,
   SendNotificationDto,
@@ -7,33 +8,32 @@ import {
 import { NotificationType } from '../types/notification-type.enum';
 
 /**
- * NOTE: the Notification/NotificationLog/NotificationPreference persistence
- * methods below are built against Prisma models that don't exist anywhere in
- * schema.prisma - same "built against a schema that was never created"
- * pattern found across ~9 other places in the 2026-07-06 audit (also true of
- * archival.service.ts's notification purge, which was stubbed the same day).
- * NotificationsModule is registered with a live controller, so these are
- * reachable via HTTP even though nothing persists. Stubbed to log and return
- * safe defaults rather than crash - needs a product/schema decision (add the
- * models, or drop the feature) before this is genuinely functional.
- *
- * Separately, and independent of the above: notifyBillApproval/
- * notifyPOStatusChange/notifyPaymentDue used NotificationType values that
- * don't exist in the real enum (BILL_APPROVED, PO_APPROVED, BILL_PAYMENT_DUE,
- * INVENTORY_CRITICAL - real values are BILL_APPROVAL, PO_APPROVAL,
- * PAYMENT_DUE, and INVENTORY_LOW has no separate "critical" tier). Those were
- * genuine bugs, fixed below regardless of the missing-schema issue.
+ * The Notification model now exists (prisma/schema.prisma) - persistence
+ * below is real. NotificationLog/NotificationPreference still don't have
+ * backing models (no email/SMS provider chosen yet), so queueEmail/queueSMS
+ * and the preference get/save methods remain stubbed/log-only - that's an
+ * intentionally separate, still-open product decision, not an oversight.
  */
 @Injectable()
 export class NotificationsService {
   private readonly logger = new Logger(NotificationsService.name);
 
+  constructor(private prisma: PrismaService) {}
+
   /**
    * Create an in-app notification
    */
   async createNotification(organizationId: number, dto: CreateNotificationDto): Promise<any> {
-    this.logger.warn('createNotification(): no Notification model exists in schema.prisma');
-    return null;
+    return this.prisma.notification.create({
+      data: {
+        organizationId,
+        userId: dto.userId,
+        type: dto.type,
+        title: dto.title,
+        message: dto.message,
+        data: dto.data,
+      },
+    });
   }
 
   /**
@@ -99,32 +99,55 @@ export class NotificationsService {
     skip: number = 0,
     take: number = 10,
   ) {
-    this.logger.warn('getUserNotifications(): no Notification model exists in schema.prisma');
-    return { data: [], total: 0 };
+    const where = { organizationId, userId };
+    const [data, total, unreadCount] = await Promise.all([
+      this.prisma.notification.findMany({
+        where,
+        orderBy: [{ isRead: 'asc' }, { createdAt: 'desc' }],
+        skip,
+        take,
+      }),
+      this.prisma.notification.count({ where }),
+      this.prisma.notification.count({ where: { ...where, isRead: false } }),
+    ]);
+    return { data, total, unreadCount };
   }
 
   /**
    * Mark notification as read
    */
   async markAsRead(organizationId: number, notificationId: number): Promise<any> {
-    this.logger.warn('markAsRead(): no Notification model exists in schema.prisma');
-    return null;
+    const notification = await this.prisma.notification.findFirst({
+      where: { id: notificationId, organizationId },
+    });
+    if (!notification) return null;
+
+    return this.prisma.notification.update({
+      where: { id: notificationId },
+      data: { isRead: true },
+    });
   }
 
   /**
    * Mark all unread notifications as read
    */
   async markAllAsRead(organizationId: number, userId: number): Promise<any> {
-    this.logger.warn('markAllAsRead(): no Notification model exists in schema.prisma');
-    return { count: 0 };
+    return this.prisma.notification.updateMany({
+      where: { organizationId, userId, isRead: false },
+      data: { isRead: true },
+    });
   }
 
   /**
    * Delete notification
    */
   async deleteNotification(organizationId: number, notificationId: number): Promise<any> {
-    this.logger.warn('deleteNotification(): no Notification model exists in schema.prisma');
-    return null;
+    const notification = await this.prisma.notification.findFirst({
+      where: { id: notificationId, organizationId },
+    });
+    if (!notification) return null;
+
+    return this.prisma.notification.delete({ where: { id: notificationId } });
   }
 
   /**
@@ -136,8 +159,46 @@ export class NotificationsService {
     skip: number = 0,
     take: number = 20,
   ) {
-    this.logger.warn('getNotificationHistory(): no Notification model exists in schema.prisma');
-    return { data: [], total: 0 };
+    const where: any = { organizationId };
+    if (filters.type) where.type = filters.type;
+    if (filters.isRead !== undefined) where.isRead = filters.isRead;
+    if (filters.startDate || filters.endDate) {
+      where.createdAt = {};
+      if (filters.startDate) where.createdAt.gte = new Date(filters.startDate);
+      if (filters.endDate) where.createdAt.lte = new Date(filters.endDate);
+    }
+
+    const [data, total] = await Promise.all([
+      this.prisma.notification.findMany({ where, orderBy: { createdAt: 'desc' }, skip, take }),
+      this.prisma.notification.count({ where }),
+    ]);
+    return { data, total };
+  }
+
+  /**
+   * Creates an INVENTORY_LOW notification for a product, unless an unread
+   * one for the same product already exists - avoids spamming the same
+   * still-low product on every alert check.
+   */
+  async notifyLowStockOnce(organizationId: number, userId: number, productId: number, productName: string, currentAvailable: number) {
+    const existing = await this.prisma.notification.findFirst({
+      where: {
+        organizationId,
+        userId,
+        type: 'INVENTORY_LOW',
+        isRead: false,
+        data: { path: ['productId'], equals: productId },
+      },
+    });
+    if (existing) return existing;
+
+    return this.createNotification(organizationId, {
+      userId,
+      type: NotificationType.INVENTORY_LOW,
+      title: 'Low stock alert',
+      message: `${productName} is at ${currentAvailable} units - below its minimum threshold.`,
+      data: { productId, currentAvailable },
+    });
   }
 
   /**

@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { GatePass, WarehouseTransfer, ApiResponse } from '../types/api';
 import { SearchRequestDto, FilterResponseDto } from '../types/filters';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000';
 
 class ApiClient {
   private client: AxiosInstance;
@@ -61,6 +61,11 @@ class ApiClient {
     return response.data;
   }
 
+  async recordGatePassPrint(id: number) {
+    const response = await this.client.post(`/api/v1/gate-passes/${id}/record-print`);
+    return response.data as { isDuplicate: boolean; printCount: number; printedAt: string };
+  }
+
   // Website Orders
   async getPendingWebsiteOrders(skip = 0, take = 10) {
     const response = await this.client.get(
@@ -101,9 +106,13 @@ class ApiClient {
   }
 
   async confirmTransferReceipt(id: number, items: Array<{ productId: number; quantity_received: number }>, remarks?: string) {
+    // Backend DTO (ReceiveItemDto) expects camelCase quantityReceived - this
+    // was previously sending quantity_received verbatim and silently failing
+    // validation on every call. Translate at the boundary, keep this
+    // method's own snake_case param name so existing callers don't need to change.
     const response = await this.client.post(
       `/warehouse-transfers/${id}/confirm-receipt`,
-      { items, remarks }
+      { items: items.map(i => ({ productId: i.productId, quantityReceived: i.quantity_received })), remarks }
     );
     return response.data;
   }
@@ -138,6 +147,51 @@ class ApiClient {
     return response.data;
   }
 
+  async getStockMovement(days = 30, productId?: number) {
+    const response = await this.client.get('/reports/stock-movement', { params: { days, productId } });
+    return response.data;
+  }
+
+  async getWarehouseTransferAnalytics(days = 30) {
+    const response = await this.client.get('/reports/warehouse-transfer', { params: { days } });
+    return response.data;
+  }
+
+  async getCommissionPeriodSummary(startDate: string, endDate: string) {
+    const response = await this.client.get(`/commission/summary/${startDate}/${endDate}`);
+    return response.data;
+  }
+
+  async getDailySalesTrend(days = 30) {
+    const response = await this.client.get('/reports/daily-sales-trend', { params: { days } });
+    return response.data;
+  }
+
+  async getYearlyMonthlyComparison(years = 3) {
+    const response = await this.client.get('/reports/yearly-monthly-comparison', { params: { years } });
+    return response.data;
+  }
+
+  async getTodayCashCollection() {
+    const response = await this.client.get('/reports/cash-collection-today');
+    return response.data;
+  }
+
+  async getExpenseBreakdown(from?: string, to?: string) {
+    const response = await this.client.get('/reports/expense-breakdown', { params: { from, to } });
+    return response.data;
+  }
+
+  async getExpenseTrend(months = 6) {
+    const response = await this.client.get('/reports/expense-trend', { params: { months } });
+    return response.data;
+  }
+
+  async getSalesmanPerformanceReport(startDate?: string, endDate?: string) {
+    const response = await this.client.get('/reports/salesman-performance', { params: { startDate, endDate } });
+    return response.data;
+  }
+
   // Search APIs
   async searchBills(request: SearchRequestDto) {
     const response = await this.client.post<FilterResponseDto<any>>(
@@ -156,6 +210,54 @@ class ApiClient {
 
   async createProduct(data: any) {
     const response = await this.client.post('/products', data);
+    return response.data;
+  }
+
+  async getProductById(productId: number) {
+    const response = await this.client.get(`/products/${productId}`);
+    return response.data;
+  }
+
+  async uploadProductMedia(productId: number, file: File) {
+    const formData = new FormData();
+    formData.append('file', file);
+    const response = await this.client.post(`/products/${productId}/media`, formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getProductMedia(productId: number) {
+    const response = await this.client.get(`/products/${productId}/media`);
+    return response.data as Array<{
+      id: number;
+      productId: number;
+      url: string;
+      mediaType: 'IMAGE' | 'VIDEO';
+      mimeType: string;
+      isPrimary: boolean;
+      createdAt: string;
+    }>;
+  }
+
+  async setPrimaryProductMedia(productId: number, mediaId: number) {
+    const response = await this.client.post(`/products/${productId}/media/${mediaId}/set-primary`);
+    return response.data;
+  }
+
+  async deleteProductMedia(productId: number, mediaId: number) {
+    const response = await this.client.delete(`/products/${productId}/media/${mediaId}`);
+    return response.data;
+  }
+
+  async setProductReorderParams(
+    productId: number,
+    data: { minimumQuantity: number; reorderQuantity: number; primaryVendorId?: number },
+  ) {
+    const response = await this.client.post(
+      `/purchase-orders/products/${productId}/set-reorder-params`,
+      data,
+    );
     return response.data;
   }
 
@@ -229,6 +331,29 @@ class ApiClient {
     return response.data;
   }
 
+  async getCustomerCreditStatus(customerId: number) {
+    const response = await this.client.get(`/customers/${customerId}/credit-status`);
+    return response.data as { creditLimit: number; outstandingBalance: number; availableCredit: number };
+  }
+
+  async getCustomerLedger(customerId: number) {
+    const response = await this.client.get(`/customers/${customerId}/ledger`);
+    return response.data as {
+      customer: { id: number; name: string; phone: string; email: string | null; creditLimit: number };
+      entries: Array<{
+        billId: number;
+        billNumber: string;
+        billDate: string;
+        totalAmount: number;
+        amountPaid: number;
+        outstanding: number;
+        runningBalance: number;
+        status: string;
+      }>;
+      totalOutstanding: number;
+    };
+  }
+
   async searchPurchaseOrders(request: SearchRequestDto) {
     const response = await this.client.post<FilterResponseDto<any>>(
       '/purchase-orders/search',
@@ -275,8 +400,52 @@ class ApiClient {
     return response.data;
   }
 
-  async exportBillPDF(billId: number) {
-    const response = await this.client.get(`/bills/${billId}/export-pdf`);
+  async exportBillPDF(billId: number): Promise<Blob> {
+    const response = await this.client.get(`/bills/${billId}/export-pdf`, {
+      responseType: 'blob',
+    });
+    return response.data;
+  }
+
+  async sendInvoiceEmail(billId: number, to?: string) {
+    const response = await this.client.post(`/bills/${billId}/send-email`, { to });
+    return response.data as { billId: number; to: string; sent: boolean; reason?: string; messageId?: string };
+  }
+
+  // ==================== GLOBAL SEARCH ====================
+  async globalSearch(query: string) {
+    const response = await this.client.get('/search', { params: { q: query } });
+    return response.data as Array<{
+      type: 'bill' | 'purchase_order' | 'gate_pass' | 'journal_entry' | 'cash_book_entry' | 'customer' | 'vendor' | 'sales_order';
+      id: number;
+      title: string;
+      subtitle: string;
+    }>;
+  }
+
+  // ==================== SALES ORDERS (optional, secondary to direct invoicing) ====================
+  async createSalesOrder(data: any) {
+    const response = await this.client.post('/sales-orders', data);
+    return response.data;
+  }
+
+  async getSalesOrders(status?: string) {
+    const response = await this.client.get('/sales-orders', { params: { status } });
+    return response.data;
+  }
+
+  async getSalesOrderById(id: number) {
+    const response = await this.client.get(`/sales-orders/${id}`);
+    return response.data;
+  }
+
+  async cancelSalesOrder(id: number) {
+    const response = await this.client.post(`/sales-orders/${id}/cancel`);
+    return response.data;
+  }
+
+  async convertSalesOrderToInvoice(id: number, data: any) {
+    const response = await this.client.post(`/sales-orders/${id}/convert-to-invoice`, data);
     return response.data;
   }
 
@@ -321,6 +490,94 @@ class ApiClient {
     return response.data;
   }
 
+  async getVendorScorecard(vendorId: number) {
+    const response = await this.client.get(`/vendors/${vendorId}/scorecard`);
+    return response.data;
+  }
+
+  // ==================== LOW STOCK / REORDER ====================
+  async getLowStockAlerts() {
+    const response = await this.client.get('/purchase-orders/alerts/low-stock');
+    return response.data;
+  }
+
+  async autoCreatePOsForLowStock() {
+    const response = await this.client.post('/purchase-orders/alerts/auto-create-pos');
+    return response.data;
+  }
+
+  async manualCreatePOsForLowStock(items: Array<{ productId: number; vendorId: number; quantity: number }>) {
+    const response = await this.client.post('/purchase-orders/alerts/manual-create-pos', { items });
+    return response.data;
+  }
+
+  // ==================== NOTIFICATIONS ====================
+  async getNotifications(skip = 0, take = 10) {
+    const response = await this.client.get('/notifications', { params: { skip, take } });
+    return response.data;
+  }
+
+  async markNotificationRead(id: number) {
+    const response = await this.client.post(`/notifications/${id}/read`);
+    return response.data;
+  }
+
+  async markAllNotificationsRead() {
+    const response = await this.client.post('/notifications/mark-all/read');
+    return response.data;
+  }
+
+  async createVendor(data: any) {
+    const response = await this.client.post('/vendors', data);
+    return response.data;
+  }
+
+  async getVendors(skip = 0, take = 20) {
+    const response = await this.client.get('/vendors', { params: { skip, take } });
+    return response.data;
+  }
+
+  async getVendorById(vendorId: number) {
+    const response = await this.client.get(`/vendors/${vendorId}`);
+    return response.data;
+  }
+
+  async updateVendor(vendorId: number, data: any) {
+    const response = await this.client.put(`/vendors/${vendorId}`, data);
+    return response.data;
+  }
+
+  async deactivateVendor(vendorId: number) {
+    const response = await this.client.delete(`/vendors/${vendorId}`);
+    return response.data;
+  }
+
+  async addProductToVendor(vendorId: number, data: any) {
+    const response = await this.client.post(`/vendors/${vendorId}/products`, data);
+    return response.data;
+  }
+
+  async removeProductFromVendor(vendorId: number, productId: number) {
+    const response = await this.client.delete(`/vendors/${vendorId}/products/${productId}`);
+    return response.data;
+  }
+
+  // ==================== WAREHOUSE TRANSFERS (additional) ====================
+  async createWarehouseTransfer(data: any) {
+    const response = await this.client.post('/warehouse-transfers', data);
+    return response.data;
+  }
+
+  async getWarehouseTransferById(id: number) {
+    const response = await this.client.get(`/warehouse-transfers/${id}`);
+    return response.data;
+  }
+
+  async rejectTransfer(id: number, reason: string) {
+    const response = await this.client.post(`/warehouse-transfers/${id}/reject`, { reason });
+    return response.data;
+  }
+
   // ==================== REPORTS & ANALYTICS ====================
   async getSalesReport(startDate?: string, endDate?: string) {
     const response = await this.client.get('/reports/sales', { params: { startDate, endDate } });
@@ -339,6 +596,26 @@ class ApiClient {
 
   async getCustomerReport(startDate?: string, endDate?: string) {
     const response = await this.client.get('/reports/customers', { params: { startDate, endDate } });
+    return response.data;
+  }
+
+  async getBillStatusBreakdown(days = 90) {
+    const response = await this.client.get('/reports/bill-status-breakdown', { params: { days } });
+    return response.data;
+  }
+
+  async getSalesOrderStatusBreakdown() {
+    const response = await this.client.get('/reports/sales-order-status-breakdown');
+    return response.data;
+  }
+
+  async getPurchaseOrderStatusBreakdown(days = 90) {
+    const response = await this.client.get('/reports/purchase-order-status-breakdown', { params: { days } });
+    return response.data;
+  }
+
+  async getPermissionOverrideStats() {
+    const response = await this.client.get('/permissions/override-stats');
     return response.data;
   }
 
@@ -442,6 +719,22 @@ class ApiClient {
     return response.data;
   }
 
+  // ==================== PERMISSIONS ====================
+  async getPermissionCatalog() {
+    const response = await this.client.get('/permissions/catalog');
+    return response.data;
+  }
+
+  async getUserPermissionOverrides(userId: number) {
+    const response = await this.client.get(`/permissions/user/${userId}/overrides`);
+    return response.data;
+  }
+
+  async setUserPermissionOverrides(userId: number, overrides: { key: string; granted: boolean }[]) {
+    const response = await this.client.put(`/permissions/user/${userId}/overrides`, { overrides });
+    return response.data;
+  }
+
   // ==================== GATE PASS OPERATIONS ====================
   async getGatePassesByStatus(warehouseId: number, status: string, skip = 0, take = 10) {
     const response = await this.client.get('/gate-passes', {
@@ -542,6 +835,11 @@ class ApiClient {
     return response.data;
   }
 
+  async deactivateAccount(accountId: number) {
+    const response = await this.client.delete(`/chart-of-accounts/${accountId}`);
+    return response.data;
+  }
+
   async seedChartOfAccounts() {
     const response = await this.client.post('/chart-of-accounts/seed/starter', {});
     return response.data;
@@ -578,12 +876,27 @@ class ApiClient {
   }
 
   async getBalanceSheet(asOfDate?: string) {
-    const response = await this.client.get('/gl-reporting/balance-sheet', { params: { asOfDate } });
+    const response = await this.client.get('/gl-reporting/balance-sheet', { params: { asOf: asOfDate } });
     return response.data;
   }
 
   async getIncomeStatement(from?: string, to?: string) {
     const response = await this.client.get('/gl-reporting/income-statement', { params: { from, to } });
+    return response.data;
+  }
+
+  async getGeneralLedger(accountId: number, from?: string, to?: string) {
+    const response = await this.client.get('/gl-reporting/general-ledger', { params: { accountId, from, to } });
+    return response.data;
+  }
+
+  async getCashReceiptsJournal(from?: string, to?: string) {
+    const response = await this.client.get('/gl-reporting/cash-receipts-journal', { params: { from, to } });
+    return response.data;
+  }
+
+  async getCashDisbursementsJournal(from?: string, to?: string) {
+    const response = await this.client.get('/gl-reporting/cash-disbursements-journal', { params: { from, to } });
     return response.data;
   }
 
@@ -609,6 +922,11 @@ class ApiClient {
 
   async getCombinedAgingReport(asOfDate?: string) {
     const response = await this.client.get('/ar-ap-aging/report/combined', { params: { asOfDate } });
+    return response.data;
+  }
+
+  async getCashBookKPIs(fromDate: string, toDate: string) {
+    const response = await this.client.get('/cash-book/kpis', { params: { fromDate, toDate } });
     return response.data;
   }
 
@@ -692,6 +1010,32 @@ class ApiClient {
 
   async deleteBrand(id: number) {
     const response = await this.client.delete(`/brands/${id}`);
+    return response.data;
+  }
+
+  // ==================== SALES COMMISSION ====================
+  async createCommissionAssignment(data: any) {
+    const response = await this.client.post('/commission/assignments', data);
+    return response.data;
+  }
+
+  async getCommissionAssignments(salesmanId?: number) {
+    const response = await this.client.get('/commission/assignments', { params: salesmanId ? { salesmanId } : {} });
+    return response.data;
+  }
+
+  async updateCommissionAssignment(id: number, data: any) {
+    const response = await this.client.patch(`/commission/assignments/${id}`, data);
+    return response.data;
+  }
+
+  async deactivateCommissionAssignment(id: number) {
+    const response = await this.client.post(`/commission/assignments/${id}/deactivate`);
+    return response.data;
+  }
+
+  async markCommissionPaid(id: number) {
+    const response = await this.client.post(`/commission/assignments/${id}/mark-paid`);
     return response.data;
   }
 }

@@ -1,11 +1,13 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { TransactionService } from 'src/common/services/transaction.service';
+import { NotificationsService } from '../../notifications/services/notifications.service';
 import {
   CreatePurchaseOrderDto,
   ConfirmReceiptDto,
   SetProductReorderParamsDto,
   UpdatePurchaseOrderDto,
+  ManualCreatePOsDto,
 } from '../dto/purchase-order.dto';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class PurchaseOrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly transactionService: TransactionService,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   private async generatePoNumber(organizationId: number): Promise<string> {
@@ -236,6 +239,16 @@ export class PurchaseOrdersService {
           },
         });
 
+        // PurchaseOrderItem.quantity_received was never being updated here -
+        // the "all received?" check further down works around it by summing
+        // PurchaseOrderReceipt directly, but the column itself stayed
+        // permanently 0, which silently broke anything that reads it
+        // (AP aging's received-value calculation, most importantly).
+        await tx.purchaseOrderItem.update({
+          where: { id: poItem.id },
+          data: { quantity_received: { increment: receiveItem.quantityReceived } },
+        });
+
         // Update inventory
         let inventory = await tx.inventory.findFirst({
           where: {
@@ -280,10 +293,15 @@ export class PurchaseOrdersService {
 
       const newStatus = allReceived ? 'RECEIVED' : 'PARTIAL_RECEIVED';
 
+      // actual_delivery_date was never being set anywhere - the vendor
+      // scorecard's on-time-delivery % is computed entirely from this field,
+      // so without it that metric would be permanently null/0 no matter how
+      // many POs get received.
       await tx.purchaseOrder.update({
         where: { id: poId },
         data: {
           status: newStatus,
+          ...(allReceived && !po.actual_delivery_date ? { actual_delivery_date: new Date() } : {}),
         },
       });
     });
@@ -324,7 +342,7 @@ export class PurchaseOrdersService {
     });
   }
 
-  async getLowStockAlerts(organizationId: number) {
+  async getLowStockAlerts(organizationId: number, userId?: number) {
     const lowStockProducts = await this.prisma.product.findMany({
       where: {
         organizationId,
@@ -344,12 +362,24 @@ export class PurchaseOrdersService {
       },
     });
 
+    // All vendors supplying each low-stock product, for the "choose vendor
+    // / best price" manual-generate flow.
+    const vendorOptions = await this.prisma.productVendor.findMany({
+      where: { productId: { in: lowStockProducts.map(p => p.id) } },
+      include: { vendor: true },
+    });
+
     const alerts = lowStockProducts
       .map(product => {
         const productInventory = inventoryData.filter(inv => inv.productId === product.id);
         const totalAvailable = productInventory.reduce((sum, inv) => sum + inv.available, 0);
 
         if (totalAvailable <= (product as any).minimum_quantity) {
+          const vendors = vendorOptions
+            .filter(pv => pv.productId === product.id)
+            .map(pv => ({ vendorId: pv.vendorId, vendorName: pv.vendor.name, unitPrice: pv.unit_price, leadTimeDays: pv.lead_time_days }))
+            .sort((a, b) => a.unitPrice - b.unitPrice);
+
           return {
             productId: product.id,
             productCode: product.code,
@@ -360,12 +390,24 @@ export class PurchaseOrdersService {
             reorderQuantity: (product as any).reorder_quantity,
             primaryVendorId: product.primary_vendor_id,
             inventoryByWarehouse: productInventory,
+            vendors,
+            cheapestVendorId: vendors[0]?.vendorId,
           };
         }
 
         return null;
       })
       .filter(a => a !== null);
+
+    // Fire (deduplicated) low-stock notifications for whoever is checking -
+    // best-effort, doesn't block the response if it fails.
+    if (userId) {
+      for (const alert of alerts) {
+        this.notificationsService
+          .notifyLowStockOnce(organizationId, userId, alert!.productId, alert!.productName, alert!.currentAvailable)
+          .catch(() => undefined);
+      }
+    }
 
     return {
       totalAlerts: alerts.length,
@@ -389,6 +431,8 @@ export class PurchaseOrdersService {
       }
 
       const poNumber = await this.generatePoNumber(organizationId);
+      const unitCost = await this.getVendorUnitCost(alert.productId, alert.primaryVendorId);
+      const quantity = alert.reorderQuantity || alert.shortage * 2;
 
       const po = await this.prisma.purchaseOrder.create({
         data: {
@@ -397,10 +441,12 @@ export class PurchaseOrdersService {
           vendorId: alert.primaryVendorId,
           status: 'DRAFT',
           created_by: _userId,
+          po_amount: unitCost * quantity,
           PurchaseOrderItem: {
             create: {
               productId: alert.productId,
-              quantity_ordered: alert.reorderQuantity || alert.shortage * 2,
+              quantity_ordered: quantity,
+              unit_cost: unitCost,
             },
           },
         },
@@ -415,6 +461,61 @@ export class PurchaseOrdersService {
 
     return {
       message: `Auto-created ${createdPOs.length} purchase orders`,
+      createdPos: createdPOs,
+    };
+  }
+
+  private async getVendorUnitCost(productId: number, vendorId: number): Promise<number> {
+    const pv = await this.prisma.productVendor.findFirst({
+      where: { productId, vendorId },
+    });
+    return pv?.unit_price || 0;
+  }
+
+  /**
+   * "Manual Generate" - unlike autoCreatePOsForLowStock (which always uses
+   * the product's primary vendor), this lets the caller pick a different
+   * vendor per product - needed when a product has more than one supplier.
+   */
+  async manualCreatePOsForLowStock(organizationId: number, userId: number, dto: ManualCreatePOsDto) {
+    const createdPOs = [];
+
+    for (const item of dto.items) {
+      const vendor = await this.prisma.vendor.findFirst({ where: { id: item.vendorId, organizationId } });
+      if (!vendor) {
+        throw new BadRequestException(`Vendor ${item.vendorId} not found`);
+      }
+
+      const poNumber = await this.generatePoNumber(organizationId);
+      const unitCost = await this.getVendorUnitCost(item.productId, item.vendorId);
+
+      const po = await this.prisma.purchaseOrder.create({
+        data: {
+          organizationId,
+          po_number: poNumber,
+          vendorId: item.vendorId,
+          status: 'DRAFT',
+          created_by: userId,
+          po_amount: unitCost * item.quantity,
+          PurchaseOrderItem: {
+            create: {
+              productId: item.productId,
+              quantity_ordered: item.quantity,
+              unit_cost: unitCost,
+            },
+          },
+        },
+        include: {
+          vendor: true,
+          PurchaseOrderItem: true,
+        },
+      });
+
+      createdPOs.push(po);
+    }
+
+    return {
+      message: `Created ${createdPOs.length} purchase orders`,
       createdPos: createdPOs,
     };
   }

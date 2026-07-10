@@ -31,6 +31,8 @@ import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { WebSocketModule } from './modules/websocket/websocket.module';
+import { SearchModule } from './modules/search/search.module';
+import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -80,6 +82,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     ReportingModule,
     VendorsModule,
     WebSocketModule,
+    SearchModule,
+    SalesOrdersModule,
   ],
   controllers: [],
 })

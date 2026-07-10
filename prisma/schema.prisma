@@ -17,6 +17,7 @@ model Organization {
   bills                  Bill[]
   billLines              BillLine[]
   invoiceSequence        InvoiceSequence?
+  transactionSequences   TransactionSequence[]
   customers              Customer[]
   gatePasses             GatePass[]
   gatePassItems          GatePassItem[]
@@ -51,6 +52,10 @@ model Organization {
   budgets                Budget[]
   arAgings               ArAging[]
   apAgings               ApAging[]
+  salesmanProductCommissions SalesmanProductCommission[]
+  notifications          Notification[]
+  userPermissions        UserPermission[]
+  salesOrders            SalesOrder[]
 }
 
 model User {
@@ -60,6 +65,7 @@ model User {
   firstName                             String
   lastName                              String
   role                                  UserRole          @default(SALESMAN)
+  canViewFinancials                     Boolean           @default(false) // Manual per-user flag, independent of role - profit/loss, margins, and cost data are gated on this
   isActive                              Boolean           @default(true)
   createdAt                             DateTime          @default(now())
   updatedAt                             DateTime          @updatedAt
@@ -85,8 +91,32 @@ model User {
   inventoryWarehouseTransfersApproved   InventoryWarehouseTransfer[] @relation("InventoryWarehouseTransfer_approvedBy")
   commissionCalculations                CommissionCalculation[] @relation("CommissionCalculations")
   commissionApprovals                   CommissionCalculation[] @relation("CommissionApprovals")
+  salesmanCommissionAssignments         SalesmanProductCommission[] @relation("SalesmanCommissionAssignments")
+  notifications                         Notification[]
+  permissionOverrides                   UserPermission[]
   organization                          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Warehouse                             Warehouse?        @relation(fields: [warehouseId], references: [id])
+}
+
+// Per-user action-level permission override. Default-allow model: the
+// absence of a row for a given permissionKey means the action is allowed
+// (matches pre-existing behavior). An explicit granted:false row is what
+// actually restricts a user. ADMIN role bypasses this table entirely -
+// see ActionPermissionGuard.
+model UserPermission {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  permissionKey  String   // e.g. "bills.delete" - see PERMISSION_CATALOG
+  granted        Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permissionKey])
+  @@index([organizationId, userId])
 }
 
 model Warehouse {
@@ -394,6 +424,7 @@ model Customer {
   updatedAt          DateTime     @updatedAt
   Bill               Bill[]
   organization       Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  salesOrders        SalesOrder[]
 
   @@unique([organizationId, email])
   @@index([organizationId, name])
@@ -407,6 +438,10 @@ model Vendor {
   phone          String?
   contact_person String?
   address        String?
+  paymentTerms   String?
+  creditLimit    Int             @default(0)
+  taxNumber      String?
+  tags           String[]        @default([])
   isActive       Boolean         @default(true)
   createdAt      DateTime        @default(now())
   updatedAt      DateTime        @updatedAt
@@ -480,9 +515,35 @@ model Product {
   purchaseOrderItems PurchaseOrderItem[]
   warehouseTransfers InventoryWarehouseTransfer[]
   commissions        ProductCommission[]
+  salesmanCommissions SalesmanProductCommission[]
+  salesOrderLines    SalesOrderLine[]
+  media              ProductMedia[]
 
   @@unique([organizationId, code])
   @@index([organizationId, name])
+}
+
+// Product Studio: a gallery of images/videos per product, stored on local
+// disk today (served via /uploads static route - see MediaStorageService).
+// Deliberately not a single image field on Product itself, since a real
+// product page needs multiple photos/videos, not just one.
+model ProductMedia {
+  id        Int              @id @default(autoincrement())
+  productId Int
+  url       String
+  mediaType ProductMediaType
+  mimeType  String
+  isPrimary Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([productId])
+}
+
+enum ProductMediaType {
+  IMAGE
+  VIDEO
 }
 
 model ProductPrice {
@@ -564,6 +625,55 @@ model Bill {
 
   @@unique([organizationId, bill_number])
   @@index([organizationId, customerId, bill_date])
+  salesOrder                 SalesOrder?
+}
+
+// Optional, secondary to direct invoicing (this business creates most sales
+// as a direct Bill/Invoice - a Sales Order only exists for the cases where a
+// quote/order needs to be recorded before it's confirmed into an invoice).
+// orderNumber comes from the shared TransactionSequence (docType
+// 'SALES_ORDER', prefix 'SO'), same pattern as Bill's INV- numbering.
+model SalesOrder {
+  id              Int              @id @default(autoincrement())
+  organizationId  Int
+  orderNumber     String
+  customerId      Int
+  salesmanId      Int?
+  status          SalesOrderStatus @default(DRAFT)
+  orderDate       DateTime         @default(now())
+  remarks         String?
+  convertedBillId Int?             @unique
+  createdBy       Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer        Customer         @relation(fields: [customerId], references: [id])
+  convertedBill   Bill?            @relation(fields: [convertedBillId], references: [id])
+  lines           SalesOrderLine[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId, status])
+}
+
+model SalesOrderLine {
+  id           Int        @id @default(autoincrement())
+  salesOrderId Int
+  productId    Int
+  quantity     Int
+  unitPrice    Int
+  lineTotal    Int
+  createdAt    DateTime   @default(now())
+
+  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product      Product    @relation(fields: [productId], references: [id])
+}
+
+enum SalesOrderStatus {
+  DRAFT
+  CONFIRMED
+  CONVERTED
+  CANCELLED
 }
 
 // Dedicated invoice-number counter, incremented atomically inside the same
@@ -581,6 +691,25 @@ model InvoiceSequence {
   currentCount   Int          @default(0)
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+}
+
+// Shared, reusable counter for auto-generated, non-editable transaction
+// numbers across modules that don't already have their own (Bills use
+// InvoiceSequence; GatePass/PurchaseOrder already generate their own
+// numbers). One row per (organizationId, docType) - e.g. docType
+// "JOURNAL_ENTRY" or "CASH_BOOK_ENTRY". Any manual reference a user enters
+// (cashbookNumber, referenceNumber, etc.) stays a secondary, optional field
+// alongside this - never the primary identifier.
+model TransactionSequence {
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  docType        String
+  currentBlock   Int          @default(1)
+  currentCount   Int          @default(0)
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, docType])
 }
 
 model BillLine {
@@ -634,6 +763,8 @@ model GatePass {
   confirmed_by     Int?
   confirmed_date   DateTime?
   remarks          String?
+  printedAt        DateTime?      // Set on first print. A second+ print is a reprint - ADMIN-only, hard rule (see GatePassesService.recordPrint), not a togglable permission.
+  printCount       Int            @default(0)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
   bill             Bill           @relation(fields: [billId], references: [id], onDelete: Cascade)
@@ -702,6 +833,10 @@ model PurchaseOrderItem {
   productId         Int
   quantity_ordered  Int
   quantity_received Int           @default(0)
+  // Captured at PO creation time (from ProductVendor.unit_price) - without
+  // this, "value of what's actually been received" can't be computed, which
+  // is exactly what AP aging needs for the payable-only-on-receipt rule.
+  unit_cost         Int           @default(0)
   purchaseOrder     PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
   product           Product       @relation(fields: [productId], references: [id], onDelete: Cascade)
 
@@ -728,12 +863,13 @@ model PurchaseOrderReceipt {
 model CashBookEntry {
   id                Int                  @id @default(autoincrement())
   organizationId    Int
+  entryNumber       String?              // Auto-generated, non-editable (see TransactionSequence). referenceNumber below stays a secondary, optional, user-editable field.
   date              DateTime
   amount            Int // in smallest currency unit
   description       String
   category          CashBookCategory
   paymentMethod     PaymentMethod
-  referenceNumber   String // cheque #, transaction ID, etc.
+  referenceNumber   String? // cheque #, transaction ID, etc. - optional, secondary to entryNumber
   linkedBillId      Int?
   status            CashBookEntryStatus  @default(DRAFT)
   createdBy         Int
@@ -750,6 +886,7 @@ model CashBookEntry {
   auditLogs        CashBookAudit[]
 
   @@unique([organizationId, referenceNumber])
+  @@unique([organizationId, entryNumber])
   @@index([organizationId, date])
   @@index([organizationId, category])
   @@index([linkedBillId])
@@ -1039,6 +1176,8 @@ model ChartOfAccount {
   accountCode       String             // e.g., 1000, 2100, 5000
   accountName       String             // e.g., Cash, Accounts Payable, Sales Revenue
   accountType       AccountType        // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  accountCategory   AccountCategory?   // Sub-classification for financial statement grouping
+  isCashAccount     Boolean            @default(false) // Flags Cash/Bank accounts for cash journals and cash account register reports
   parentAccountId   Int?               // For account hierarchy
   isActive          Boolean            @default(true)
   description       String?
@@ -1060,6 +1199,7 @@ model ChartOfAccount {
 model JournalEntry {
   id                Int                @id @default(autoincrement())
   organizationId    Int
+  entryNumber       String?            // Auto-generated, non-editable (see TransactionSequence). reference below stays a secondary, optional, user-editable field.
   entryDate         DateTime
   reference         String?            // e.g., INV-001, CHK-123
   description       String
@@ -1067,6 +1207,7 @@ model JournalEntry {
   postedDate        DateTime?
   reversalEntryId   Int?               @unique  // If this is a reversal
   memo              String?
+  createdBy         Int?
   createdAt         DateTime           @default(now())
   updatedAt         DateTime           @updatedAt
 
@@ -1075,6 +1216,7 @@ model JournalEntry {
   reversal          JournalEntry?      @relation("Reversal", fields: [reversalEntryId], references: [id])
   reversedBy        JournalEntry?      @relation("Reversal")
 
+  @@unique([organizationId, entryNumber])
   @@index([organizationId, entryDate])
   @@index([organizationId, status])
 }
@@ -1106,7 +1248,6 @@ model GLPosting {
   reference         String?            // e.g., JE-001, INV-123
   debitAmount       Int                @default(0)  // Amount in cents
   creditAmount      Int                @default(0)  // Amount in cents
-  balance           Int                @default(0)  // Running balance in cents
   description       String?
   createdAt         DateTime           @default(now())
 
@@ -1182,6 +1323,25 @@ enum AccountType {
   EXPENSE
 }
 
+// Sub-classification within an AccountType, used to group accounts on
+// financial statements (e.g. Balance Sheet current vs fixed assets,
+// Income Statement COGS vs operating expense). Nullable so existing
+// accounts created before this field existed remain valid.
+enum AccountCategory {
+  CURRENT_ASSET
+  FIXED_ASSET
+  OTHER_ASSET
+  CURRENT_LIABILITY
+  LONG_TERM_LIABILITY
+  OWNER_EQUITY
+  SALES_REVENUE
+  OTHER_REVENUE
+  COGS
+  OPERATING_EXPENSE
+  NON_OPERATING_EXPENSE
+  TAX_EXPENSE
+}
+
 enum JournalEntryStatus {
   DRAFT
   POSTED
@@ -1199,6 +1359,27 @@ enum NotificationType {
   GENERAL
 }
 
+// Real persisted notification - was previously stubbed against a model that
+// never existed (see notifications.service.ts's history). Field names match
+// the DTOs that already exist and are already wired to a real controller.
+model Notification {
+  id             Int              @id @default(autoincrement())
+  organizationId Int
+  userId         Int
+  type           NotificationType
+  title          String
+  message        String
+  data           Json?
+  isRead         Boolean          @default(false)
+  createdAt      DateTime         @default(now())
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([organizationId, userId, isRead])
+  @@index([organizationId, createdAt])
+}
+
 model ProductCommission {
   id              Int       @id @default(autoincrement())
   organizationId  Int
@@ -1213,5 +1394,37 @@ model ProductCommission {
   organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, productId, effectiveFrom])
+  @@index([organizationId, productId])
+}
+
+// Per-salesman, per-product commission assignment with a quantity target
+// for a given period - distinct from ProductCommission (store-wide rate)
+// and CommissionRule/CommissionCalculation (generic, manually-entered
+// figures). Not every product is commission-eligible and not every
+// salesman gets the same products/rates - each row is one deliberate
+// assignment, admin-picked.
+model SalesmanProductCommission {
+  id              Int       @id @default(autoincrement())
+  organizationId  Int
+  salesmanId      Int
+  productId       Int
+  commissionType  String    // PERCENTAGE | FIXED_PER_UNIT
+  rate            Decimal   @db.Decimal(10, 2) // percentage value, or Rs per unit
+  targetQuantity  Int       @default(0)
+  periodStart     DateTime
+  periodEnd       DateTime
+  isActive        Boolean   @default(true)
+  paidAt          DateTime?
+  paidAmount      Int?
+  journalEntryId  Int?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  salesman        User         @relation("SalesmanCommissionAssignments", fields: [salesmanId], references: [id])
+  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, salesmanId, productId, periodStart])
+  @@index([organizationId, salesmanId])
   @@index([organizationId, productId])
 }

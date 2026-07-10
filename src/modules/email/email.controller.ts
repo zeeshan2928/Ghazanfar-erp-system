@@ -2,6 +2,8 @@ import { Controller, Get, Post, Put, Param, Body, UseGuards, Query } from '@nest
 import { EmailTemplateService } from './services/email-template.service';
 import { EmailTemplateType } from './types/email-template-type.enum';
 import { JwtGuard } from '@common/guards/jwt.guard';
+import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
+import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 
 @Controller('email')
@@ -13,6 +15,8 @@ export class EmailController {
    * Get all email templates
    */
   @Get('templates')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.view')
   async getTemplates(@OrgContext() orgContext?: any) {
     return this.emailService.getAllTemplates(orgContext?.organizationId);
   }
@@ -21,6 +25,8 @@ export class EmailController {
    * Get specific template
    */
   @Get('templates/:type')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.view')
   async getTemplate(@Param('type') type: string) {
     try {
       return await this.emailService.getTemplate(type as EmailTemplateType);
@@ -33,6 +39,8 @@ export class EmailController {
    * Update email template
    */
   @Put('templates/:type')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.edit_templates')
   async updateTemplate(
     @Param('type') type: string,
     @Body()
@@ -49,6 +57,8 @@ export class EmailController {
    * Preview rendered email (with sample data)
    */
   @Post('preview/:type')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.view')
   async previewTemplate(@Param('type') type: string, @Body() sampleData: any) {
     try {
       const template = await this.emailService.getTemplate(type as EmailTemplateType);
@@ -71,6 +81,8 @@ export class EmailController {
    * Send test email to user's email
    */
   @Post('send-test')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.edit_templates')
   async sendTestEmail(
     @Body() { templateType, testEmail }: { templateType: EmailTemplateType; testEmail: string },
     @OrgContext() orgContext?: any,
@@ -160,6 +172,8 @@ export class EmailController {
    * Get email logs
    */
   @Get('logs')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('email.view')
   async getEmailLogs(
     @Query('to') to?: string,
     @Query('status') status?: string,

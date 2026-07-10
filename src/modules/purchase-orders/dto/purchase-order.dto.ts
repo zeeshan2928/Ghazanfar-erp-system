@@ -85,3 +85,21 @@ export class SetProductReorderParamsDto {
   @IsOptional()
   primaryVendorId?: number;
 }
+
+export class ManualCreatePOItemDto {
+  @IsNumber()
+  productId: number;
+
+  @IsNumber()
+  vendorId: number;
+
+  @IsNumber()
+  quantity: number;
+}
+
+export class ManualCreatePOsDto {
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ManualCreatePOItemDto)
+  items: ManualCreatePOItemDto[];
+}

@@ -25,6 +25,88 @@ export class CustomersService {
     });
   }
 
+  // Outstanding = unpaid balance across every non-cancelled bill. Used by the
+  // invoice screen's credit-limit indicator so a salesman can see exposure
+  // before adding another sale for this customer.
+  async getCreditStatus(organizationId: number, customerId: number) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, organizationId },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const bills = await this.prisma.bill.findMany({
+      where: { organizationId, customerId, status: { not: 'CANCELLED' } },
+      select: { total_amount: true, amount_paid: true },
+    });
+
+    const outstandingBalance = bills.reduce(
+      (sum, bill) => sum + Math.max(0, bill.total_amount - bill.amount_paid),
+      0,
+    );
+
+    return {
+      creditLimit: customer.creditLimit,
+      outstandingBalance,
+      availableCredit: customer.creditLimit - outstandingBalance,
+    };
+  }
+
+  // Full running-balance statement across every non-cancelled bill, oldest
+  // first - the "customer ledger" opened from the invoice screen.
+  async getLedger(organizationId: number, customerId: number) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, organizationId },
+    });
+
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    const bills = await this.prisma.bill.findMany({
+      where: { organizationId, customerId, status: { not: 'CANCELLED' } },
+      orderBy: { bill_date: 'asc' },
+      select: {
+        id: true,
+        bill_number: true,
+        bill_date: true,
+        total_amount: true,
+        amount_paid: true,
+        status: true,
+      },
+    });
+
+    let runningBalance = 0;
+    const entries = bills.map(bill => {
+      const outstanding = bill.total_amount - bill.amount_paid;
+      runningBalance += outstanding;
+      return {
+        billId: bill.id,
+        billNumber: bill.bill_number,
+        billDate: bill.bill_date,
+        totalAmount: bill.total_amount,
+        amountPaid: bill.amount_paid,
+        outstanding,
+        runningBalance,
+        status: bill.status,
+      };
+    });
+
+    return {
+      customer: {
+        id: customer.id,
+        name: customer.name,
+        phone: customer.phone,
+        email: customer.email,
+        creditLimit: customer.creditLimit,
+      },
+      entries,
+      totalOutstanding: runningBalance,
+    };
+  }
+
   async getSaleHistory(organizationId: number, customerId: number, limit = 10) {
     const customer = await this.prisma.customer.findUnique({
       where: { id: customerId },

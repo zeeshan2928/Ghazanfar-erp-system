@@ -24,7 +24,7 @@ interface BillAnalytics {
   period: { startDate: string; endDate: string; days: number };
   summary: {
     totalBills: number;
-    totalAmount: number;
+    total_amount: number;
     avgBillAmount: number;
     totalDiscountAmount: number;
   };
@@ -134,19 +134,19 @@ export function ReportingDashboard() {
                 </div>
                 <div style={styles.metric}>
                   <div style={styles.metricValue}>
-                    Rs. {(billAnalytics.summary.totalAmount / 1000).toFixed(0)}K
+                    Rs. {(billAnalytics.summary.total_amount / 1000).toFixed(0)}K
                   </div>
                   <div style={styles.metricLabel}>Total Revenue</div>
                 </div>
                 <div style={styles.metric}>
                   <div style={styles.metricValue}>
-                    Rs. {(billAnalytics.summary.avgBillAmount / 100).toFixed(0)}
+                    Rs. {billAnalytics.summary.avgBillAmount.toFixed(0)}
                   </div>
                   <div style={styles.metricLabel}>Avg Bill</div>
                 </div>
                 <div style={styles.metric}>
                   <div style={styles.metricValue}>
-                    Rs. {(billAnalytics.summary.totalDiscountAmount / 100).toFixed(0)}
+                    Rs. {billAnalytics.summary.totalDiscountAmount.toFixed(0)}
                   </div>
                   <div style={styles.metricLabel}>Total Discount</div>
                 </div>
@@ -158,7 +158,7 @@ export function ReportingDashboard() {
                   <div key={channel} style={styles.channelRow}>
                     <span>{channel}</span>
                     <span>{data.count} bills</span>
-                    <span>Rs. {data.amount / 100}</span>
+                    <span>Rs. {data.amount}</span>
                   </div>
                 ))}
               </div>
