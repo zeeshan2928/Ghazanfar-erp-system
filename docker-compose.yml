@@ -62,9 +62,9 @@ services:
     build:
       context: .
       dockerfile: docker/frontend/Dockerfile
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api}
     container_name: erp-frontend
-    environment:
-      VITE_API_URL: ${VITE_API_URL:-http://backend:3000}
     ports:
       - "${FRONTEND_PORT:-80}:80"
     depends_on:

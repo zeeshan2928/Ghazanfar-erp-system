@@ -13,6 +13,14 @@ RUN npm ci
 # Copy source code
 COPY frontend/. .
 
+# Vite inlines import.meta.env.VITE_API_URL into the static JS bundle at
+# build time - setting it as a runtime docker-compose `environment:` var
+# (as this repo did before) has no effect at all, since the built bundle
+# never reads process.env again after this step. Must come in as a build
+# arg instead.
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
 # Build application
 RUN npm run build
 
