@@ -1,4 +1,7 @@
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
+import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { JwtGuard } from './common/guards/jwt.guard';
 import { UsersModule } from './modules/users/users.module';
 import { WarehousesModule } from './modules/warehouses/warehouses.module';
 import { ProductsModule } from './modules/products/products.module';
@@ -33,12 +36,21 @@ import { VendorsModule } from './modules/vendors/vendors.module';
 import { WebSocketModule } from './modules/websocket/websocket.module';
 import { SearchModule } from './modules/search/search.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
+import { SalesAnalysisModule } from './modules/sales-analysis/sales-analysis.module';
+import { PurchaseAnalysisModule } from './modules/purchase-analysis/purchase-analysis.module';
+import { AssemblyFormulasModule } from './modules/assembly-formulas/assembly-formulas.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
 
 @Module({
   imports: [
+    ThrottlerModule.forRoot([
+      {
+        ttl: 60000,
+        limit: 100,
+      },
+    ]),
     DatabaseModule,
     CommonModule,
     UsersModule,
@@ -84,8 +96,15 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     WebSocketModule,
     SearchModule,
     SalesOrdersModule,
+    SalesAnalysisModule,
+    PurchaseAnalysisModule,
+    AssemblyFormulasModule,
   ],
   controllers: [],
+  providers: [
+    { provide: APP_GUARD, useClass: ThrottlerGuard },
+    { provide: APP_GUARD, useClass: JwtGuard },
+  ],
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

@@ -1,4 +1,4 @@
-import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { createParamDecorator, ExecutionContext, UnauthorizedException } from '@nestjs/common';
 
 export interface OrgContextType {
   organizationId: number;
@@ -10,26 +10,21 @@ export interface OrgContextType {
 }
 
 export const OrgContext = createParamDecorator(
-  (_: unknown, ctx: ExecutionContext): OrgContextType | number => {
+  (_: unknown, ctx: ExecutionContext): OrgContextType => {
     const request = ctx.switchToHttp().getRequest();
     const user = request.user;
 
-    if (user) {
-      return {
-        organizationId: user.organizationId,
-        userId: user.sub,
-        email: user.email,
-        role: user.role,
-        canViewFinancials: user.canViewFinancials,
-        permissions: user.permissions,
-      };
+    if (!user) {
+      throw new UnauthorizedException('No authenticated user on request');
     }
 
-    const orgId = request.headers['x-organization-id'];
-    if (orgId) {
-      return parseInt(orgId as string, 10);
-    }
-
-    return 1;
+    return {
+      organizationId: user.organizationId,
+      userId: user.sub,
+      email: user.email,
+      role: user.role,
+      canViewFinancials: user.canViewFinancials,
+      permissions: user.permissions,
+    };
   },
 );

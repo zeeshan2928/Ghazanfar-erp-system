@@ -226,6 +226,15 @@ export const PERMISSION_CATALOG: PermissionCatalogModule[] = [
       { key: 'email.edit_templates', label: 'Edit email templates' },
     ],
   },
+  {
+    module: 'assembly-formulas',
+    label: 'Assembly Cost Formulas (BOM)',
+    permissions: [
+      { key: 'assembly-formulas.view', label: 'View assembly formulas and part costs' },
+      { key: 'assembly-formulas.edit', label: 'Edit part costs' },
+      { key: 'assembly-formulas.import', label: 'Import BOM cost spreadsheets' },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_CATALOG.flatMap((m) =>

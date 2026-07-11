@@ -4,6 +4,7 @@ import { ProductsService } from './services/products.service';
 import { ProductsSearchService } from './services/products-search.service';
 import { ProductMediaService } from './services/product-media.service';
 import { SearchRequestDto } from '@common/dto/filter.dto';
+import { CreateProductDto } from './dto/create-product.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
 import { stripProductCost, stripProductCostList } from '@common/utils/financial-visibility.util';
@@ -18,10 +19,8 @@ export class ProductsController {
   ) {}
 
   @Post()
-  async createProduct(@Body() data: any, @OrgContext() orgContext: any) {
-    const organizationId = orgContext?.organizationId || 1; // Default to org 1 if missing
-    console.log('Creating product for org:', organizationId, 'data:', data);
-    return this.productsService.createProduct(organizationId, data);
+  async createProduct(@Body() data: CreateProductDto, @OrgContext() orgContext: any) {
+    return this.productsService.createProduct(orgContext.organizationId, data);
   }
 
   @Get(':productId')
@@ -56,7 +55,7 @@ export class ProductsController {
   }
 
   @Post(':productId/media')
-  @UseInterceptors(FileInterceptor('file'))
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 20 * 1024 * 1024 } }))
   async uploadMedia(
     @Param('productId', ParseIntPipe) productId: number,
     @UploadedFile() file: Express.Multer.File,

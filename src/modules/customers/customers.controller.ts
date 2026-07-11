@@ -2,6 +2,7 @@ import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
 import { CustomersService } from './services/customers.service';
 import { CustomersSearchService } from './services/customers-search.service';
 import { SearchRequestDto } from '@common/dto/filter.dto';
+import { CreateCustomerDto } from './dto/create-customer.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
 import { RequireAction } from '@common/decorators/require-action.decorator';
@@ -18,9 +19,8 @@ export class CustomersController {
   @Post()
   @UseGuards(ActionPermissionGuard)
   @RequireAction('customers.create')
-  async createCustomer(@Body() data: any, @OrgContext() orgContext: any) {
-    const organizationId = orgContext?.organizationId || 1;
-    return this.customersService.createCustomer(organizationId, data);
+  async createCustomer(@Body() data: CreateCustomerDto, @OrgContext() orgContext: any) {
+    return this.customersService.createCustomer(orgContext.organizationId, data);
   }
 
   @Get(':customerId/ledger')

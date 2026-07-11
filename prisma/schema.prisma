@@ -57,6 +57,12 @@ model Organization {
   notifications          Notification[]
   userPermissions        UserPermission[]
   salesOrders            SalesOrder[]
+  salesAnalysisUploads   SalesAnalysisUpload[]
+  salesAnalysisRecords   SalesAnalysisRecord[]
+  purchaseAnalysisUploads PurchaseAnalysisUpload[]
+  purchaseAnalysisRecords PurchaseAnalysisRecord[]
+  assemblyFormulas       AssemblyFormula[]
+  assemblyParts          AssemblyPart[]
 }
 
 model User {
@@ -95,6 +101,8 @@ model User {
   salesmanCommissionAssignments         SalesmanProductCommission[] @relation("SalesmanCommissionAssignments")
   notifications                         Notification[]
   permissionOverrides                   UserPermission[]
+  salesAnalysisUploads                  SalesAnalysisUpload[]
+  purchaseAnalysisUploads               PurchaseAnalysisUpload[]
   organization                          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   Warehouse                             Warehouse?        @relation(fields: [warehouseId], references: [id])
 }
@@ -1428,4 +1436,201 @@ model SalesmanProductCommission {
   @@unique([organizationId, salesmanId, productId, periodStart])
   @@index([organizationId, salesmanId])
   @@index([organizationId, productId])
+}
+
+// One row per uploaded CSV/XLS/XLSX sales report. reportStartDate/
+// reportEndDate are derived from the transaction dates actually found in
+// the file (not the file's own title text), so the upload-history UI can
+// show which periods are covered and surface gaps between uploads.
+model SalesAnalysisUpload {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  fileName        String
+  uploadedBy      Int
+  reportStartDate DateTime
+  reportEndDate   DateTime
+  rowCount        Int      @default(0)
+  duplicateCount  Int      @default(0)
+  conflictCount   Int      @default(0)
+  status          String   @default("PROCESSED") // PROCESSED | FAILED
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedByUser  User                  @relation(fields: [uploadedBy], references: [id])
+  records         SalesAnalysisRecord[]
+
+  @@index([organizationId, reportStartDate, reportEndDate])
+}
+
+// One row per parsed transaction line, deduplicated across uploads so that
+// re-uploading an overlapping report never double-counts the same sale.
+// (organizationId, billNumber, lineSequence) identifies "the Nth line item
+// of bill X" - deliberately not keyed on quantity/price, since the same
+// product can legitimately appear twice in one bill at the same price and
+// that must not be flagged as a duplicate of itself.
+model SalesAnalysisRecord {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  uploadId        Int
+  billNumber      String
+  lineSequence    Int
+  transactionDate DateTime
+  accountName     String?
+  customerName    String?
+  salesmanName    String?  // nullable - not every source report includes this
+  itemRaw         String
+  // Leading numeric code parsed from itemRaw (e.g. "123 Product Name" -> "123").
+  // Deliberately NOT matched against this app's own Product.code - this whole
+  // analysis suite is standalone and only ever cross-references two uploaded
+  // datasets against each other (see PurchaseAnalysisRecord.productCode),
+  // never this app's own Product/Vendor/GL tables.
+  productCode     String?
+  quantity        Decimal  @db.Decimal(12, 2)
+  soldPrice       Decimal  @db.Decimal(12, 2)
+  lineAmount      Decimal  @db.Decimal(14, 2)
+  isDuplicate     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  upload          SalesAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, billNumber, lineSequence])
+  @@index([organizationId, transactionDate])
+  @@index([organizationId, salesmanName])
+  @@index([organizationId, productCode])
+  @@index([organizationId, accountName])
+}
+
+// One row per uploaded purchase/vendor report - mirrors SalesAnalysisUpload
+// exactly. Deliberately no link to this app's own Vendor table: vendorName
+// is raw text from the file, since this whole analysis suite is standalone
+// and only ever cross-references its own two uploaded datasets.
+model PurchaseAnalysisUpload {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  fileName        String
+  uploadedBy      Int
+  reportStartDate DateTime
+  reportEndDate   DateTime
+  rowCount        Int      @default(0)
+  duplicateCount  Int      @default(0)
+  conflictCount   Int      @default(0)
+  status          String   @default("PROCESSED") // PROCESSED | FAILED
+  errorMessage    String?
+  createdAt       DateTime @default(now())
+
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedByUser  User                     @relation(fields: [uploadedBy], references: [id])
+  records         PurchaseAnalysisRecord[]
+
+  @@index([organizationId, reportStartDate, reportEndDate])
+}
+
+// One row per parsed purchase line - mirrors SalesAnalysisRecord exactly,
+// including the (organizationId, billNumber, lineSequence) dedupe key
+// rationale. productCode uses the same leading-number parsing convention as
+// SalesAnalysisRecord.productCode - that shared string is the only join key
+// between sales and purchase data anywhere in this suite (see the profit
+// cost-resolution query), never a real Product/Vendor id.
+model PurchaseAnalysisRecord {
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  uploadId        Int
+  billNumber      String
+  lineSequence    Int
+  transactionDate DateTime
+  vendorName      String?
+  itemRaw         String
+  productCode     String?
+  quantity        Decimal  @db.Decimal(12, 2)
+  purchasePrice   Decimal  @db.Decimal(12, 2)
+  lineAmount      Decimal  @db.Decimal(14, 2)
+  isDuplicate     Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  upload          PurchaseAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, billNumber, lineSequence])
+  @@index([organizationId, transactionDate])
+  @@index([organizationId, vendorName])
+  @@index([organizationId, productCode])
+}
+
+// Juicers and blenders keep SEPARATE part catalogs on purpose: a generic
+// component name like "Complete Body" means a genuinely different physical
+// part (and a very different price, ~1000 vs ~145) between the two, so they
+// must never merge into one shared part. Family is detected from the BOM
+// itself - a "Jug Plastic" component means BLENDER, otherwise JUICER.
+enum AssemblyFamily {
+  JUICER
+  BLENDER
+}
+
+// A shared raw part / labor line in the BOM catalog (Motor, Complete Body,
+// Box, Labor, ...). ONE current unitCost per (family, name) - so changing a
+// part's price ripples into every AssemblyFormula that uses it (the whole
+// point of the tool). Where the source spreadsheets recorded the same part
+// at different prices, hadPriceConflict flags it and conflictNote records
+// what was seen, for the user to reconcile to a single correct current
+// price. Deliberately NOT linked to the ERP's own inventory/Product tables.
+model AssemblyPart {
+  id               Int            @id @default(autoincrement())
+  organizationId   Int
+  family           AssemblyFamily
+  name             String
+  unitCost         Decimal        @db.Decimal(12, 2)
+  hadPriceConflict Boolean        @default(false)
+  conflictNote     String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formulaLines     AssemblyFormulaLine[]
+
+  @@unique([organizationId, family, name])
+  @@index([organizationId, family])
+}
+
+// A model's BOM (juicer/blender variant). Its total cost is DERIVED at read
+// time - sum(line.quantity x part.unitCost) - never stored, so it always
+// reflects current shared part prices. `productCodes` is a best-effort
+// '+'-split of the label kept for future ERP-product matching only.
+// Freely re-editable config, so import upserts by label (later source
+// wins) rather than the immutable-conflict logic the Sales/Purchase
+// Analysis transaction tools use.
+model AssemblyFormula {
+  id             Int            @id @default(autoincrement())
+  organizationId Int
+  family         AssemblyFamily
+  label          String
+  productCodes   String[]
+  sourceFile     String?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines          AssemblyFormulaLine[]
+
+  @@unique([organizationId, label])
+  @@index([organizationId, family])
+}
+
+// One line of a formula: which shared part, and how many. quantity defaults
+// to 1 (the source spreadsheets list each part once with no explicit qty;
+// any embedded count like "Body Pech 6" stays baked into that part's name
+// and price, not parsed out).
+model AssemblyFormulaLine {
+  id        Int     @id @default(autoincrement())
+  formulaId Int
+  partId    Int
+  quantity  Decimal @default(1) @db.Decimal(10, 2)
+
+  formula   AssemblyFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  part      AssemblyPart    @relation(fields: [partId], references: [id], onDelete: Restrict)
+
+  @@unique([formulaId, partId])
+  @@index([formulaId])
+  @@index([partId])
 }

@@ -8,12 +8,16 @@ import { PasswordService } from './services/password.service';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { DatabaseModule } from '@database/database.module';
 
+if (!process.env.JWT_SECRET) {
+  throw new Error('JWT_SECRET environment variable must be set - refusing to start with a default secret');
+}
+
 @Module({
   imports: [
     DatabaseModule,
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'your-secret-key',
+      secret: process.env.JWT_SECRET,
       signOptions: {
         expiresIn: process.env.JWT_EXPIRATION || '7d',
       },

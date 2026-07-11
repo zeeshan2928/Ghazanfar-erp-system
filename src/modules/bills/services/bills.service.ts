@@ -290,8 +290,8 @@ export class BillsService {
   }
 
   async create(organizationId: number, userId: number, createBillDto: CreateBillDto) {
-    const customer = await this.prisma.customer.findUnique({
-      where: { id: createBillDto.customerId },
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: createBillDto.customerId, organizationId },
     });
 
     if (!customer) {

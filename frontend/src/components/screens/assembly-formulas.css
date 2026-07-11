@@ -1,0 +1,184 @@
+/*
+ * Assembly Formula "workbench" - a deliberately dark, industrial
+ * precision-engineering surface, distinct from the rest of the light app.
+ * Glass (backdrop blur) is reserved for structural chrome only (rail, top
+ * bar, the sticky Total callout) - never the numeric rows, so the many small
+ * cost figures stay crisp and scannable.
+ */
+.afx-root {
+  --afx-graphite: #15181d;
+  --afx-gunmetal: #1f242b;
+  --afx-glass: rgba(226, 232, 238, 0.06);
+  --afx-glass-strong: rgba(226, 232, 238, 0.1);
+  --afx-torque: #d9660b;
+  --afx-torque-soft: rgba(217, 102, 11, 0.14);
+  --afx-blue: #4e9bc4;
+  --afx-offwhite: #edeff2;
+  --afx-slate: #8b93a0;
+  --afx-line: rgba(226, 232, 238, 0.1);
+  --afx-mono: ui-monospace, "Cascadia Code", "JetBrains Mono", "Consolas", monospace;
+  --afx-sans: "Segoe UI", system-ui, -apple-system, sans-serif;
+
+  position: relative;
+  display: grid;
+  grid-template-columns: 320px 1fr;
+  gap: 16px;
+  min-height: calc(100vh - 60px);
+  padding: 16px;
+  background:
+    radial-gradient(1200px 500px at 15% -10%, #232a33 0%, rgba(35, 42, 51, 0) 60%),
+    var(--afx-graphite);
+  color: var(--afx-offwhite);
+  font-family: var(--afx-sans);
+}
+
+.afx-topbar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 14px 18px;
+  border-radius: 14px;
+  background: var(--afx-glass);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--afx-line);
+}
+.afx-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+.afx-subtitle {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--afx-slate);
+  letter-spacing: 0.02em;
+}
+.afx-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+
+.afx-btn {
+  font-family: var(--afx-sans);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: 9px;
+  padding: 8px 14px;
+  cursor: pointer;
+  border: 1px solid var(--afx-line);
+  background: var(--afx-glass-strong);
+  color: var(--afx-offwhite);
+  transition: border-color 0.15s, background 0.15s;
+}
+.afx-btn:hover { border-color: var(--afx-blue); }
+.afx-btn:disabled { opacity: 0.45; cursor: default; }
+.afx-btn-primary { background: var(--afx-torque); border-color: var(--afx-torque); color: #fff; }
+.afx-btn-primary:hover { background: #ef7415; border-color: #ef7415; }
+.afx-btn-dirty { border-color: var(--afx-torque); color: #f3a15f; }
+
+.afx-family-toggle { display: inline-flex; border: 1px solid var(--afx-line); border-radius: 9px; overflow: hidden; }
+.afx-family-toggle button {
+  font-family: var(--afx-sans); font-size: 12px; font-weight: 600;
+  padding: 7px 13px; border: none; cursor: pointer;
+  background: transparent; color: var(--afx-slate);
+}
+.afx-family-toggle button.active { background: var(--afx-torque-soft); color: var(--afx-offwhite); }
+
+/* ---- Left rail: the parts bin ---- */
+.afx-rail {
+  display: flex; flex-direction: column; gap: 10px;
+  padding: 14px; border-radius: 14px;
+  background: var(--afx-glass); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+  border: 1px solid var(--afx-line);
+  max-height: calc(100vh - 150px); overflow: hidden;
+}
+.afx-search {
+  width: 100%; box-sizing: border-box;
+  font-family: var(--afx-sans); font-size: 13px;
+  padding: 9px 12px; border-radius: 9px;
+  background: rgba(0,0,0,0.25); border: 1px solid var(--afx-line); color: var(--afx-offwhite);
+}
+.afx-search::placeholder { color: var(--afx-slate); }
+.afx-rail-list { overflow-y: auto; display: flex; flex-direction: column; gap: 6px; padding-right: 4px; }
+.afx-rail-item {
+  text-align: left; cursor: pointer;
+  padding: 10px 12px; border-radius: 10px;
+  background: transparent; border: 1px solid transparent; color: var(--afx-offwhite);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.afx-rail-item:hover { background: var(--afx-glass); }
+.afx-rail-item.active { background: var(--afx-glass-strong); border-color: var(--afx-torque); }
+.afx-rail-label { font-size: 13px; font-weight: 600; letter-spacing: 0.01em; }
+.afx-rail-meta { display: flex; align-items: center; justify-content: space-between; }
+.afx-rail-total { font-family: var(--afx-mono); font-variant-numeric: tabular-nums; font-size: 13px; color: var(--afx-torque); font-weight: 600; }
+.afx-fam-chip { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--afx-slate); }
+
+/* ---- Main pane: build-up ledger ---- */
+.afx-main {
+  padding: 18px 20px; border-radius: 14px;
+  background: var(--afx-gunmetal); border: 1px solid var(--afx-line);
+  display: flex; flex-direction: column;
+  max-height: calc(100vh - 150px); overflow: hidden;
+}
+.afx-formula-head { margin-bottom: 14px; }
+.afx-formula-title { margin: 0; font-size: 22px; font-weight: 700; letter-spacing: 0.01em; }
+.afx-code-chips { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.afx-code-chip {
+  font-family: var(--afx-mono); font-size: 11px; color: var(--afx-blue);
+  padding: 2px 8px; border-radius: 999px; border: 1px solid rgba(78,155,196,0.4); background: rgba(78,155,196,0.08);
+}
+
+/* the accumulation-line "build up" motif behind the rows */
+.afx-ledger { position: relative; overflow-y: auto; padding-left: 18px; }
+.afx-ledger::before {
+  content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px;
+  background: linear-gradient(var(--afx-line), var(--afx-torque));
+  border-radius: 2px;
+}
+.afx-line-row {
+  position: relative;
+  display: grid; grid-template-columns: 1fr 64px 130px 120px; align-items: center; gap: 10px;
+  padding: 9px 6px; border-bottom: 1px solid var(--afx-line);
+}
+.afx-line-row::before {
+  content: ""; position: absolute; left: -13px; top: 50%; width: 9px; height: 2px; background: var(--afx-line); transform: translateY(-50%);
+}
+.afx-line-name { font-size: 13px; color: var(--afx-offwhite); }
+.afx-line-name.conflict { color: #f3a15f; }
+.afx-line-qty { font-family: var(--afx-mono); font-variant-numeric: tabular-nums; font-size: 12px; color: var(--afx-slate); text-align: right; }
+.afx-cost-input {
+  font-family: var(--afx-mono); font-variant-numeric: tabular-nums; font-size: 13px; text-align: right;
+  width: 100%; box-sizing: border-box; padding: 6px 8px; border-radius: 7px;
+  background: rgba(0,0,0,0.3); border: 1px solid var(--afx-line); color: var(--afx-offwhite);
+}
+.afx-cost-input:focus { outline: none; border-color: var(--afx-torque); }
+.afx-line-total { font-family: var(--afx-mono); font-variant-numeric: tabular-nums; font-size: 13px; text-align: right; color: var(--afx-offwhite); }
+.afx-col-head {
+  display: grid; grid-template-columns: 1fr 64px 130px 120px; gap: 10px;
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--afx-slate);
+  padding: 0 6px 6px; border-bottom: 1px solid var(--afx-line);
+}
+.afx-col-head span:not(:first-child) { text-align: right; }
+
+.afx-conflict-badge {
+  display: inline-block; margin-left: 7px; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em;
+  color: #f3a15f; border: 1px solid rgba(243,161,95,0.5); border-radius: 4px; padding: 1px 5px; cursor: help;
+}
+
+/* sticky Total callout - the heaviest element, glass + torque top border */
+.afx-total {
+  margin-top: 14px; padding: 16px 18px; border-radius: 12px;
+  background: var(--afx-glass-strong); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--afx-line); border-top: 2px solid var(--afx-torque);
+  display: flex; align-items: baseline; justify-content: space-between;
+}
+.afx-total-label { font-size: 13px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--afx-slate); }
+.afx-total-value { font-family: var(--afx-mono); font-variant-numeric: tabular-nums; font-size: 30px; font-weight: 700; color: var(--afx-torque); }
+
+.afx-empty { color: var(--afx-slate); font-size: 14px; padding: 40px 10px; text-align: center; }
+.afx-banner { grid-column: 1 / -1; padding: 10px 14px; border-radius: 10px; font-size: 13px; }
+.afx-banner-warn { background: rgba(217,102,11,0.12); border: 1px solid rgba(217,102,11,0.4); color: #f3a15f; }
+.afx-banner-info { background: rgba(78,155,196,0.1); border: 1px solid rgba(78,155,196,0.35); color: #9ecbe0; }
+.afx-hint { font-size: 11px; color: var(--afx-slate); margin-top: 6px; }

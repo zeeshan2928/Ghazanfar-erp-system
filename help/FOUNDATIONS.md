@@ -185,3 +185,4 @@ Inventory/Stock
 
 Account Reconciliation
 ❌ Entirely missing — no bank account model exists yet at all (matches the earlier gap already flagged in the accounting-reports doc)
+one thing before moving the server is that after somethime the software gets sluggish , server response becomes a pain i very at very first demaned that our server must be able to handle thousand and thousand of products, millions of transactions with  the spawn of 1-2 years without slowing down , the reports must load instantly , does the structure we built can react so fast , and whatt need to do to make it lighting fast

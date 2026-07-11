@@ -1,7 +1,9 @@
-import { Controller, Get, Delete } from '@nestjs/common';
+import { Controller, Get, Delete, UseGuards } from '@nestjs/common';
 import { MetricsService } from '../../common/metrics/metrics.service';
+import { JwtGuard } from '@common/guards/jwt.guard';
 
 @Controller('metrics')
+@UseGuards(JwtGuard)
 export class MetricsController {
   constructor(private readonly metricsService: MetricsService) {}
 

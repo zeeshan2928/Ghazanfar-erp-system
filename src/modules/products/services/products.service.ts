@@ -1,19 +1,20 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
+import { CreateProductDto } from '../dto/create-product.dto';
 
 @Injectable()
 export class ProductsService {
   constructor(private prisma: PrismaService) {}
 
-  async createProduct(organizationId: number, data: any) {
+  async createProduct(organizationId: number, data: CreateProductDto) {
     return this.prisma.product.create({
       data: {
         organizationId,
         code: data.code,
         name: data.name,
-        cost_price: parseInt(data.costPrice || data.cost_price) || 0,
-        categoryId: data.categoryId ? parseInt(data.categoryId) : undefined,
-        brandId: data.brandId ? parseInt(data.brandId) : undefined,
+        cost_price: data.costPrice ?? data.cost_price ?? 0,
+        categoryId: data.categoryId,
+        brandId: data.brandId,
         isActive: true,
       },
     });
@@ -32,8 +33,8 @@ export class ProductsService {
   }
 
   async getPurchaseHistory(organizationId: number, productId: number, limit = 5) {
-    const product = await this.prisma.product.findUnique({
-      where: { id: productId },
+    const product = await this.prisma.product.findFirst({
+      where: { id: productId, organizationId },
     });
 
     if (!product) {

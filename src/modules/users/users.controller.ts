@@ -5,6 +5,8 @@ import { CreateUserDto, UpdateUserDto, ChangePasswordDto } from './dto/create-us
 import { LoginDto } from './dto/login.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
+import { Public } from '@common/decorators/public.decorator';
+import { Throttle } from '@nestjs/throttler';
 
 @Controller('users')
 export class UsersController {
@@ -13,6 +15,7 @@ export class UsersController {
     private authService: AuthService,
   ) {}
 
+  @Public()
   @Post('register')
   async register(@Body() createUserDto: CreateUserDto) {
     return this.usersService.create(createUserDto);
@@ -30,6 +33,8 @@ export class UsersController {
     );
   }
 
+  @Public()
+  @Throttle({ default: { limit: 5, ttl: 60000 } })
   @Post('login')
   async login(@Body() loginDto: LoginDto) {
     return this.authService.login(loginDto);

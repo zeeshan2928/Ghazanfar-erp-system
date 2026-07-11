@@ -42,9 +42,19 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         errorCode = exception.name.toUpperCase();
       }
     } else if (exception instanceof Error) {
-      message = exception.message;
       errorCode = exception.name.toUpperCase();
-      this.logger.error(message, exception.stack, 'ExceptionFilter', { requestId });
+      // Prisma error messages (especially validation errors) render the full
+      // query arguments inline, which can include customer/vendor PII. Log a
+      // safe summary instead of the raw message for those - the stack trace
+      // still points at the offending call site for debugging.
+      const isPrismaError = exception.constructor.name.startsWith('Prisma');
+      const logMessage = isPrismaError
+        ? `${exception.constructor.name} (details redacted - see stack)`
+        : exception.message;
+      this.logger.error(logMessage, exception.stack, 'ExceptionFilter', { requestId });
+      // Never echo raw internal error text (DB/Prisma internals, file paths)
+      // back to the client in production; only the logs above get the detail.
+      message = process.env.NODE_ENV === 'production' ? 'Internal server error' : exception.message;
     } else {
       message = String(exception);
       this.logger.error(message, undefined, 'ExceptionFilter', { requestId });

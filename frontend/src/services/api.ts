@@ -1038,6 +1038,97 @@ class ApiClient {
     const response = await this.client.post(`/commission/assignments/${id}/mark-paid`);
     return response.data;
   }
+
+  // ==================== SALES ANALYSIS (CSV/XLS/XLSX report upload) ====================
+  async uploadSalesAnalysisReport(formData: FormData) {
+    const response = await this.client.post('/sales-analysis/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getSalesAnalysisUploads() {
+    const response = await this.client.get('/sales-analysis/uploads');
+    return response.data;
+  }
+
+  async getSalesAnalysisSalesmenPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/performance/salesmen', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  async getSalesAnalysisProductsPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/performance/products', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  async getSalesAnalysisCustomersPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/performance/customers', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  async getSalesAnalysisGrossProfitSummary(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/gross-profit-summary', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  // ==================== PURCHASE ANALYSIS (CSV/XLS/XLSX report upload) ====================
+  async uploadPurchaseAnalysisReport(formData: FormData) {
+    const response = await this.client.post('/purchase-analysis/upload', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getPurchaseAnalysisUploads() {
+    const response = await this.client.get('/purchase-analysis/uploads');
+    return response.data;
+  }
+
+  async getPurchaseAnalysisVendorsPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/purchase-analysis/performance/vendors', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  async getPurchaseAnalysisProductsPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/purchase-analysis/performance/products', {
+      params: { from, to },
+    });
+    return response.data;
+  }
+
+  // ==================== ASSEMBLY FORMULAS (BOM cost calculator) ====================
+  async getAssemblyFormulas(family?: 'JUICER' | 'BLENDER') {
+    const response = await this.client.get('/assembly-formulas', { params: { family } });
+    return response.data;
+  }
+
+  async getAssemblyParts(family?: 'JUICER' | 'BLENDER') {
+    const response = await this.client.get('/assembly-formulas/parts', { params: { family } });
+    return response.data;
+  }
+
+  async updateAssemblyPartCost(partId: number, unitCost: number) {
+    const response = await this.client.patch(`/assembly-formulas/parts/${partId}`, { unitCost });
+    return response.data;
+  }
+
+  async importAssemblyFormulas(formData: FormData) {
+    const response = await this.client.post('/assembly-formulas/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

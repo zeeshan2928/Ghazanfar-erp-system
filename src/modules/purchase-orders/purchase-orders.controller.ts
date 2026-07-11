@@ -24,7 +24,6 @@ import { JwtGuard } from '@common/guards/jwt.guard';
 import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
 import { RequireAction } from '@common/decorators/require-action.decorator';
 import { OrgContext } from 'src/common/decorators/org-context.decorator';
-import { Public } from '@common/decorators/public.decorator';
 import { stripPOCost, stripPOCostList, stripVendorPricing } from '@common/utils/financial-visibility.util';
 
 @Controller('purchase-orders')
@@ -175,15 +174,17 @@ export class PurchaseOrdersController {
     return this.poService.setProductReorderParams(organizationId, productId, setDto);
   }
 
-  @Public()
   @Post('search')
-  async search(@Body() query: SearchRequestDto) {
-    return this.poSearchService.search(2, query);
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('purchase_orders.view')
+  async search(@OrgContext() { organizationId }: any, @Body() query: SearchRequestDto) {
+    return this.poSearchService.search(organizationId, query);
   }
 
-  @Public()
   @Get('filters/columns/:columnName')
-  async getColumnValues(@Param('columnName') columnName: string) {
-    return this.poSearchService.getColumnValues(2, columnName);
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('purchase_orders.view')
+  async getColumnValues(@OrgContext() { organizationId }: any, @Param('columnName') columnName: string) {
+    return this.poSearchService.getColumnValues(organizationId, columnName);
   }
 }

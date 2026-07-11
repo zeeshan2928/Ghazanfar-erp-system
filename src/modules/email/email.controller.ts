@@ -59,7 +59,7 @@ export class EmailController {
   @Post('preview/:type')
   @UseGuards(ActionPermissionGuard)
   @RequireAction('email.view')
-  async previewTemplate(@Param('type') type: string, @Body() sampleData: any) {
+  async previewTemplate(@Param('type') type: string, @Body() sampleData: Record<string, unknown>) {
     try {
       const template = await this.emailService.getTemplate(type as EmailTemplateType);
       if (!template) {

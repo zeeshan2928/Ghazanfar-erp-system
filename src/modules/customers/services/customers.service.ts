@@ -1,11 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
+import { CreateCustomerDto } from '../dto/create-customer.dto';
 
 @Injectable()
 export class CustomersService {
   constructor(private prisma: PrismaService) {}
 
-  async createCustomer(organizationId: number, data: any) {
+  async createCustomer(organizationId: number, data: CreateCustomerDto) {
     return this.prisma.customer.create({
       data: {
         organizationId,
@@ -19,7 +20,7 @@ export class CustomersService {
         address: data.address || null,
         city: data.city || null,
         customerType: data.customerType || 'RETAIL',
-        creditLimit: parseInt(data.creditLimit || data.credit_limit) || 0,
+        creditLimit: data.creditLimit ?? 0,
         isActive: true,
       },
     });

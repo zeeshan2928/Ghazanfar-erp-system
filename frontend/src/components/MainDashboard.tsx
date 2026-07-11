@@ -37,11 +37,16 @@ import { ProductStudioScreen } from './screens/ProductStudioScreen';
 import { FinanceDashboardScreen } from './screens/FinanceDashboardScreen';
 import { InventoryDashboardScreen } from './screens/InventoryDashboardScreen';
 import { SalesmanPerformanceScreen } from './screens/SalesmanPerformanceScreen';
+import { SalesAnalysisScreen } from './screens/SalesAnalysisScreen';
+import { PurchaseAnalysisScreen } from './screens/PurchaseAnalysisScreen';
+import { ProfitDashboardScreen } from './screens/ProfitDashboardScreen';
+import { PnLStatementScreen } from './screens/PnLStatementScreen';
+import { AssemblyFormulasScreen } from './screens/AssemblyFormulasScreen';
 import { SalesDashboardScreen } from './screens/SalesDashboardScreen';
 import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals';
 
 interface NotificationItem {
   id: number;
@@ -145,6 +150,11 @@ const navItems: NavItem[] = [
   // ==================== REPORTS (leftovers that don't belong to one group) ====================
   { id: 'operations-analytics', label: 'Operations Analytics', icon: '📡', group: 'Reports' },
   { id: 'reports', label: 'Other Reports', icon: '📈', group: 'Reports' },
+  { id: 'sales-analysis', label: 'Sales Report Analysis', icon: '🔍', group: 'Reports' },
+  { id: 'purchase-analysis', label: 'Purchase Report Analysis', icon: '📥', group: 'Reports' },
+  { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💎', group: 'Reports' },
+  { id: 'pnl-statement', label: 'P&L (Gross Profit)', icon: '🧮', group: 'Reports' },
+  { id: 'assembly-formulas', label: 'Assembly Costs (BOM)', icon: '🔧', group: 'Reports' },
 ];
 
 // Sidebar display order + icon per group header.
@@ -294,6 +304,16 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <AdministrationDashboardScreen />;
       case 'salesman-performance':
         return <SalesmanPerformanceScreen />;
+      case 'sales-analysis':
+        return <SalesAnalysisScreen />;
+      case 'purchase-analysis':
+        return <PurchaseAnalysisScreen />;
+      case 'profit-dashboard':
+        return <ProfitDashboardScreen />;
+      case 'pnl-statement':
+        return <PnLStatementScreen />;
+      case 'assembly-formulas':
+        return <AssemblyFormulasScreen />;
       case 'invoice':
         return <InvoiceScreen />;
       case 'sales-orders':

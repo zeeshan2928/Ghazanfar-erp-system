@@ -15,8 +15,9 @@ uploads/
 .env.local
 .env.*.local
 
-# Credential/token files that end up in logs/ during local dev - never commit
-logs/.token
+# Application logs (can contain customer PII - see AppLoggerService) and
+# credential/token files that end up in logs/ during local dev - never commit
+logs/
 *.token
 
 # IDE
