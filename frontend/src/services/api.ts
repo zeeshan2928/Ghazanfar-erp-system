@@ -1039,11 +1039,50 @@ class ApiClient {
     return response.data;
   }
 
-  // ==================== SALES ANALYSIS (CSV/XLS/XLSX report upload) ====================
-  async uploadSalesAnalysisReport(formData: FormData) {
-    const response = await this.client.post('/sales-analysis/upload', formData, {
+  // ==================== SALES ANALYSIS (adaptive CSV/XLS/XLSX import) ====================
+  // Step 1: study the file, return proposed mapping + preview (no DB write).
+  async analyzeSalesFile(formData: FormData) {
+    const response = await this.client.post('/sales-analysis/analyze', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
+    return response.data;
+  }
+
+  // Step 2: import with the confirmed mapping (file re-sent + mapping fields).
+  async importSalesFile(formData: FormData) {
+    const response = await this.client.post('/sales-analysis/import', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getSalesPartsCandidates() {
+    const response = await this.client.get('/sales-analysis/parts/candidates');
+    return response.data;
+  }
+
+  async classifySalesParts(items: { itemName: string; kind: 'PART' | 'SALE' }[]) {
+    const response = await this.client.post('/sales-analysis/parts/classify', { items });
+    return response.data;
+  }
+
+  async getSalesPartsReport(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/parts/report', { params: { from, to } });
+    return response.data;
+  }
+
+  async getSalesCategoryPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/performance/category', { params: { from, to } });
+    return response.data;
+  }
+
+  async getSalesBrandPerformance(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/performance/brand', { params: { from, to } });
+    return response.data;
+  }
+
+  async getSalesDiscountSummary(from?: string, to?: string) {
+    const response = await this.client.get('/sales-analysis/discount-summary', { params: { from, to } });
     return response.data;
   }
 
@@ -1080,9 +1119,16 @@ class ApiClient {
     return response.data;
   }
 
-  // ==================== PURCHASE ANALYSIS (CSV/XLS/XLSX report upload) ====================
-  async uploadPurchaseAnalysisReport(formData: FormData) {
-    const response = await this.client.post('/purchase-analysis/upload', formData, {
+  // ==================== PURCHASE ANALYSIS (adaptive CSV/XLS/XLSX import) ====================
+  async analyzePurchaseFile(formData: FormData) {
+    const response = await this.client.post('/purchase-analysis/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async importPurchaseFile(formData: FormData) {
+    const response = await this.client.post('/purchase-analysis/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     });
     return response.data;

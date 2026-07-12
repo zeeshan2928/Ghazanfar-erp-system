@@ -11,7 +11,13 @@ import { Prisma } from '@prisma/client';
 // actually paid at the time, not a static catalog figure. Profit is left
 // unmatched (not zero) for lines with no purchase data to compare against
 // yet - callers must decide how to treat that null, never silently drop it.
-function resolvedLinesCTE(organizationId: number, from: Date, to: Date) {
+// `excludeItems` are item names classified as PART (components supplied to
+// vendors) - excluded here so all genuine-sales/profit views drop them.
+function resolvedLinesCTE(organizationId: number, from: Date, to: Date, excludeItems: string[] = []) {
+  const exclude =
+    excludeItems.length > 0
+      ? Prisma.sql`AND s."itemRaw" <> ALL(${excludeItems})`
+      : Prisma.empty;
   return Prisma.sql`
     WITH resolved AS (
       SELECT
@@ -35,6 +41,7 @@ function resolvedLinesCTE(organizationId: number, from: Date, to: Date) {
       ) p ON true
       WHERE s."organizationId" = ${organizationId}
         AND s."transactionDate" BETWEEN ${from} AND ${to}
+        ${exclude}
     )
   `;
 }
@@ -52,9 +59,9 @@ interface GroupedProfitRow {
 export class ProfitResolutionService {
   constructor(private prisma: PrismaService) {}
 
-  async getSalesmenWithProfit(organizationId: number, from: Date, to: Date) {
+  async getSalesmenWithProfit(organizationId: number, from: Date, to: Date, excludeItems: string[] = []) {
     const rows = await this.prisma.$queryRaw<GroupedProfitRow[]>`
-      ${resolvedLinesCTE(organizationId, from, to)}
+      ${resolvedLinesCTE(organizationId, from, to, excludeItems)}
       SELECT
         COALESCE("salesmanName", 'Not available in uploaded report(s)') AS label,
         SUM("lineAmount")::float8 AS "totalRevenue",
@@ -74,9 +81,9 @@ export class ProfitResolutionService {
     }));
   }
 
-  async getProductsWithProfit(organizationId: number, from: Date, to: Date) {
+  async getProductsWithProfit(organizationId: number, from: Date, to: Date, excludeItems: string[] = []) {
     const rows = await this.prisma.$queryRaw<GroupedProfitRow[]>`
-      ${resolvedLinesCTE(organizationId, from, to)}
+      ${resolvedLinesCTE(organizationId, from, to, excludeItems)}
       SELECT
         "productKey" AS label,
         SUM("lineAmount")::float8 AS "totalRevenue",
@@ -96,9 +103,9 @@ export class ProfitResolutionService {
     }));
   }
 
-  async getCustomersWithProfit(organizationId: number, from: Date, to: Date) {
+  async getCustomersWithProfit(organizationId: number, from: Date, to: Date, excludeItems: string[] = []) {
     const rows = await this.prisma.$queryRaw<GroupedProfitRow[]>`
-      ${resolvedLinesCTE(organizationId, from, to)}
+      ${resolvedLinesCTE(organizationId, from, to, excludeItems)}
       SELECT
         COALESCE("customerName", "accountName", 'Unknown') AS label,
         SUM("lineAmount")::float8 AS "totalRevenue",
@@ -122,11 +129,11 @@ export class ProfitResolutionService {
   // the period, plus what fraction of revenue has no purchase match yet
   // (so the statement can be honest about an incomplete cost picture
   // instead of silently treating unmatched cost as zero).
-  async getGrossProfitSummary(organizationId: number, from: Date, to: Date) {
+  async getGrossProfitSummary(organizationId: number, from: Date, to: Date, excludeItems: string[] = []) {
     const rows = await this.prisma.$queryRaw<
       { totalRevenue: number; matchedRevenue: number; totalCogs: number }[]
     >`
-      ${resolvedLinesCTE(organizationId, from, to)}
+      ${resolvedLinesCTE(organizationId, from, to, excludeItems)}
       SELECT
         SUM("lineAmount")::float8 AS "totalRevenue",
         COALESCE(SUM(CASE WHEN "resolvedCost" IS NOT NULL THEN "lineAmount" ELSE 0 END), 0)::float8 AS "matchedRevenue",

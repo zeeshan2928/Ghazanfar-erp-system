@@ -1,20 +1,24 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { apiClient } from '../../services/api';
+import { ImportWizard, WizardFieldDef } from '../ImportWizard';
 
-interface UploadSummary {
-  uploadId: number;
-  fileName: string;
-  reportStartDate: string;
-  reportEndDate: string;
-  rowsParsed: number;
-  newRowsAdded: number;
-  duplicatesSkipped: number;
-  conflicts: { billNumber: string; lineSequence: number; reason: string }[];
-  conflictCount: number;
-  overlapsExistingUploads: { fileName: string; reportStartDate: string; reportEndDate: string }[];
-  parserWarnings: string[];
-}
+const SALES_FIELDS: WizardFieldDef[] = [
+  { field: 'transactionDate', label: 'Date', required: true },
+  { field: 'billNumber', label: 'Invoice / Bill No', required: true },
+  { field: 'itemRaw', label: 'Item / Product', required: true },
+  { field: 'quantity', label: 'Quantity', required: true },
+  { field: 'unitPrice', label: 'Sale / Unit Price', required: true },
+  { field: 'lineAmount', label: 'Line Total', required: false },
+  { field: 'actualPrice', label: 'List / Actual Price', required: false },
+  { field: 'accountName', label: 'Account', required: false },
+  { field: 'customerName', label: 'Customer', required: false },
+  { field: 'salesmanName', label: 'Salesman', required: false },
+  { field: 'category', label: 'Category', required: false },
+  { field: 'brand', label: 'Brand', required: false },
+  { field: 'warehouseName', label: 'Warehouse', required: false },
+  { field: 'transactionType', label: 'Type (Cash/Credit/Return)', required: false },
+];
 
 interface UploadHistoryRow {
   id: number;
@@ -83,12 +87,6 @@ export function SalesAnalysisScreen() {
   const [fromDate, setFromDate] = useState(monthStart.toISOString().split('T')[0]);
   const [toDate, setToDate] = useState(today);
 
-  const [file, setFile] = useState<File | null>(null);
-  const [uploading, setUploading] = useState(false);
-  const [lastSummary, setLastSummary] = useState<UploadSummary | null>(null);
-  const [uploadError, setUploadError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-
   const [history, setHistory] = useState<UploadHistoryRow[]>([]);
   const [salesmen, setSalesmen] = useState<SalesmanRow[]>([]);
   const [products, setProducts] = useState<ProductRow[]>([]);
@@ -127,32 +125,6 @@ export function SalesAnalysisScreen() {
       setLoadError('Failed to load sales analysis data');
     } finally {
       setLoading(false);
-    }
-  }
-
-  function handleFileSelect(e: React.ChangeEvent<HTMLInputElement>) {
-    const selected = e.target.files?.[0];
-    setFile(selected || null);
-    setUploadError('');
-    setLastSummary(null);
-  }
-
-  async function handleUpload() {
-    if (!file) return;
-    setUploading(true);
-    setUploadError('');
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      const summary = await apiClient.uploadSalesAnalysisReport(formData);
-      setLastSummary(summary);
-      setFile(null);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-      await loadAll();
-    } catch (err: any) {
-      setUploadError(err?.response?.data?.message || 'Upload failed - check the file format');
-    } finally {
-      setUploading(false);
     }
   }
 
@@ -234,68 +206,13 @@ export function SalesAnalysisScreen() {
         </div>
       )}
 
-      <div style={styles.uploadCard}>
-        <h4 style={styles.chartTitle}>Upload a sales report (CSV, XLS or XLSX)</h4>
-        <input
-          type="file"
-          ref={fileInputRef}
-          accept=".csv,.xls,.xlsx"
-          onChange={handleFileSelect}
-          style={{ display: 'none' }}
-        />
-        <div style={styles.uploadRow}>
-          <button style={styles.uploadBtn} onClick={() => fileInputRef.current?.click()}>
-            📁 Choose File
-          </button>
-          {file && <span style={styles.fileName}>{file.name}</span>}
-          <button
-            style={{ ...styles.refreshBtn, opacity: file && !uploading ? 1 : 0.5 }}
-            onClick={handleUpload}
-            disabled={!file || uploading}
-          >
-            {uploading ? 'Uploading...' : 'Upload & Analyze'}
-          </button>
-        </div>
-
-        {uploadError && <div style={styles.errorBanner}>{uploadError}</div>}
-
-        {lastSummary && (
-          <div style={styles.summaryBox}>
-            <div style={styles.statusItem}><span>Rows parsed:</span><strong>{lastSummary.rowsParsed}</strong></div>
-            <div style={styles.statusItem}><span>New rows added:</span><strong style={{ color: '#16a34a' }}>{lastSummary.newRowsAdded}</strong></div>
-            <div style={styles.statusItem}><span>Duplicates skipped:</span><strong style={{ color: '#666' }}>{lastSummary.duplicatesSkipped}</strong></div>
-            <div style={styles.statusItem}><span>Conflicts needing review:</span><strong style={{ color: lastSummary.conflictCount > 0 ? '#b91c1c' : '#666' }}>{lastSummary.conflictCount}</strong></div>
-            <div style={styles.statusItem}><span>Report covers:</span><strong>{lastSummary.reportStartDate.split('T')[0]} to {lastSummary.reportEndDate.split('T')[0]}</strong></div>
-
-            {lastSummary.overlapsExistingUploads.length > 0 && (
-              <div style={styles.warningBanner}>
-                This report's dates overlap {lastSummary.overlapsExistingUploads.length} previously uploaded report(s) - duplicate rows were automatically skipped, and any changed rows are listed below for review.
-              </div>
-            )}
-
-            {lastSummary.conflicts.length > 0 && (
-              <table style={styles.table}>
-                <thead>
-                  <tr>
-                    <th style={styles.th}>Bill</th>
-                    <th style={styles.th}>Line</th>
-                    <th style={styles.th}>What changed</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lastSummary.conflicts.map((c, i) => (
-                    <tr key={i}>
-                      <td style={styles.td}>{c.billNumber}</td>
-                      <td style={styles.td}>{c.lineSequence}</td>
-                      <td style={styles.td}>{c.reason}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-        )}
-      </div>
+      <ImportWizard
+        title="Upload a sales report (any CSV / XLS / XLSX layout)"
+        fields={SALES_FIELDS}
+        analyzeFn={fd => apiClient.analyzeSalesFile(fd)}
+        importFn={fd => apiClient.importSalesFile(fd)}
+        onDone={loadAll}
+      />
 
       <div style={styles.chartCard}>
         <h4 style={styles.chartTitle}>Uploaded Reports (coverage timeline)</h4>

@@ -3,6 +3,7 @@ import {
   Post,
   Get,
   Query,
+  Body,
   UseGuards,
   UseInterceptors,
   UploadedFile,
@@ -12,28 +13,56 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { FinancialAccessGuard } from '@common/guards/financial-access.guard';
 import { OrgContext } from '@common/decorators/org-context.decorator';
+import { ColumnMapping, Structure } from '@common/adaptive-import/adaptive-import.types';
 import { SalesAnalysisService } from './services/sales-analysis.service';
-import { ProfitResolutionService } from './services/profit-resolution.service';
+import { PartsClassificationService } from './services/parts-classification.service';
+
+const UPLOAD_LIMIT = { limits: { fileSize: 25 * 1024 * 1024 } };
 
 @Controller('sales-analysis')
 @UseGuards(JwtGuard)
 export class SalesAnalysisController {
   constructor(
     private salesAnalysisService: SalesAnalysisService,
-    private profitResolution: ProfitResolutionService,
+    private partsClassification: PartsClassificationService,
   ) {}
 
-  @Post('upload')
+  // Step 1: study the uploaded file, return a proposed column mapping +
+  // preview (no DB writes) for the user to confirm.
+  @Post('analyze')
   @UseGuards(FinancialAccessGuard)
-  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 25 * 1024 * 1024 } }))
-  async upload(@UploadedFile() file: Express.Multer.File, @OrgContext() orgContext: any) {
-    if (!file) {
-      throw new BadRequestException('No file uploaded');
+  @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
+  async analyze(@UploadedFile() file: Express.Multer.File, @OrgContext() orgContext: any) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    return this.salesAnalysisService.analyzeUpload(orgContext.organizationId, file);
+  }
+
+  // Step 2: import with the confirmed mapping. `mapping` + `structure` +
+  // `headerRowIndex` arrive as form fields alongside the re-sent file.
+  @Post('import')
+  @UseGuards(FinancialAccessGuard)
+  @UseInterceptors(FileInterceptor('file', UPLOAD_LIMIT))
+  async import(
+    @UploadedFile() file: Express.Multer.File,
+    @Body() body: { mapping?: string; structure?: string; headerRowIndex?: string },
+    @OrgContext() orgContext: any,
+  ) {
+    if (!file) throw new BadRequestException('No file uploaded');
+    let mapping: ColumnMapping;
+    try {
+      mapping = JSON.parse(body.mapping || '{}');
+    } catch {
+      throw new BadRequestException('Invalid mapping');
     }
-    return this.salesAnalysisService.ingestUpload(
+    const structure = (body.structure === 'MULTI_ROW' ? 'MULTI_ROW' : 'FLAT') as Structure;
+    const headerRowIndex = parseInt(body.headerRowIndex || '0', 10) || 0;
+    return this.salesAnalysisService.importUpload(
       orgContext.organizationId,
       orgContext.userId,
       file,
+      headerRowIndex,
+      mapping,
+      structure,
     );
   }
 
@@ -96,7 +125,68 @@ export class SalesAnalysisController {
     @OrgContext() orgContext: any,
   ) {
     const { fromDate, toDate } = this.resolveRange(from, to);
-    return this.profitResolution.getGrossProfitSummary(orgContext.organizationId, fromDate, toDate);
+    return this.salesAnalysisService.getGrossProfitSummary(orgContext.organizationId, fromDate, toDate);
+  }
+
+  // ---- Parts classification (vendor-supplied components vs genuine sales) ----
+  @Get('parts/candidates')
+  @UseGuards(FinancialAccessGuard)
+  async partsCandidates(@OrgContext() orgContext: any) {
+    return this.partsClassification.getCandidates(orgContext.organizationId);
+  }
+
+  @Post('parts/classify')
+  @UseGuards(FinancialAccessGuard)
+  async classifyParts(
+    @Body() body: { items: { itemName: string; kind: 'PART' | 'SALE' }[] },
+    @OrgContext() orgContext: any,
+  ) {
+    if (!body || !Array.isArray(body.items)) throw new BadRequestException('items array required');
+    return this.partsClassification.saveClassifications(orgContext.organizationId, body.items);
+  }
+
+  @Get('parts/report')
+  @UseGuards(FinancialAccessGuard)
+  async partsReport(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @OrgContext() orgContext: any,
+  ) {
+    const { fromDate, toDate } = this.resolveRange(from, to);
+    return this.partsClassification.getPartsReport(orgContext.organizationId, fromDate, toDate);
+  }
+
+  @Get('performance/category')
+  @UseGuards(FinancialAccessGuard)
+  async categoryPerformance(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @OrgContext() orgContext: any,
+  ) {
+    const { fromDate, toDate } = this.resolveRange(from, to);
+    return this.salesAnalysisService.getCategoryPerformance(orgContext.organizationId, fromDate, toDate);
+  }
+
+  @Get('performance/brand')
+  @UseGuards(FinancialAccessGuard)
+  async brandPerformance(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @OrgContext() orgContext: any,
+  ) {
+    const { fromDate, toDate } = this.resolveRange(from, to);
+    return this.salesAnalysisService.getBrandPerformance(orgContext.organizationId, fromDate, toDate);
+  }
+
+  @Get('discount-summary')
+  @UseGuards(FinancialAccessGuard)
+  async discountSummary(
+    @Query('from') from: string | undefined,
+    @Query('to') to: string | undefined,
+    @OrgContext() orgContext: any,
+  ) {
+    const { fromDate, toDate } = this.resolveRange(from, to);
+    return this.salesAnalysisService.getDiscountSummary(orgContext.organizationId, fromDate, toDate);
   }
 
   private resolveRange(from?: string, to?: string): { fromDate: Date; toDate: Date } {

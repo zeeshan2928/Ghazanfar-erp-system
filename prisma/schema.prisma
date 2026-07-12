@@ -63,6 +63,8 @@ model Organization {
   purchaseAnalysisRecords PurchaseAnalysisRecord[]
   assemblyFormulas       AssemblyFormula[]
   assemblyParts          AssemblyPart[]
+  importMappingTemplates ImportMappingTemplate[]
+  salesItemClassifications SalesItemClassification[]
 }
 
 model User {
@@ -1489,6 +1491,17 @@ model SalesAnalysisRecord {
   quantity        Decimal  @db.Decimal(12, 2)
   soldPrice       Decimal  @db.Decimal(12, 2)
   lineAmount      Decimal  @db.Decimal(14, 2)
+  // Richer dimensions captured when the source file provides them (all
+  // optional so older/simpler files still import). actualPrice is the list
+  // price when the file distinguishes it from the discounted soldPrice.
+  category        String?
+  brand           String?
+  warehouseName   String?
+  actualPrice     Decimal? @db.Decimal(12, 2)
+  paymentMethod   String?  // e.g. CASH / CREDIT
+  // A return nets out of totals: quantity and lineAmount are stored NEGATIVE
+  // for return rows, so every downstream aggregate reflects net-of-returns.
+  isReturn        Boolean  @default(false)
   isDuplicate     Boolean  @default(false)
   createdAt       DateTime @default(now())
 
@@ -1500,6 +1513,8 @@ model SalesAnalysisRecord {
   @@index([organizationId, salesmanName])
   @@index([organizationId, productCode])
   @@index([organizationId, accountName])
+  @@index([organizationId, category])
+  @@index([organizationId, brand])
 }
 
 // One row per uploaded purchase/vendor report - mirrors SalesAnalysisUpload
@@ -1633,4 +1648,46 @@ model AssemblyFormulaLine {
   @@unique([formulaId, partId])
   @@index([formulaId])
   @@index([partId])
+}
+
+// A remembered column-mapping for the format-agnostic importer. Keyed by a
+// normalized signature of the file's header row, so a recurring export
+// layout is auto-recognized and its confirmed mapping re-applied without
+// the user re-mapping every time. `mapping` is canonicalField -> source
+// column header (or index); `structure` is FLAT | MULTI_ROW.
+model ImportMappingTemplate {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  module         String   // SALES | PURCHASE
+  signature      String
+  label          String
+  structure      String   @default("FLAT")
+  mapping        Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, module, signature])
+  @@index([organizationId, module])
+}
+
+// User-confirmed classification of a sales item name as a genuine SALE or a
+// PART (a component supplied to vendors for assembly - boxes, handles, iron
+// thermostat, Jug Glass, Jali, Nut Kaim, etc.). PART items are excluded from
+// genuine sales/salesman/profit totals and shown in a separate parts report,
+// their value subtracted from total sales. Candidates are pre-flagged by
+// cross-referencing AssemblyPart names (NOT price), but the user confirms.
+model SalesItemClassification {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  itemName       String
+  kind           String   // PART | SALE
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, itemName])
+  @@index([organizationId, kind])
 }

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
-import { PurchaseAnalysisParserService, ParsedPurchaseLine } from './purchase-analysis-parser.service';
+import { AdaptiveImportService } from '@common/adaptive-import/adaptive-import.service';
+import { ImportTemplateService } from '@common/adaptive-import/import-template.service';
+import { CanonicalRow, ColumnMapping, Structure } from '@common/adaptive-import/adaptive-import.types';
 
 export interface PurchaseConflictSample {
   billNumber: string;
@@ -8,128 +10,133 @@ export interface PurchaseConflictSample {
   reason: string;
 }
 
+const INSERT_CHUNK = 5000;
+
 @Injectable()
 export class PurchaseAnalysisService {
   constructor(
     private prisma: PrismaService,
-    private parser: PurchaseAnalysisParserService,
+    private engine: AdaptiveImportService,
+    private templates: ImportTemplateService,
   ) {}
 
-  async ingestUpload(organizationId: number, uploadedBy: number, file: Express.Multer.File) {
-    const parsed = this.parser.parse(file.buffer, file.originalname);
+  async analyzeUpload(organizationId: number, file: Express.Multer.File) {
+    const detected = this.engine.analyze(file.buffer, 'PURCHASE');
+    const template = await this.templates.findMatching(organizationId, 'PURCHASE', detected.signature);
+    if (template) {
+      const resolved = this.templates.resolveTemplateMapping(
+        template.mapping as Record<string, string>,
+        detected.columns,
+      );
+      return this.engine.analyze(file.buffer, 'PURCHASE', resolved, template.structure as Structure);
+    }
+    return detected;
+  }
 
-    const distinctBillNumbers = [...new Set(parsed.lines.map(l => l.billNumber))];
+  async importUpload(
+    organizationId: number,
+    uploadedBy: number,
+    file: Express.Multer.File,
+    headerRowIndex: number,
+    mapping: ColumnMapping,
+    structure: Structure,
+  ) {
+    const sheet = this.engine.readSheet(file.buffer);
+    const rows = this.engine.readRows(sheet, headerRowIndex, mapping, structure);
+    const dated = rows.filter(r => r.transactionDate !== null);
+    const skippedNoDate = rows.length - dated.length;
 
-    const [existingRecords, existingUploads] = await Promise.all([
-      this.prisma.purchaseAnalysisRecord.findMany({
-        where: { organizationId, billNumber: { in: distinctBillNumbers } },
-        select: {
-          billNumber: true,
-          lineSequence: true,
-          itemRaw: true,
-          quantity: true,
-          purchasePrice: true,
-          transactionDate: true,
-        },
-      }),
-      this.prisma.purchaseAnalysisUpload.findMany({
-        where: { organizationId },
-        select: { id: true, fileName: true, reportStartDate: true, reportEndDate: true },
-      }),
-    ]);
+    const distinctBillNumbers = [...new Set(dated.map(r => r.billNumber))];
+    const existing = await this.prisma.purchaseAnalysisRecord.findMany({
+      where: { organizationId, billNumber: { in: distinctBillNumbers } },
+      select: { billNumber: true, lineSequence: true, itemRaw: true, quantity: true, purchasePrice: true, transactionDate: true },
+    });
+    const existingByKey = new Map(existing.map(r => [`${r.billNumber}::${r.lineSequence}`, r]));
 
-    const existingByKey = new Map(
-      existingRecords.map(r => [`${r.billNumber}::${r.lineSequence}`, r]),
-    );
-
-    const toInsert: ParsedPurchaseLine[] = [];
+    const toInsert: CanonicalRow[] = [];
     const conflicts: PurchaseConflictSample[] = [];
     let duplicateCount = 0;
 
-    for (const line of parsed.lines) {
+    for (const line of dated) {
       const key = `${line.billNumber}::${line.lineSequence}`;
-      const existing = existingByKey.get(key);
-
-      if (existing) {
-        // Tolerance of 0.01 (not 0.001) is deliberate: re-parsing the exact
-        // same .xlsx file can yield a price like 13587.475 vs 13587.48 on a
-        // second read - Excel's own displayed-text rounding is not perfectly
-        // stable between reads, confirmed by re-uploading a real file
-        // unchanged and seeing this exact discrepancy. A tighter tolerance
-        // flags identical rows as conflicts.
-        const sameContent =
-          existing.itemRaw === line.itemRaw &&
-          Math.abs(Number(existing.quantity) - line.quantity) < 0.01 &&
-          Math.abs(Number(existing.purchasePrice) - line.purchasePrice) < 0.01 &&
-          existing.transactionDate.getTime() === line.transactionDate.getTime();
-
-        if (sameContent) {
-          duplicateCount++;
-        } else {
+      const prev = existingByKey.get(key);
+      if (prev) {
+        const same =
+          prev.itemRaw === line.itemRaw &&
+          Math.abs(Number(prev.quantity) - line.quantity) < 0.01 &&
+          Math.abs(Number(prev.purchasePrice) - line.unitPrice) < 0.01 &&
+          prev.transactionDate.getTime() === (line.transactionDate as Date).getTime();
+        if (same) duplicateCount++;
+        else
           conflicts.push({
             billNumber: line.billNumber,
             lineSequence: line.lineSequence,
-            reason: `Already have "${existing.itemRaw}" x${existing.quantity} @ ${existing.purchasePrice} for this batch/line, new file has "${line.itemRaw}" x${line.quantity} @ ${line.purchasePrice} - not applied, needs manual review`,
+            reason: `Already have "${prev.itemRaw}" x${prev.quantity} @ ${prev.purchasePrice}; new file has "${line.itemRaw}" x${line.quantity} @ ${line.unitPrice} - not applied, needs review`,
           });
-        }
         continue;
       }
-
       toInsert.push(line);
     }
+
+    const times = dated.map(r => (r.transactionDate as Date).getTime());
+    const reportStartDate = times.length ? new Date(Math.min(...times)) : new Date();
+    const reportEndDate = times.length ? new Date(Math.max(...times)) : new Date();
 
     const upload = await this.prisma.purchaseAnalysisUpload.create({
       data: {
         organizationId,
         fileName: file.originalname,
         uploadedBy,
-        reportStartDate: parsed.reportStartDate,
-        reportEndDate: parsed.reportEndDate,
-        rowCount: parsed.lines.length,
+        reportStartDate,
+        reportEndDate,
+        rowCount: rows.length,
         duplicateCount,
         conflictCount: conflicts.length,
         status: 'PROCESSED',
       },
     });
 
-    if (toInsert.length > 0) {
+    for (let i = 0; i < toInsert.length; i += INSERT_CHUNK) {
+      const chunk = toInsert.slice(i, i + INSERT_CHUNK);
       await this.prisma.purchaseAnalysisRecord.createMany({
-        data: toInsert.map(line => ({
+        data: chunk.map(line => ({
           organizationId,
           uploadId: upload.id,
           billNumber: line.billNumber,
           lineSequence: line.lineSequence,
-          transactionDate: line.transactionDate,
+          transactionDate: line.transactionDate as Date,
           vendorName: line.vendorName,
           itemRaw: line.itemRaw,
           productCode: line.productCode,
           quantity: line.quantity,
-          purchasePrice: line.purchasePrice,
+          purchasePrice: line.unitPrice,
           lineAmount: line.lineAmount,
         })),
       });
     }
 
-    const overlapping = existingUploads.filter(
-      u => u.reportStartDate <= parsed.reportEndDate && u.reportEndDate >= parsed.reportStartDate,
+    const columns = this.engine.buildColumns(sheet, headerRowIndex);
+    await this.templates.saveTemplate(
+      organizationId,
+      'PURCHASE',
+      this.engine.computeSignature(columns),
+      file.originalname,
+      structure,
+      mapping,
+      columns,
     );
 
     return {
       uploadId: upload.id,
       fileName: file.originalname,
-      reportStartDate: parsed.reportStartDate,
-      reportEndDate: parsed.reportEndDate,
-      rowsParsed: parsed.lines.length,
+      reportStartDate,
+      reportEndDate,
+      rowsParsed: rows.length,
       newRowsAdded: toInsert.length,
       duplicatesSkipped: duplicateCount,
+      skippedNoDate,
       conflicts: conflicts.slice(0, 20),
       conflictCount: conflicts.length,
-      overlapsExistingUploads: overlapping.map(u => ({
-        fileName: u.fileName,
-        reportStartDate: u.reportStartDate,
-        reportEndDate: u.reportEndDate,
-      })),
-      parserWarnings: parsed.warnings.slice(0, 50),
     };
   }
 
