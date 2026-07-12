@@ -24,6 +24,7 @@ export function PartsReviewScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+  const [newItem, setNewItem] = useState('');
 
   useEffect(() => {
     load();
@@ -65,6 +66,24 @@ export function PartsReviewScreen() {
       else next.add(name);
       return next;
     });
+  }
+
+  // Add an arbitrary item name to exclude - even one not in the current data
+  // (e.g. a product to keep out of future imports). It appears as a ticked
+  // row and is persisted on Save, then auto-excludes any matching record now
+  // and in future uploads.
+  function addCustomItem() {
+    const name = newItem.trim();
+    if (!name) return;
+    if (!candidates.some(c => c.itemName === name)) {
+      setCandidates(prev => [
+        { itemName: name, transactionCount: 0, totalRevenue: 0, avgPrice: 0, minPrice: 0, maxPrice: 0, suggestedKind: 'PART', confirmedKind: null },
+        ...prev,
+      ]);
+    }
+    setChecked(prev => new Set(prev).add(name));
+    setNewItem('');
+    setSearch('');
   }
 
   async function save() {
@@ -110,6 +129,19 @@ export function PartsReviewScreen() {
           <input type="checkbox" checked={showOnlyParts} onChange={e => setShowOnlyParts(e.target.checked)} /> Show only suggested/marked parts
         </label>
         <span style={styles.counter}>{checked.size} marked as PART · excluded value ≈ {Math.round(excludedValue).toLocaleString()}</span>
+      </div>
+
+      <div style={styles.addRow}>
+        <span style={{ fontSize: '13px', color: '#444' }}>Add a product to always exclude (now &amp; future imports):</span>
+        <input
+          style={styles.search}
+          placeholder="exact item name…"
+          value={newItem}
+          onChange={e => setNewItem(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter') addCustomItem(); }}
+        />
+        <button style={styles.addBtn} onClick={addCustomItem} disabled={!newItem.trim()}>+ Add to exclusions</button>
+        <span style={{ fontSize: '12px', color: '#888' }}>then click Save classification</span>
       </div>
 
       <div style={styles.card}>
@@ -161,6 +193,8 @@ const styles: Record<string, React.CSSProperties> = {
   ok: { background: '#dcfce7', color: '#166534', padding: '10px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px' },
   err: { background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px' },
   toolbar: { display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '10px' },
+  addRow: { display: 'flex', gap: '10px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '12px', padding: '10px 12px', background: '#f9fafb', border: '1px solid #eee', borderRadius: '6px' },
+  addBtn: { background: '#7c3aed', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 14px', cursor: 'pointer', fontWeight: 600 },
   search: { padding: '8px 12px', border: '1px solid #ccc', borderRadius: '6px', fontSize: '13px', minWidth: '220px' },
   checkLabel: { fontSize: '13px', color: '#444', display: 'flex', alignItems: 'center', gap: '6px' },
   counter: { fontSize: '13px', color: '#7c3aed', fontWeight: 600 },

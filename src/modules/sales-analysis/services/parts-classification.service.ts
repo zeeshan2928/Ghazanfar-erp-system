@@ -79,6 +79,26 @@ export class PartsClassificationService {
       };
     });
 
+    // Include classified item names that aren't in the current sales data -
+    // e.g. products the user added manually to exclude from FUTURE imports.
+    // They persist visibly (with zero current stats) so they can be managed.
+    const dataItemNames = new Set(items.map(it => it.itemRaw));
+    for (const c of classifications) {
+      if (dataItemNames.has(c.itemName)) continue;
+      const kind = c.kind as 'PART' | 'SALE';
+      if (kind === 'PART') suggestedPartCount++;
+      candidates.push({
+        itemName: c.itemName,
+        transactionCount: 0,
+        totalRevenue: 0,
+        avgPrice: 0,
+        minPrice: 0,
+        maxPrice: 0,
+        suggestedKind: kind,
+        confirmedKind: kind,
+      });
+    }
+
     candidates.sort((a, b) => b.transactionCount - a.transactionCount);
     return { candidates, suggestedPartCount };
   }
