@@ -63,6 +63,7 @@ model Organization {
   purchaseAnalysisRecords PurchaseAnalysisRecord[]
   assemblyFormulas       AssemblyFormula[]
   assemblyParts          AssemblyPart[]
+  assembledItemCosts     AssembledItemCost[]
   importMappingTemplates ImportMappingTemplate[]
   salesItemClassifications SalesItemClassification[]
 }
@@ -1503,6 +1504,13 @@ model SalesAnalysisRecord {
   // for return rows, so every downstream aggregate reflects net-of-returns.
   isReturn        Boolean  @default(false)
   isDuplicate     Boolean  @default(false)
+  // Normalized full item name (lowercased, whitespace collapsed) - the ONLY
+  // sound key for cross-referencing a sale to its purchase cost. productCode
+  // (the leading number) is a shelf/category code, NOT a product id: code
+  // "176" alone covers 48 different purchase items priced Rs 2,175-41,800,
+  // so joining on it costs a product against an unrelated one. Never use
+  // productCode to resolve cost.
+  itemKey         String?
   createdAt       DateTime @default(now())
 
   organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1515,6 +1523,7 @@ model SalesAnalysisRecord {
   @@index([organizationId, accountName])
   @@index([organizationId, category])
   @@index([organizationId, brand])
+  @@index([organizationId, itemKey])
 }
 
 // One row per uploaded purchase/vendor report - mirrors SalesAnalysisUpload
@@ -1562,6 +1571,9 @@ model PurchaseAnalysisRecord {
   purchasePrice   Decimal  @db.Decimal(12, 2)
   lineAmount      Decimal  @db.Decimal(14, 2)
   isDuplicate     Boolean  @default(false)
+  // Normalized full item name - the join key a sale uses to find its cost.
+  // See SalesAnalysisRecord.itemKey for why productCode must never be used.
+  itemKey         String?
   createdAt       DateTime @default(now())
 
   organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
@@ -1571,6 +1583,7 @@ model PurchaseAnalysisRecord {
   @@index([organizationId, transactionDate])
   @@index([organizationId, vendorName])
   @@index([organizationId, productCode])
+  @@index([organizationId, itemKey, transactionDate])
 }
 
 // Juicers and blenders keep SEPARATE part catalogs on purpose: a generic
@@ -1627,9 +1640,37 @@ model AssemblyFormula {
 
   organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   lines          AssemblyFormulaLine[]
+  assembledItems AssembledItemCost[]
 
   @@unique([organizationId, label])
   @@index([organizationId, family])
+}
+
+// Cost source for a model we ASSEMBLE rather than buy. Such an item appears
+// in the purchase file only at price 0 (there is no real purchase to cost it
+// against), so its cost comes from a BOM formula instead - and because the
+// formula's cost is derived from the shared parts catalog, re-pricing one part
+// re-costs every model that uses it. `manualCost` is the escape hatch when no
+// formula fits. Mapping is user-confirmed, never auto-applied: the BOM labels
+// name model families ("White Body 7025 Copper") while sales names carry brand
+// prefixes ("1818 White Body 3in1 7025 Copper Philips"), so only the user can
+// say which formula truly builds which product.
+model AssembledItemCost {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  itemKey        String   // normalized sales item name (see SalesAnalysisRecord.itemKey)
+  itemName       String   // as it appears in the sales file, for display
+  formulaId      Int?
+  manualCost     Decimal? @db.Decimal(12, 2)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formula        AssemblyFormula? @relation(fields: [formulaId], references: [id], onDelete: SetNull)
+
+  @@unique([organizationId, itemKey])
+  @@index([organizationId])
+  @@index([formulaId])
 }
 
 // One line of a formula: which shared part, and how many. quantity defaults

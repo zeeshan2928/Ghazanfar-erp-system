@@ -8,6 +8,12 @@ interface RankedRow {
   totalProfit: number | null;
   totalQuantity: number;
   transactionCount: number;
+  // Revenue the profit was actually computed against - the ONLY correct
+  // denominator for a margin. Dividing profit by totalRevenue understates
+  // margin whenever part of a row's revenue has no known cost.
+  costedRevenue: number;
+  uncostedRevenue: number;
+  marginPercent: number | null;
 }
 
 // Profit Dashboard is deliberately a thin re-framing of the same
@@ -46,12 +52,15 @@ export function ProfitDashboardScreen() {
 
       const salesmenRows: RankedRow[] = (salesmenRes.salesmen || []).map((s: any) => ({
         label: s.salesmanName, totalRevenue: s.totalRevenue, totalProfit: s.totalProfit, totalQuantity: s.totalQuantity, transactionCount: s.transactionCount,
+        costedRevenue: s.costedRevenue, uncostedRevenue: s.uncostedRevenue, marginPercent: s.marginPercent,
       }));
       const productRows: RankedRow[] = (productsRes.products || []).map((p: any) => ({
         label: p.productLabel, totalRevenue: p.totalRevenue, totalProfit: p.totalProfit, totalQuantity: p.totalQuantity, transactionCount: p.transactionCount,
+        costedRevenue: p.costedRevenue, uncostedRevenue: p.uncostedRevenue, marginPercent: p.marginPercent,
       }));
       const customerRows: RankedRow[] = (customersRes.customers || []).map((c: any) => ({
         label: c.customerLabel, totalRevenue: c.totalRevenue, totalProfit: c.totalProfit, totalQuantity: c.totalQuantity, transactionCount: c.transactionCount,
+        costedRevenue: c.costedRevenue, uncostedRevenue: c.uncostedRevenue, marginPercent: c.marginPercent,
       }));
 
       setSalesmen(salesmenRows.filter(r => r.totalProfit !== null).sort((a, b) => (b.totalProfit || 0) - (a.totalProfit || 0)));
@@ -129,7 +138,14 @@ function ProfitSection({ title, rows, chartData, color, wide }: { title: string;
                   <td style={styles.td}>{r.label}</td>
                   <td style={styles.td}>{r.totalRevenue.toLocaleString()}</td>
                   <td style={styles.td}>{(r.totalProfit || 0).toLocaleString()}</td>
-                  <td style={styles.td}>{r.totalRevenue > 0 ? `${(((r.totalProfit || 0) / r.totalRevenue) * 100).toFixed(1)}%` : '—'}</td>
+                  <td style={styles.td}>
+                    {r.marginPercent !== null ? `${r.marginPercent.toFixed(1)}%` : <span style={styles.unknown}>cost unknown</span>}
+                    {r.uncostedRevenue > 0 && r.marginPercent !== null && (
+                      <span style={styles.partial} title={`${Math.round(r.uncostedRevenue).toLocaleString()} of this row's revenue has no known cost and is excluded from the margin`}>
+                        {' '}(on {Math.round((r.costedRevenue / r.totalRevenue) * 100)}% of revenue)
+                      </span>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -154,6 +170,8 @@ const styles: Record<string, React.CSSProperties> = {
   chartCard: { background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '16px', marginBottom: '16px' },
   chartTitle: { margin: '0 0 8px 0' },
   table: { width: '100%', borderCollapse: 'collapse', marginTop: '10px' },
+  unknown: { color: '#b45309', fontSize: '12px' },
+  partial: { color: '#888', fontSize: '11px' },
   th: { textAlign: 'left', borderBottom: '2px solid #ddd', padding: '8px', fontSize: '13px', color: '#555' },
   td: { borderBottom: '1px solid #eee', padding: '8px', fontSize: '14px' },
 };

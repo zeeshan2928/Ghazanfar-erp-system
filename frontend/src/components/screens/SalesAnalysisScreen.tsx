@@ -93,6 +93,11 @@ export function SalesAnalysisScreen() {
   const [customers, setCustomers] = useState<CustomerRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState('');
+  // Source-file rows whose stated total contradicts quantity x price. These
+  // silently distort revenue and margin, so they are surfaced rather than
+  // quietly corrected - the file is the user's own record.
+  const [anomalies, setAnomalies] = useState<{ anomalyCount: number; netOverstatement: number; items: any[] }>({ anomalyCount: 0, netOverstatement: 0, items: [] });
+  const [showAnomalies, setShowAnomalies] = useState(false);
 
   // Top-N and exclusions are deliberately session-only (component state,
   // never persisted or sent to the backend) - they reset on reload by
@@ -111,16 +116,18 @@ export function SalesAnalysisScreen() {
     setLoading(true);
     setLoadError('');
     try {
-      const [historyRes, salesmenRes, productsRes, customersRes] = await Promise.all([
+      const [historyRes, salesmenRes, productsRes, customersRes, anomalyRes] = await Promise.all([
         apiClient.getSalesAnalysisUploads(),
         apiClient.getSalesAnalysisSalesmenPerformance(fromDate, toDate),
         apiClient.getSalesAnalysisProductsPerformance(fromDate, toDate),
         apiClient.getSalesAnalysisCustomersPerformance(fromDate, toDate),
+        apiClient.getSalesDataAnomalies(),
       ]);
       setHistory(historyRes);
       setSalesmen(salesmenRes.salesmen || []);
       setProducts(productsRes.products || []);
       setCustomers(customersRes.customers || []);
+      setAnomalies(anomalyRes);
     } catch (err) {
       setLoadError('Failed to load sales analysis data');
     } finally {
@@ -246,6 +253,51 @@ export function SalesAnalysisScreen() {
 
       {loadError && <div style={styles.errorBanner}>{loadError}</div>}
 
+      {anomalies.anomalyCount > 0 && (
+        <div style={styles.anomalyBanner}>
+          <div>
+            <strong>{anomalies.anomalyCount} row(s) in your sales file have a total that doesn't match quantity x price</strong>
+            {' '}— net effect: sales overstated by <strong>{Math.round(anomalies.netOverstatement).toLocaleString()}</strong>.
+            These distort revenue and margin. Nothing has been changed in your data.
+            <button style={styles.linkBtn} onClick={() => setShowAnomalies(v => !v)}>
+              {showAnomalies ? 'Hide' : 'Show the rows'}
+            </button>
+          </div>
+          {showAnomalies && (
+            <div style={{ overflowX: 'auto', marginTop: '10px' }}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Bill</th>
+                    <th style={styles.th}>Item</th>
+                    <th style={styles.thR}>Qty</th>
+                    <th style={styles.thR}>Price</th>
+                    <th style={styles.thR}>Stated total</th>
+                    <th style={styles.thR}>Should be</th>
+                    <th style={styles.thR}>Difference</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {anomalies.items.slice(0, 25).map((a, i) => (
+                    <tr key={i}>
+                      <td style={styles.td}>{a.billNumber}</td>
+                      <td style={styles.td}>{a.itemName}</td>
+                      <td style={styles.tdR}>{a.quantity}</td>
+                      <td style={styles.tdR}>{Math.round(a.soldPrice).toLocaleString()}</td>
+                      <td style={styles.tdR}>{Math.round(a.statedAmount).toLocaleString()}</td>
+                      <td style={styles.tdR}>{Math.round(a.expectedAmount).toLocaleString()}</td>
+                      <td style={{ ...styles.tdR, color: a.difference > 0 ? '#b91c1c' : '#a16207', fontWeight: 600 }}>
+                        {a.difference > 0 ? '+' : ''}{Math.round(a.difference).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       <div style={styles.chartsRow}>
         <div style={styles.chartCard}>
           <h4 style={styles.chartTitle}>Top Salesmen by Profit</h4>
@@ -370,7 +422,11 @@ export function SalesAnalysisScreen() {
               <tr key={i}>
                 <td style={styles.td}>{p.productLabel}</td>
                 <td style={styles.td}>{p.totalRevenue.toLocaleString()}</td>
-                <td style={styles.td}>{p.totalProfit === null ? '— (upload a matching purchase report to see profit)' : p.totalProfit.toLocaleString()}</td>
+                {/* Cost genuinely unknown - never render this as zero cost (i.e. 100% profit).
+                    For a model we assemble there will never BE a purchase price, so pointing
+                    the user at a purchase upload would be dead-end advice: they need to set
+                    its BOM cost instead. */}
+                <td style={styles.td}>{p.totalProfit === null ? '— cost unknown (set a BOM cost in Reports → Assembled Costs, or upload a purchase report covering it)' : p.totalProfit.toLocaleString()}</td>
                 <td style={styles.td}>{p.totalQuantity.toLocaleString()}</td>
                 <td style={styles.td}>
                   <button style={styles.excludeBtn} onClick={() => setExcludedProducts(prev => new Set(prev).add(p.productLabel))} title="Exclude from rankings">✕</button>
@@ -392,6 +448,8 @@ const styles: Record<string, React.CSSProperties> = {
   controlLabel: { display: 'flex', flexDirection: 'column', fontSize: '12px', color: '#555', gap: '2px' },
   dateInput: { padding: '6px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' },
   refreshBtn: { background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 14px', cursor: 'pointer', fontWeight: 600 },
+  anomalyBanner: { background: '#fff3cd', color: '#856404', padding: '12px', borderRadius: '6px', marginBottom: '12px', fontSize: '13px', border: '1px solid #ffe69c' },
+  linkBtn: { marginLeft: '10px', background: 'none', border: 'none', color: '#7c3aed', textDecoration: 'underline', cursor: 'pointer', fontSize: '13px', padding: 0 },
   errorBanner: { background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '4px', marginBottom: '12px' },
   warningBanner: { background: '#fff3cd', color: '#856404', padding: '10px', borderRadius: '4px', marginBottom: '12px' },
   uploadCard: { background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '16px', marginBottom: '16px' },
@@ -406,6 +464,8 @@ const styles: Record<string, React.CSSProperties> = {
   table: { width: '100%', borderCollapse: 'collapse' },
   th: { textAlign: 'left', borderBottom: '2px solid #ddd', padding: '8px', fontSize: '13px', color: '#555' },
   td: { borderBottom: '1px solid #eee', padding: '8px', fontSize: '14px' },
+  thR: { textAlign: 'right', borderBottom: '2px solid #ddd', padding: '8px', fontSize: '13px', color: '#555' },
+  tdR: { borderBottom: '1px solid #eee', padding: '8px', fontSize: '14px', textAlign: 'right', fontVariantNumeric: 'tabular-nums' },
   quickExcludeRow: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '10px', flexWrap: 'wrap' },
   quickExcludeBtn: { background: '#f3f4f6', border: '1px solid #ccc', borderRadius: '999px', padding: '4px 10px', fontSize: '12px', cursor: 'pointer' },
   excludedBar: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px', flexWrap: 'wrap' },

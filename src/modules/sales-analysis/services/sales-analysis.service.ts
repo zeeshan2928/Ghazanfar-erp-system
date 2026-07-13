@@ -6,6 +6,7 @@ import { PartsClassificationService } from './parts-classification.service';
 import { AdaptiveImportService } from '@common/adaptive-import/adaptive-import.service';
 import { ImportTemplateService } from '@common/adaptive-import/import-template.service';
 import { CanonicalRow, ColumnMapping, Structure } from '@common/adaptive-import/adaptive-import.types';
+import { normalizeItemKey } from '@common/adaptive-import/item-key';
 
 export interface ConflictSample {
   billNumber: string;
@@ -120,6 +121,7 @@ export class SalesAnalysisService {
           salesmanName: line.salesmanName,
           itemRaw: line.itemRaw,
           productCode: line.productCode,
+          itemKey: normalizeItemKey(line.itemRaw),
           quantity: line.quantity,
           soldPrice: line.unitPrice,
           lineAmount: line.lineAmount,

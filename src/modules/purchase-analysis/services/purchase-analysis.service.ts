@@ -3,6 +3,7 @@ import { PrismaService } from '@database/prisma.service';
 import { AdaptiveImportService } from '@common/adaptive-import/adaptive-import.service';
 import { ImportTemplateService } from '@common/adaptive-import/import-template.service';
 import { CanonicalRow, ColumnMapping, Structure } from '@common/adaptive-import/adaptive-import.types';
+import { normalizeItemKey } from '@common/adaptive-import/item-key';
 
 export interface PurchaseConflictSample {
   billNumber: string;
@@ -108,6 +109,7 @@ export class PurchaseAnalysisService {
           vendorName: line.vendorName,
           itemRaw: line.itemRaw,
           productCode: line.productCode,
+          itemKey: normalizeItemKey(line.itemRaw),
           quantity: line.quantity,
           purchasePrice: line.unitPrice,
           lineAmount: line.lineAmount,

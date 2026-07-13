@@ -40,6 +40,7 @@ import { SalesmanPerformanceScreen } from './screens/SalesmanPerformanceScreen';
 import { SalesAnalysisScreen } from './screens/SalesAnalysisScreen';
 import { PurchaseAnalysisScreen } from './screens/PurchaseAnalysisScreen';
 import { PartsReviewScreen } from './screens/PartsReviewScreen';
+import { AssembledCostsScreen } from './screens/AssembledCostsScreen';
 import { ProfitDashboardScreen } from './screens/ProfitDashboardScreen';
 import { PnLStatementScreen } from './screens/PnLStatementScreen';
 import { AssemblyFormulasScreen } from './screens/AssemblyFormulasScreen';
@@ -47,7 +48,7 @@ import { SalesDashboardScreen } from './screens/SalesDashboardScreen';
 import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals';
 
 interface NotificationItem {
   id: number;
@@ -154,6 +155,7 @@ const navItems: NavItem[] = [
   { id: 'sales-analysis', label: 'Sales Report Analysis', icon: '🔍', group: 'Reports' },
   { id: 'purchase-analysis', label: 'Purchase Report Analysis', icon: '📥', group: 'Reports' },
   { id: 'parts-review', label: 'Parts Review (vendor components)', icon: '🧩', group: 'Reports' },
+  { id: 'assembled-costs', label: 'Assembled Costs (BOM)', icon: '🔧', group: 'Reports' },
   { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💎', group: 'Reports' },
   { id: 'pnl-statement', label: 'P&L (Gross Profit)', icon: '🧮', group: 'Reports' },
   { id: 'assembly-formulas', label: 'Assembly Costs (BOM)', icon: '🔧', group: 'Reports' },
@@ -312,6 +314,8 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <PurchaseAnalysisScreen />;
       case 'parts-review':
         return <PartsReviewScreen />;
+      case 'assembled-costs':
+        return <AssembledCostsScreen />;
       case 'profit-dashboard':
         return <ProfitDashboardScreen />;
       case 'pnl-statement':
@@ -510,10 +514,14 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
 }
 
 const styles: Record<string, React.CSSProperties> = {
+  // Pin the shell to the viewport (height, not minHeight) so the page body
+  // never scrolls as a whole - that height cap is what lets the sidebar and
+  // the content pane each own an independent scrollbar below.
   container: {
     display: 'flex',
     flexDirection: 'column',
-    minHeight: '100vh',
+    height: '100vh',
+    overflow: 'hidden',
     background: '#f8f9fa',
   },
   header: {
@@ -683,15 +691,21 @@ const styles: Record<string, React.CSSProperties> = {
     fontSize: '14px',
     transition: 'all 0.3s',
   },
+  // minHeight: 0 is required on both flex children: a flex item's min-height
+  // defaults to its content size, which would keep them from shrinking and
+  // silently defeat overflowY below.
   mainContent: {
     display: 'flex',
     flex: 1,
+    minHeight: 0,
     overflow: 'hidden',
   },
   sidebar: {
     width: '250px',
+    flexShrink: 0,
     background: 'white',
     borderRight: '1px solid #ddd',
+    minHeight: 0,
     overflowY: 'auto',
     padding: '20px 0',
     boxShadow: '1px 0 3px rgba(0,0,0,0.05)',
@@ -755,6 +769,8 @@ const styles: Record<string, React.CSSProperties> = {
   },
   content: {
     flex: 1,
+    minWidth: 0,
+    minHeight: 0,
     overflowY: 'auto',
     padding: '20px',
   },

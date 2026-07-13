@@ -16,6 +16,7 @@ import { OrgContext } from '@common/decorators/org-context.decorator';
 import { ColumnMapping, Structure } from '@common/adaptive-import/adaptive-import.types';
 import { SalesAnalysisService } from './services/sales-analysis.service';
 import { PartsClassificationService } from './services/parts-classification.service';
+import { AssembledCostService } from './services/assembled-cost.service';
 
 const UPLOAD_LIMIT = { limits: { fileSize: 25 * 1024 * 1024 } };
 
@@ -25,6 +26,7 @@ export class SalesAnalysisController {
   constructor(
     private salesAnalysisService: SalesAnalysisService,
     private partsClassification: PartsClassificationService,
+    private assembledCost: AssembledCostService,
   ) {}
 
   // Step 1: study the uploaded file, return a proposed column mapping +
@@ -154,6 +156,36 @@ export class SalesAnalysisController {
   ) {
     const { fromDate, toDate } = this.resolveRange(from, to);
     return this.partsClassification.getPartsReport(orgContext.organizationId, fromDate, toDate);
+  }
+
+  // ---- Assembled-model costs (BOM) : items we build, so no purchase price ----
+  @Get('assembled-costs/candidates')
+  @UseGuards(FinancialAccessGuard)
+  async assembledCandidates(@OrgContext() orgContext: any) {
+    return this.assembledCost.getCandidates(orgContext.organizationId);
+  }
+
+  @Get('assembled-costs/formulas')
+  @UseGuards(FinancialAccessGuard)
+  async assembledFormulas(@OrgContext() orgContext: any) {
+    return { formulas: await this.assembledCost.getFormulas(orgContext.organizationId) };
+  }
+
+  @Post('assembled-costs/map')
+  @UseGuards(FinancialAccessGuard)
+  async mapAssembledCosts(
+    @Body() body: { items: { itemName: string; formulaId?: number | null; manualCost?: number | null }[] },
+    @OrgContext() orgContext: any,
+  ) {
+    if (!body || !Array.isArray(body.items)) throw new BadRequestException('items array required');
+    return this.assembledCost.saveMappings(orgContext.organizationId, body.items);
+  }
+
+  // Source-file rows whose stated total contradicts quantity x price.
+  @Get('data-anomalies')
+  @UseGuards(FinancialAccessGuard)
+  async dataAnomalies(@OrgContext() orgContext: any) {
+    return this.assembledCost.getDataAnomalies(orgContext.organizationId);
   }
 
   @Get('performance/category')

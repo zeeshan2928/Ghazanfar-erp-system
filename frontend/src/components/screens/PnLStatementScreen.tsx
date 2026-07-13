@@ -6,8 +6,14 @@ interface GrossProfitSummary {
   totalRevenue: number;
   cogs: number;
   grossProfit: number;
-  unmatchedRevenue: number;
-  unmatchedRevenuePercent: number;
+  // Margin measured against the revenue whose cost is actually known - not
+  // against total revenue, which would understate it.
+  grossMarginPercent: number;
+  costedRevenue: number;
+  revenueCostedFromPurchases: number;
+  revenueCostedFromBom: number;
+  uncostedRevenue: number;
+  uncostedRevenuePercent: number;
 }
 
 // Deliberately Gross Profit only (Revenue - COGS) - no Expenses, no Net
@@ -44,7 +50,7 @@ export function PnLStatementScreen() {
     }
   }
 
-  const marginPercent = summary && summary.totalRevenue > 0 ? ((summary.grossProfit / summary.totalRevenue) * 100).toFixed(1) : '—';
+  const marginPercent = summary ? summary.grossMarginPercent.toFixed(1) : '—';
 
   return (
     <div style={styles.container}>
@@ -65,11 +71,19 @@ export function PnLStatementScreen() {
 
       {summary && (
         <>
-          {summary.unmatchedRevenuePercent > 0 && (
+          {summary.uncostedRevenuePercent > 0 && (
             <div style={styles.warningBanner}>
-              {summary.unmatchedRevenuePercent}% of revenue in this period ({summary.unmatchedRevenue.toLocaleString()}) has no matching purchase data yet, so its cost is unknown - Gross Profit below only reflects the matched portion. Upload a Purchase Analysis report covering this period to complete the picture.
+              {summary.uncostedRevenuePercent}% of revenue in this period ({Math.round(summary.uncostedRevenue).toLocaleString()}) has no known cost, so it is excluded from Gross Profit below rather than counted as pure profit. For models you assemble, set their cost in Reports &rarr; Assembled Costs (BOM); otherwise upload a Purchase Analysis report covering this period.
             </div>
           )}
+
+          <div style={styles.sourceBanner}>
+            Cost of the {Math.round(summary.costedRevenue).toLocaleString()} costed revenue came from:{' '}
+            <strong>{Math.round(summary.revenueCostedFromPurchases).toLocaleString()}</strong> matched to purchase records
+            {summary.revenueCostedFromBom > 0 && (
+              <> and <strong>{Math.round(summary.revenueCostedFromBom).toLocaleString()}</strong> costed from your BOM formulas (assembled models)</>
+            )}.
+          </div>
 
           <div style={styles.statementCard}>
             <div style={styles.statementRow}>
@@ -77,7 +91,7 @@ export function PnLStatementScreen() {
               <strong>{summary.totalRevenue.toLocaleString()}</strong>
             </div>
             <div style={styles.statementRow}>
-              <span>Cost of Goods Sold (matched portion)</span>
+              <span>Cost of Goods Sold (on costed revenue only)</span>
               <strong style={{ color: '#b91c1c' }}>({summary.cogs.toLocaleString()})</strong>
             </div>
             <div style={{ ...styles.statementRow, ...styles.statementTotal }}>
@@ -104,6 +118,7 @@ const styles: Record<string, React.CSSProperties> = {
   dateInput: { padding: '6px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' },
   refreshBtn: { background: '#2563eb', color: 'white', border: 'none', borderRadius: '6px', padding: '8px 14px', cursor: 'pointer', fontWeight: 600 },
   errorBanner: { background: '#f8d7da', color: '#721c24', padding: '10px', borderRadius: '4px', marginBottom: '12px' },
+  sourceBanner: { background: '#eef2ff', color: '#3730a3', padding: '10px', borderRadius: '4px', marginBottom: '12px', fontSize: '13px' },
   warningBanner: { background: '#fff3cd', color: '#856404', padding: '10px', borderRadius: '4px', marginBottom: '12px' },
   noteBanner: { background: '#eff6ff', color: '#1e3a8a', padding: '10px', borderRadius: '4px', marginBottom: '16px', fontSize: '13px' },
   statementCard: { background: 'white', border: '1px solid #ddd', borderRadius: '8px', padding: '20px', maxWidth: '480px' },

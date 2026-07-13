@@ -1071,6 +1071,27 @@ class ApiClient {
     return response.data;
   }
 
+  // Assembled models (built, not bought): their cost comes from a BOM formula.
+  async getAssembledCostCandidates() {
+    const response = await this.client.get('/sales-analysis/assembled-costs/candidates');
+    return response.data;
+  }
+
+  async getAssemblyFormulasForCost() {
+    const response = await this.client.get('/sales-analysis/assembled-costs/formulas');
+    return response.data;
+  }
+
+  async mapAssembledCosts(items: { itemName: string; formulaId?: number | null; manualCost?: number | null }[]) {
+    const response = await this.client.post('/sales-analysis/assembled-costs/map', { items });
+    return response.data;
+  }
+
+  async getSalesDataAnomalies() {
+    const response = await this.client.get('/sales-analysis/data-anomalies');
+    return response.data;
+  }
+
   async getSalesCategoryPerformance(from?: string, to?: string) {
     const response = await this.client.get('/sales-analysis/performance/category', { params: { from, to } });
     return response.data;
