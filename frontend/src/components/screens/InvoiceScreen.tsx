@@ -5,6 +5,7 @@ import { FilterPanel } from '../filters/FilterPanel';
 import { FilterSummary } from '../filters/FilterSummary';
 import { FilterOperator, DataType, FilterOperatorDto, SearchRequestDto, ColumnValueDto } from '../../types/filters';
 import { BillDetailModal } from '../bills/BillDetailModal';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 interface Customer {
   id: number;
@@ -817,7 +818,9 @@ export function InvoiceScreen() {
     const text = f.text.trim().toLowerCase();
 
     let result = products.filter(p => {
-      if (text && !`${p.code} ${p.name}`.toLowerCase().includes(text)) return false;
+      // Universal rule: every word must be there, in any order - so
+      // "176 ken 7025" finds "176 HS 8600CC Kenwood 3in1 Juicer 7025CC".
+      if (!matchesTokens(text, p.code, p.name)) return false;
       if (f.categoryIds.size > 0 && (!p.category || !f.categoryIds.has(p.category.id))) return false;
       if (f.brandIds.size > 0 && (!p.brand || !f.brandIds.has(p.brand.id))) return false;
       const price = p.salePrice ?? p.cost_price ?? 0;

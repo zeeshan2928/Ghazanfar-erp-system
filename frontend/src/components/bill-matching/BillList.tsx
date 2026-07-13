@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from 'react';
 import { Bill } from '../../stores/cash-book/matchingStore';
 import './matching.css';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 interface BillListProps {
   bills: Bill[];
@@ -21,9 +22,7 @@ const BillList: React.FC<BillListProps> = ({ bills, onSelectBill, selectedBillId
     let filtered = bills.filter((bill) => {
       const searchLower = searchTerm.toLowerCase();
       return (
-        bill.billNumber.toLowerCase().includes(searchLower) ||
-        bill.supplier.toLowerCase().includes(searchLower) ||
-        bill.reference?.toLowerCase().includes(searchLower)
+        matchesTokens(searchLower, bill.billNumber, bill.supplier, bill.reference)
       );
     });
 

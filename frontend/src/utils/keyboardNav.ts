@@ -25,8 +25,23 @@ function focusAndSelect(el: HTMLElement) {
 }
 
 /**
- * Up/Down walks a COLUMN of a data-entry table: from the cost field on one row
- * straight to the cost field on the next, keeping the column you are in.
+ * Arrow-key navigation for a data table. Two modes, because a list is read one
+ * way and edited another:
+ *
+ *   ROW CURSOR - nothing focused inside a cell. Up/Down moves a highlighted row
+ *     down the list, scrolling it into view. This is what pressing Down should
+ *     do the moment you open a screen; before, the keypress landed on <body>,
+ *     this handler never saw it, and the browser just scrolled the whole page.
+ *     Enter (or Tab) steps from the row INTO its first field.
+ *
+ *   COLUMN WALK - already typing in a cell. Up/Down keeps the column and moves
+ *     to the same field on the previous/next row, so a whole column of costs can
+ *     be filled without ever leaving the keyboard.
+ *
+ * Left/Right are deliberately never bound: inside a text field they move the
+ * text cursor, and stealing them would make editing a price impossible. Tab
+ * already moves between fields, natively.
+ *
  * Attach the ref to the element wrapping the <table>.
  */
 export function useGridArrowNav(container: React.RefObject<HTMLElement | null>) {
@@ -34,58 +49,129 @@ export function useGridArrowNav(container: React.RefObject<HTMLElement | null>) 
     const root = container.current;
     if (!root) return;
 
+    const getRows = () => Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody tr'));
+
+    // Rows are not focusable by default. Give them a roving tabindex: the cursor
+    // row is the single tab stop, the rest are reachable only by the arrows - so
+    // Tab does not have to walk 101 rows to get past the table.
+    const prepare = () => {
+      const rows = getRows();
+      if (rows.length === 0) return;
+      const hasStop = rows.some(r => r.getAttribute('tabindex') === '0');
+      rows.forEach(r => {
+        if (!r.hasAttribute('tabindex')) r.setAttribute('tabindex', '-1');
+      });
+      if (!hasStop) rows[0].setAttribute('tabindex', '0');
+    };
+    prepare();
+    // The list re-renders (filtering, loading), so re-prepare when rows change.
+    const observer = new MutationObserver(prepare);
+    observer.observe(root, { childList: true, subtree: true });
+
+    function focusRow(row: HTMLTableRowElement) {
+      getRows().forEach(r => {
+        r.setAttribute('tabindex', r === row ? '0' : '-1');
+        if (r === row) r.setAttribute('data-kbd-active', 'true');
+        else r.removeAttribute('data-kbd-active');
+      });
+      row.focus({ preventScroll: true });
+      // preventScroll + scrollIntoView('nearest') keeps the row visible without
+      // yanking the page around the way a raw .focus() does.
+      row.scrollIntoView({ block: 'nearest' });
+    }
+
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
-
       const target = e.target as HTMLElement;
-      if (target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return;
-      // A control that runs its own list (our combobox) owns its arrows.
-      if (target.closest('[data-kbd-owns-arrows="true"]')) return;
+      // A control that runs its own list (the combobox) owns its arrows.
+      if (target.closest?.('[data-kbd-owns-arrows="true"]')) return;
 
-      const cell = target.closest('td');
-      const row = target.closest('tr');
-      if (!cell || !row) return;
+      const rows = getRows();
+      if (rows.length === 0) return;
+      const row = target.closest?.('tr') as HTMLTableRowElement | null;
 
-      const rows = Array.from(root.querySelectorAll<HTMLTableRowElement>('tbody tr'));
-      const rowIdx = rows.indexOf(row as HTMLTableRowElement);
-      if (rowIdx < 0) return;
-
-      const colIdx = Array.from(row.children).indexOf(cell);
-
-      // Walk on past rows that have nothing focusable in this column, rather
-      // than dead-ending on them.
-      const step = e.key === 'ArrowDown' ? 1 : -1;
-      for (let i = rowIdx + step; i >= 0 && i < rows.length; i += step) {
-        const destCell = rows[i].children[colIdx] as HTMLElement | undefined;
-        const dest = destCell?.querySelector<HTMLElement>(FOCUSABLE);
-        if (dest) {
+      // --- step from the row cursor INTO the row's fields ---
+      if (e.key === 'Enter' && row && target === row) {
+        const first = row.querySelector<HTMLElement>(FOCUSABLE);
+        if (first) {
           e.preventDefault();
-          focusAndSelect(dest);
-          return;
+          focusAndSelect(first);
+        }
+        return;
+      }
+
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      if (target.tagName === 'SELECT' || target.tagName === 'TEXTAREA') return;
+
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+
+      // --- ROW CURSOR: focus is on a row itself ---
+      if (row && target === row) {
+        const next = rows[rows.indexOf(row) + step];
+        if (!next) return; // at an end - let focus stay put
+        e.preventDefault();
+        focusRow(next);
+        return;
+      }
+
+      // --- COLUMN WALK: focus is in a field inside a cell ---
+      const cell = target.closest?.('td');
+      if (cell && row) {
+        const rowIdx = rows.indexOf(row);
+        if (rowIdx < 0) return;
+        const colIdx = Array.from(row.children).indexOf(cell);
+        // Walk past rows with nothing focusable in this column rather than
+        // dead-ending on them.
+        for (let i = rowIdx + step; i >= 0 && i < rows.length; i += step) {
+          const destCell = rows[i].children[colIdx] as HTMLElement | undefined;
+          const dest = destCell?.querySelector<HTMLElement>(FOCUSABLE);
+          if (dest) {
+            e.preventDefault();
+            focusAndSelect(dest);
+            return;
+          }
         }
       }
     };
 
-    // Highlight the row you are standing in, so the eye can follow the keyboard.
+    // No CONTROL has focus - the case that made Down scroll instead of moving a
+    // row. It is not enough to test for <body>: after clicking a sidebar item,
+    // focus stays on that nav button, so the arrows drove the sidebar list and
+    // the table never saw them. The test is therefore "is a focusable control
+    // holding focus?" - if one is (a field, a nav button, a menu), it keeps its
+    // arrows and the grid stays out of the way. Only when nothing is - body, or
+    // the content pane itself - does the grid take them.
+    const onDocKeyDown = (e: KeyboardEvent) => {
+      if (e.key !== 'ArrowUp' && e.key !== 'ArrowDown') return;
+      const active = document.activeElement as HTMLElement | null;
+      if (active && active !== document.body && active.matches?.(FOCUSABLE)) return;
+      const rows = getRows();
+      if (rows.length === 0) return;
+      e.preventDefault();
+      focusRow(e.key === 'ArrowDown' ? rows[0] : rows[rows.length - 1]);
+    };
+
+    // Keep the highlight on whichever row holds focus, however it got there.
     const onFocusIn = (e: FocusEvent) => {
-      const row = (e.target as HTMLElement).closest('tr');
-      root.querySelectorAll('[data-kbd-active="true"]').forEach(r => r.removeAttribute('data-kbd-active'));
-      if (row && root.contains(row)) row.setAttribute('data-kbd-active', 'true');
+      const r = (e.target as HTMLElement).closest?.('tr');
+      root.querySelectorAll('[data-kbd-active="true"]').forEach(x => x.removeAttribute('data-kbd-active'));
+      if (r && root.contains(r)) r.setAttribute('data-kbd-active', 'true');
     };
     const onFocusOut = (e: FocusEvent) => {
-      // Only clear when focus actually leaves the table, not while moving inside it.
       if (!root.contains(e.relatedTarget as Node)) {
-        root.querySelectorAll('[data-kbd-active="true"]').forEach(r => r.removeAttribute('data-kbd-active'));
+        root.querySelectorAll('[data-kbd-active="true"]').forEach(x => x.removeAttribute('data-kbd-active'));
       }
     };
 
     root.addEventListener('keydown', onKeyDown);
     root.addEventListener('focusin', onFocusIn);
     root.addEventListener('focusout', onFocusOut);
+    document.addEventListener('keydown', onDocKeyDown);
     return () => {
+      observer.disconnect();
       root.removeEventListener('keydown', onKeyDown);
       root.removeEventListener('focusin', onFocusIn);
       root.removeEventListener('focusout', onFocusOut);
+      document.removeEventListener('keydown', onDocKeyDown);
     };
   }, [container]);
 }

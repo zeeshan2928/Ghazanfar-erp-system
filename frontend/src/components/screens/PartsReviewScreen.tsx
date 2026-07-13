@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../services/api';
 import { useGridArrowNav } from '../../utils/keyboardNav';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 interface Candidate {
   itemName: string;
@@ -58,7 +59,7 @@ export function PartsReviewScreen() {
     const q = search.trim().toLowerCase();
     return candidates.filter(c => {
       if (showOnlyParts && c.suggestedKind !== 'PART' && !checked.has(c.itemName)) return false;
-      if (q && !c.itemName.toLowerCase().includes(q)) return false;
+      if (!matchesTokens(q, c.itemName)) return false;
       return true;
     });
   }, [candidates, search, showOnlyParts, checked]);

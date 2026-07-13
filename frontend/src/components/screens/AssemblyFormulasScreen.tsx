@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useFormulaStore, AssemblyFamily } from '../../stores/assembly-formula/formulaStore';
 import { apiClient } from '../../services/api';
 import './assembly-formulas.css';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 type FamilyFilter = 'ALL' | AssemblyFamily;
 
@@ -31,7 +32,7 @@ export function AssemblyFormulasScreen() {
     const q = search.trim().toLowerCase();
     return computed
       .filter(f => familyFilter === 'ALL' || f.family === familyFilter)
-      .filter(f => q === '' || f.label.toLowerCase().includes(q) || f.productCodes.some(c => c.includes(q)))
+      .filter(f => matchesTokens(q, f.label, f.productCodes.join(' ')))
       .sort((a, b) => a.label.localeCompare(b.label));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [computed, familyFilter, search]);

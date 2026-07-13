@@ -68,11 +68,21 @@ select:focus-visible {
   border-color: #7c3aed !important;
 }
 
-/* 2. The row you are arrowing through must stand out as clearly as a hover.
-   Applied by the arrow-key navigation helper (useArrowNav). */
-[data-kbd-active='true'] {
-  background-color: #eef2ff !important;
-  box-shadow: inset 3px 0 0 #7c3aed;
+/* 2. The row the arrow keys are standing on. This is the cursor - it has to be
+   impossible to lose, so it gets a fill AND a solid bar down its leading edge,
+   not just a faint tint that a striped table would swallow. */
+tr[data-kbd-active='true'] > td {
+  background-color: #e0e7ff !important;
+}
+tr[data-kbd-active='true'] > td:first-child {
+  box-shadow: inset 4px 0 0 #7c3aed;
+}
+
+/* A focused ROW draws the bar above instead of a rectangle around itself: an
+   outline on a <tr> renders raggedly across cell borders in every browser. */
+tr[tabindex]:focus,
+tr[tabindex]:focus-visible {
+  outline: none !important;
 }
 
 /* Skip link: lets a keyboard user jump straight past the 40-odd sidebar links

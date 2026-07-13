@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Discrepancy } from '../../stores/cash-book/reportStore';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 interface DiscrepancyListProps {
   discrepancies: Discrepancy[];
@@ -58,7 +59,7 @@ export const DiscrepancyList: React.FC<DiscrepancyListProps> = ({
   const filteredDiscrepancies = useMemo(() => {
     return discrepancies
       .filter((d) => {
-        if (searchQuery && !d.description.toLowerCase().includes(searchQuery.toLowerCase())) {
+        if (!matchesTokens(searchQuery, d.description)) {
           return false;
         }
         if (selectedDaysFilter) {

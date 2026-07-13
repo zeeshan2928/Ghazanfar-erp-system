@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../services/api';
 import { useGridArrowNav } from '../../utils/keyboardNav';
+import { matchesTokens } from '../../utils/tokenSearch';
 
 interface Suggestion {
   formulaId: number;
@@ -363,7 +364,7 @@ export function AssembledCostsScreen() {
     const q = search.trim().toLowerCase();
     return candidates.filter(c => {
       if (onlyUnverified && verifiedCost(c) != null) return false;
-      if (q && !c.itemName.toLowerCase().includes(q)) return false;
+      if (!matchesTokens(q, c.itemName, c.category, c.brand)) return false;
       return true;
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
+import { tokenSearchWhere } from '@common/search/token-search';
 
 export interface GlobalSearchResult {
   type:
@@ -29,12 +30,7 @@ export class GlobalSearchService {
         this.prisma.bill.findMany({
           where: {
             organizationId,
-            OR: [
-              { bill_number: { contains: q, mode: 'insensitive' } },
-              { remarks: { contains: q, mode: 'insensitive' } },
-              { customer: { name: { contains: q, mode: 'insensitive' } } },
-              { customer: { phone: { contains: q, mode: 'insensitive' } } },
-            ],
+            ...tokenSearchWhere(q, ['bill_number', 'remarks', 'customer.name', 'customer.phone']),
           },
           include: { customer: true },
           take: takePerType,
@@ -43,11 +39,7 @@ export class GlobalSearchService {
         this.prisma.purchaseOrder.findMany({
           where: {
             organizationId,
-            OR: [
-              { po_number: { contains: q, mode: 'insensitive' } },
-              { manual_reference: { contains: q, mode: 'insensitive' } },
-              { vendor: { name: { contains: q, mode: 'insensitive' } } },
-            ],
+            ...tokenSearchWhere(q, ['po_number', 'manual_reference', 'vendor.name']),
           },
           include: { vendor: true },
           take: takePerType,
@@ -56,7 +48,7 @@ export class GlobalSearchService {
         this.prisma.gatePass.findMany({
           where: {
             organizationId,
-            gate_pass_number: { contains: q, mode: 'insensitive' },
+            ...tokenSearchWhere(q, ['gate_pass_number']),
           },
           take: takePerType,
           orderBy: { createdAt: 'desc' },
@@ -64,11 +56,7 @@ export class GlobalSearchService {
         this.prisma.journalEntry.findMany({
           where: {
             organizationId,
-            OR: [
-              { entryNumber: { contains: q, mode: 'insensitive' } },
-              { reference: { contains: q, mode: 'insensitive' } },
-              { description: { contains: q, mode: 'insensitive' } },
-            ],
+            ...tokenSearchWhere(q, ['entryNumber', 'reference', 'description']),
           },
           take: takePerType,
           orderBy: { createdAt: 'desc' },
@@ -76,11 +64,7 @@ export class GlobalSearchService {
         this.prisma.cashBookEntry.findMany({
           where: {
             organizationId,
-            OR: [
-              { entryNumber: { contains: q, mode: 'insensitive' } },
-              { referenceNumber: { contains: q, mode: 'insensitive' } },
-              { description: { contains: q, mode: 'insensitive' } },
-            ],
+            ...tokenSearchWhere(q, ['entryNumber', 'referenceNumber', 'description']),
           },
           take: takePerType,
           orderBy: { createdAt: 'desc' },
@@ -88,11 +72,7 @@ export class GlobalSearchService {
         this.prisma.customer.findMany({
           where: {
             organizationId,
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { phone: { contains: q, mode: 'insensitive' } },
-              { email: { contains: q, mode: 'insensitive' } },
-            ],
+            ...tokenSearchWhere(q, ['name', 'phone', 'email']),
           },
           take: takePerType,
           orderBy: { name: 'asc' },
@@ -100,11 +80,7 @@ export class GlobalSearchService {
         this.prisma.vendor.findMany({
           where: {
             organizationId,
-            OR: [
-              { name: { contains: q, mode: 'insensitive' } },
-              { phone: { contains: q, mode: 'insensitive' } },
-              { email: { contains: q, mode: 'insensitive' } },
-            ],
+            ...tokenSearchWhere(q, ['name', 'phone', 'email']),
           },
           take: takePerType,
           orderBy: { name: 'asc' },
@@ -112,11 +88,7 @@ export class GlobalSearchService {
         this.prisma.salesOrder.findMany({
           where: {
             organizationId,
-            OR: [
-              { orderNumber: { contains: q, mode: 'insensitive' } },
-              { remarks: { contains: q, mode: 'insensitive' } },
-              { customer: { name: { contains: q, mode: 'insensitive' } } },
-            ],
+            ...tokenSearchWhere(q, ['orderNumber', 'remarks', 'customer.name']),
           },
           include: { customer: true },
           take: takePerType,

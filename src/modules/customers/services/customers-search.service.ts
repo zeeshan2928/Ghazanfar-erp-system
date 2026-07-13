@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { expandMultiWordContains, tokenSearchWhere, isFuzzyOperator } from '@common/search/token-search';
 import { PrismaService } from '@database/prisma.service';
 import { FilterService } from '@common/services/filter.service';
 import {
@@ -17,6 +18,11 @@ export interface CustomerSearchResult {
   email: string;
   creditLimit: number;
 }
+
+// The fields a free-text search bar sweeps for this entity. Any word of the
+// query may match any of them, which is what lets a code and a name be typed
+// together in either order.
+const FREE_TEXT_FIELDS = ['name', 'phone', 'email', 'address', 'city'];
 
 @Injectable()
 export class CustomersSearchService {
@@ -44,16 +50,27 @@ export class CustomersSearchService {
       }
     }
 
-    // Build where clause with field mapping
+    // Build where clause with field mapping.
+    //
+    // The free-text search bar (primaryFilter, operator `isLike`) sweeps EVERY
+    // searchable field of the record, not just the one column it nominates -
+    // otherwise "1218 grind" finds nothing, because 1218 lives in `code` and
+    // "grind" in `name`. An explicitly chosen COLUMN filter still means that
+    // column, and is left alone.
+    const freeText =
+      request.primaryFilter && isFuzzyOperator(request.primaryFilter.operator)
+        ? tokenSearchWhere(String(request.primaryFilter.value ?? ''), FREE_TEXT_FIELDS)
+        : undefined;
+
     const filters = [];
-    if (request.primaryFilter) {
+    if (request.primaryFilter && !freeText) {
       filters.push(request.primaryFilter);
     }
     if (request.columnFilters) {
       filters.push(...request.columnFilters);
     }
 
-    const whereBase = this.buildWhereClauses(filters);
+    const whereBase = { ...this.buildWhereClauses(filters), ...(freeText ?? {}) };
     const where = {
       ...whereBase,
       organizationId,
@@ -180,7 +197,10 @@ export class CustomersSearchService {
       }
     }
 
-    return where;
+    // The universal search rule: a query of several words matches when EVERY
+    // word is present, in any order. Applied here, to the finished clause, so
+    // the rule is stated once rather than inside each field-mapping switch.
+    return expandMultiWordContains(where);
   }
 
   /**

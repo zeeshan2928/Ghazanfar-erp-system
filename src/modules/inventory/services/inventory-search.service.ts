@@ -1,4 +1,5 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
+import { expandMultiWordContains } from '@common/search/token-search';
 import { PrismaService } from '@database/prisma.service';
 import { FilterService } from '@common/services/filter.service';
 import {
@@ -207,7 +208,10 @@ export class InventorySearchService {
       }
     }
 
-    return where;
+    // The universal search rule: a query of several words matches when EVERY
+    // word is present, in any order. Applied here, to the finished clause, so
+    // the rule is stated once rather than inside each field-mapping switch.
+    return expandMultiWordContains(where);
   }
 
   /**

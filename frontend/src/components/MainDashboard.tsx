@@ -163,6 +163,11 @@ const navItems: NavItem[] = [
 ];
 
 // Sidebar display order + icon per group header.
+// Sidebar: full -> icon rail -> hidden -> full.
+type NavMode = 'full' | 'rail' | 'hidden';
+const RAIL_WIDTH = 64;
+const TOP = '__top'; // the ungrouped items, keyed for the saved order
+
 const GROUPS: { name: string; icon: string }[] = [
   { name: 'Sales', icon: '🧾' },
   { name: 'Finance & Accounting', icon: '💰' },
@@ -181,6 +186,29 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
   // Up/Down moves through the 40-odd nav items instead of Tab-ing one by one.
   const sidebarRef = useRef<HTMLElement>(null);
   useListArrowNav(sidebarRef);
+
+  const [navMode, setNavMode] = useState<NavMode>(
+    () => (localStorage.getItem('nav_mode') as NavMode) || 'full',
+  );
+  const [navWidth, setNavWidth] = useState<number>(
+    () => Number(localStorage.getItem('nav_width')) || 250,
+  );
+  const [itemOrder, setItemOrder] = useState<Record<string, string[]>>(
+    () => { try { return JSON.parse(localStorage.getItem('nav_item_order') || '{}'); } catch { return {}; } },
+  );
+  const [groupOrder, setGroupOrder] = useState<string[]>(
+    () => { try { return JSON.parse(localStorage.getItem('nav_group_order') || '[]'); } catch { return []; } },
+  );
+  const dragRef = useRef<{ kind: 'item' | 'group'; id: string; group?: string } | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+
+  // Opening a screen hands focus to it. Without this, focus stayed on the
+  // sidebar button you just clicked, so the arrow keys went on driving the
+  // sidebar list and the screen's own table never received them.
+  useEffect(() => {
+    document.getElementById('main-content')?.focus({ preventScroll: true });
+  }, [activeScreen]);
+
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     () => Object.fromEntries(GROUPS.map(g => [g.name, true])),
   );
@@ -188,6 +216,92 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
   function toggleGroup(name: string) {
     setExpandedGroups(prev => ({ ...prev, [name]: !prev[name] }));
   }
+
+  // ---------------------------------------------------------------- nav bar
+  // Width, collapse state and running order belong to the user, so they survive
+  // a reload. A layout you must re-arrange every morning is worse than one you
+  // cannot arrange at all.
+  useEffect(() => { localStorage.setItem('nav_mode', navMode); }, [navMode]);
+  useEffect(() => { localStorage.setItem('nav_width', String(navWidth)); }, [navWidth]);
+  useEffect(() => { localStorage.setItem('nav_item_order', JSON.stringify(itemOrder)); }, [itemOrder]);
+  useEffect(() => { localStorage.setItem('nav_group_order', JSON.stringify(groupOrder)); }, [groupOrder]);
+
+  // Saved order first, then anything the app has since added - a new screen must
+  // never vanish just because it was not in the order saved last month.
+  const orderedGroups = React.useMemo(() => {
+    const known = GROUPS.map(g => g.name);
+    const ordered = groupOrder.filter(n => known.includes(n));
+    for (const n of known) if (!ordered.includes(n)) ordered.push(n);
+    return ordered.map(n => GROUPS.find(g => g.name === n)!);
+  }, [groupOrder]);
+
+  const itemsOf = React.useCallback((group?: string) => {
+    const items = navItems.filter(i => i.group === group);
+    const saved = itemOrder[group ?? TOP] ?? [];
+    const ordered = saved
+      .map(id => items.find(i => i.id === id))
+      .filter((i): i is NavItem => !!i);
+    for (const i of items) if (!ordered.some(o => o.id === i.id)) ordered.push(i);
+    return ordered;
+  }, [itemOrder]);
+
+  // --- drag to reorder ---
+  // Items move within their own group, and groups move among groups. Dropping
+  // "New Invoice" into Finance would have to re-home it, which is a different
+  // and more surprising act than moving it higher up its own list.
+  function onItemDrop(target: NavItem) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragOver(null);
+    if (!d || d.kind !== 'item') return;
+    const g = target.group ?? TOP;
+    if ((d.group ?? TOP) !== g) return;
+
+    const list = itemsOf(target.group).map(i => i.id);
+    const from = list.indexOf(d.id);
+    const to = list.indexOf(target.id);
+    if (from < 0 || to < 0 || from === to) return;
+    list.splice(to, 0, list.splice(from, 1)[0]);
+    setItemOrder(prev => ({ ...prev, [g]: list }));
+  }
+
+  function onGroupDrop(targetName: string) {
+    const d = dragRef.current;
+    dragRef.current = null;
+    setDragOver(null);
+    if (!d || d.kind !== 'group') return;
+
+    const list = orderedGroups.map(g => g.name);
+    const from = list.indexOf(d.id);
+    const to = list.indexOf(targetName);
+    if (from < 0 || to < 0 || from === to) return;
+    list.splice(to, 0, list.splice(from, 1)[0]);
+    setGroupOrder(list);
+  }
+
+  // --- drag the edge to resize ---
+  function startResize(e: React.MouseEvent) {
+    e.preventDefault();
+    const onMove = (ev: MouseEvent) => {
+      // The sidebar starts at x=0, so the pointer's x IS the width. Clamped so
+      // it can never be dragged away to nothing - that is what collapse is for.
+      setNavWidth(Math.min(420, Math.max(170, ev.clientX)));
+    };
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none'; // stop the drag selecting nav text
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
+  const cycleNav = () => setNavMode(m => (m === 'full' ? 'rail' : m === 'rail' ? 'hidden' : 'full'));
+  const rail = navMode === 'rail';
+  const sidebarWidth = rail ? RAIL_WIDTH : navWidth;
 
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
@@ -397,6 +511,33 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
     }
   };
 
+  // One row of the nav. Draggable (to reorder), and in rail mode it drops the
+  // label but keeps the icon - with the label as a tooltip, so nothing is lost.
+  function renderNavItems(items: NavItem[], grouped = false) {
+    return items.map(item => (
+      <button
+        key={item.id}
+        onClick={() => setActiveScreen(item.id)}
+        draggable
+        onDragStart={() => { dragRef.current = { kind: 'item', id: item.id, group: item.group }; }}
+        onDragOver={e => { e.preventDefault(); setDragOver(`i:${item.id}`); }}
+        onDragLeave={() => setDragOver(d => (d === `i:${item.id}` ? null : d))}
+        onDrop={e => { e.preventDefault(); onItemDrop(item); }}
+        title={rail ? item.label : `${item.label} — drag to reorder`}
+        style={{
+          ...styles.navItem,
+          ...(grouped && !rail ? styles.navItemGrouped : {}),
+          ...(rail ? styles.navItemRail : {}),
+          ...(activeScreen === item.id ? styles.navItemActive : {}),
+          ...(dragOver === `i:${item.id}` ? styles.navDropTarget : {}),
+        }}
+      >
+        <span style={styles.navIcon}>{item.icon}</span>
+        {!rail && <span style={styles.navLabel}>{item.label}</span>}
+      </button>
+    ));
+  }
+
   return (
     <div style={styles.container}>
       {/* First stop for a keyboard user: jump past 40-odd nav links straight into
@@ -471,46 +612,78 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
       </div>
 
       <div style={styles.mainContent}>
-        {/* Sidebar Navigation - Up/Down walks the nav items */}
-        <nav ref={sidebarRef} style={styles.sidebar} aria-label="Main navigation">
-          <div style={styles.navTitle}>Navigation</div>
-          {navItems.filter(item => !item.group).map((item) => (
-            <button
-              key={item.id}
-              onClick={() => setActiveScreen(item.id)}
-              style={{
-                ...styles.navItem,
-                ...(activeScreen === item.id ? styles.navItemActive : {}),
-              }}
-            >
-              <span style={styles.navIcon}>{item.icon}</span>
-              <span style={styles.navLabel}>{item.label}</span>
-            </button>
-          ))}
+        {/* Hidden: one button brings it back, so the nav can never be lost. */}
+        {navMode === 'hidden' && (
+          <button style={styles.navRestore} onClick={() => setNavMode('full')} title="Show navigation">
+            ☰
+          </button>
+        )}
 
-          {GROUPS.map(group => (
+        {/* Sidebar - Up/Down walks the items; drag an item to reorder it;
+            drag the right edge to resize; the ☰ button cycles
+            full -> icons only -> hidden. */}
+        {navMode !== 'hidden' && (
+        <nav
+          ref={sidebarRef}
+          style={{ ...styles.sidebar, width: sidebarWidth }}
+          aria-label="Main navigation"
+        >
+          <div style={styles.navHeader}>
+            {!rail && <span style={styles.navTitleText}>Navigation</span>}
+            <button
+              style={styles.navToggle}
+              onClick={cycleNav}
+              title={rail ? 'Hide navigation' : 'Collapse to icons'}
+              aria-label={rail ? 'Hide navigation' : 'Collapse to icons'}
+            >
+              {rail ? '»' : '«'}
+            </button>
+          </div>
+
+          {renderNavItems(itemsOf(undefined))}
+
+          {orderedGroups.map(group => (
             <React.Fragment key={group.name}>
-              <button style={styles.navGroupHeader} onClick={() => toggleGroup(group.name)}>
-                <span>{group.icon} {group.name}</span>
-                <span>{expandedGroups[group.name] ? '▾' : '▸'}</span>
+              <button
+                style={{
+                  ...styles.navGroupHeader,
+                  ...(dragOver === `g:${group.name}` ? styles.navDropTarget : {}),
+                  ...(rail ? styles.navGroupHeaderRail : {}),
+                }}
+                onClick={() => toggleGroup(group.name)}
+                draggable
+                onDragStart={() => { dragRef.current = { kind: 'group', id: group.name }; }}
+                onDragOver={e => { e.preventDefault(); setDragOver(`g:${group.name}`); }}
+                onDragLeave={() => setDragOver(d => (d === `g:${group.name}` ? null : d))}
+                onDrop={e => { e.preventDefault(); onGroupDrop(group.name); }}
+                title={rail ? group.name : 'Drag to reorder this group'}
+              >
+                {rail ? (
+                  <span>{group.icon}</span>
+                ) : (
+                  <>
+                    <span>{group.icon} {group.name}</span>
+                    <span>{expandedGroups[group.name] ? '▾' : '▸'}</span>
+                  </>
+                )}
               </button>
-              {expandedGroups[group.name] && navItems.filter(item => item.group === group.name).map((item) => (
-                <button
-                  key={item.id}
-                  onClick={() => setActiveScreen(item.id)}
-                  style={{
-                    ...styles.navItem,
-                    ...styles.navItemGrouped,
-                    ...(activeScreen === item.id ? styles.navItemActive : {}),
-                  }}
-                >
-                  <span style={styles.navIcon}>{item.icon}</span>
-                  <span style={styles.navLabel}>{item.label}</span>
-                </button>
-              ))}
+              {expandedGroups[group.name] && renderNavItems(itemsOf(group.name), true)}
             </React.Fragment>
           ))}
+
+          {/* The resize edge. Only meaningful at full width - an icon rail has
+              a fixed width by definition. */}
+          {!rail && (
+            <div
+              style={styles.resizeHandle}
+              onMouseDown={startResize}
+              role="separator"
+              aria-orientation="vertical"
+              title="Drag to resize"
+            />
+          )}
         </nav>
+        )}
 
         {/* Main Content Area */}
         <div id="main-content" tabIndex={-1} style={styles.content}>
@@ -709,14 +882,76 @@ const styles: Record<string, React.CSSProperties> = {
     overflow: 'hidden',
   },
   sidebar: {
-    width: '250px',
+    // width is set inline: the user drags it, or the rail fixes it.
     flexShrink: 0,
+    position: 'relative',
     background: 'white',
     borderRight: '1px solid #ddd',
     minHeight: 0,
     overflowY: 'auto',
-    padding: '20px 0',
+    overflowX: 'hidden',
+    padding: '12px 0 20px',
     boxShadow: '1px 0 3px rgba(0,0,0,0.05)',
+  },
+  navHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    padding: '0 12px 10px 20px',
+  },
+  navTitleText: {
+    fontSize: '12px',
+    fontWeight: 700,
+    color: '#999',
+    textTransform: 'uppercase',
+    letterSpacing: '0.5px',
+  },
+  navToggle: {
+    background: 'none',
+    border: '1px solid #ddd',
+    borderRadius: '5px',
+    color: '#666',
+    cursor: 'pointer',
+    fontSize: '13px',
+    lineHeight: 1,
+    padding: '4px 7px',
+    margin: '0 auto',
+  },
+  // Brought back after the nav is hidden entirely.
+  navRestore: {
+    alignSelf: 'flex-start',
+    margin: '10px 6px 0',
+    background: 'white',
+    border: '1px solid #ddd',
+    borderRadius: '6px',
+    cursor: 'pointer',
+    fontSize: '16px',
+    padding: '6px 10px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
+  },
+  // The grab strip on the sidebar's right edge. Sits above the scrolling
+  // content so it can be caught anywhere down the sidebar's height.
+  resizeHandle: {
+    position: 'absolute',
+    top: 0,
+    right: 0,
+    width: '6px',
+    height: '100%',
+    cursor: 'col-resize',
+  },
+  navItemRail: {
+    justifyContent: 'center',
+    padding: '12px 0',
+  },
+  navGroupHeaderRail: {
+    justifyContent: 'center',
+    padding: '10px 0',
+  },
+  // Where a dragged item would land.
+  navDropTarget: {
+    outline: '2px dashed #7c3aed',
+    outlineOffset: '-2px',
+    background: '#f5f3ff',
   },
   navTitle: {
     padding: '0 20px 15px 20px',
