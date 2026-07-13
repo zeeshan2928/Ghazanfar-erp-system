@@ -15,6 +15,37 @@ export function AssemblyFormulasScreen() {
   const [busy, setBusy] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  // Inline edit of the model's name. The labels came off the source spreadsheets
+  // ("1764 PC+1760 PC+2225 (7025CC)") - they name the FILE, not the product.
+  const [editingName, setEditingName] = useState(false);
+  const [nameDraft, setNameDraft] = useState('');
+  const [descDraft, setDescDraft] = useState('');
+  const [savingMeta, setSavingMeta] = useState(false);
+
+  // The rail is drag-resizable so the parts ledger - the thing you actually work
+  // in - can be given the room. Persisted: a width you must re-drag every
+  // morning is worse than a fixed one.
+  const [railWidth, setRailWidth] = useState<number>(
+    () => Number(localStorage.getItem('afx_rail_width')) || 300,
+  );
+  useEffect(() => { localStorage.setItem('afx_rail_width', String(railWidth)); }, [railWidth]);
+
+  function startRailResize(e: React.MouseEvent) {
+    e.preventDefault();
+    const rootLeft = (e.currentTarget as HTMLElement).closest('.afx-root')!.getBoundingClientRect().left;
+    const onMove = (ev: MouseEvent) => setRailWidth(Math.min(560, Math.max(200, ev.clientX - rootLeft - 16)));
+    const onUp = () => {
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+      document.body.style.cursor = '';
+      document.body.style.userSelect = '';
+    };
+    document.body.style.cursor = 'col-resize';
+    document.body.style.userSelect = 'none';
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  }
+
   // Local-first: show whatever's cached instantly, then refresh from server
   // if we have no unsynced local edits.
   useEffect(() => {
@@ -38,6 +69,38 @@ export function AssemblyFormulasScreen() {
   }, [computed, familyFilter, search]);
 
   const selected = computed.find(f => f.id === selectedId) || null;
+
+  // Switching model discards any half-typed edit rather than carrying it across
+  // to the wrong product.
+  useEffect(() => {
+    setEditingName(false);
+    setNameDraft(selected?.label ?? '');
+    setDescDraft(selected?.description ?? '');
+  }, [selectedId, selected?.label, selected?.description]);
+
+  async function saveName() {
+    const label = nameDraft.trim();
+    setEditingName(false);
+    if (!selected || !label || label === selected.label) {
+      setNameDraft(selected?.label ?? '');
+      return;
+    }
+    setSavingMeta(true);
+    const res = await store.updateFormulaMeta(selected.id, { label });
+    setSavingMeta(false);
+    if (!res.ok) {
+      setBanner({ kind: 'warn', text: res.error || 'Could not rename the model.' });
+      setNameDraft(selected.label); // put the old name back rather than lie
+    }
+  }
+
+  async function saveDescription() {
+    if (!selected || descDraft === (selected.description ?? '')) return;
+    setSavingMeta(true);
+    const res = await store.updateFormulaMeta(selected.id, { description: descDraft });
+    setSavingMeta(false);
+    if (!res.ok) setBanner({ kind: 'warn', text: res.error || 'Could not save the note.' });
+  }
 
   // How many OTHER formulas share a given part - so editing a price makes its
   // ripple visible ("used in N models").
@@ -131,7 +194,7 @@ export function AssemblyFormulasScreen() {
 
       {banner && <div className={`afx-banner ${banner.kind === 'warn' ? 'afx-banner-warn' : 'afx-banner-info'}`}>{banner.text}</div>}
 
-      <div className="afx-rail">
+      <div className="afx-rail" style={{ width: railWidth }}>
         <input className="afx-search" placeholder="Search models or codes…" value={search} onChange={e => setSearch(e.target.value)} />
         <div className="afx-rail-list">
           {visibleFormulas.length === 0 && <div className="afx-empty">No models.</div>}
@@ -149,6 +212,8 @@ export function AssemblyFormulasScreen() {
             </button>
           ))}
         </div>
+        {/* Drag to give the parts ledger more (or less) of the screen. */}
+        <div className="afx-rail-resize" onMouseDown={startRailResize} role="separator" aria-orientation="vertical" title="Drag to resize" />
       </div>
 
       <div className="afx-main">
@@ -157,15 +222,50 @@ export function AssemblyFormulasScreen() {
         ) : (
           <>
             <div className="afx-formula-head">
-              <h3 className="afx-formula-title">{selected.label}</h3>
-              {selected.productCodes.length > 0 && (
-                <div className="afx-code-chips">
-                  {selected.productCodes.map(c => <span key={c} className="afx-code-chip">#{c}</span>)}
-                </div>
+              {editingName ? (
+                <input
+                  className="afx-title-input"
+                  autoFocus
+                  value={nameDraft}
+                  onChange={e => setNameDraft(e.target.value)}
+                  onBlur={saveName}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') saveName();
+                    if (e.key === 'Escape') { setNameDraft(selected.label); setEditingName(false); }
+                  }}
+                />
+              ) : (
+                <h3
+                  className="afx-formula-title afx-editable"
+                  onClick={() => setEditingName(true)}
+                  title="Click to rename this model"
+                  tabIndex={0}
+                  onKeyDown={e => { if (e.key === 'Enter') setEditingName(true); }}
+                >
+                  {selected.label}
+                  <span className="afx-edit-pencil">✎</span>
+                </h3>
               )}
-              <p className="afx-hint">
-                Editing a part price here updates it everywhere it's used, then syncs to the server when you choose.
-              </p>
+
+              <div className="afx-head-meta">
+                {selected.productCodes.length > 0 && (
+                  <div className="afx-code-chips">
+                    {selected.productCodes.map(c => <span key={c} className="afx-code-chip">#{c}</span>)}
+                  </div>
+                )}
+                {savingMeta && <span className="afx-saving">saving…</span>}
+              </div>
+
+              {/* Notes about this model. Drag its corner to make it as big as it
+                  needs to be - and no bigger, because the parts ledger below is
+                  what the screen is really for. */}
+              <textarea
+                className="afx-desc"
+                placeholder="Notes about this model — what it is, which variant, what to watch for…"
+                value={descDraft}
+                onChange={e => setDescDraft(e.target.value)}
+                onBlur={saveDescription}
+              />
             </div>
 
             <div className="afx-col-head">

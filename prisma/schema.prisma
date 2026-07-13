@@ -1633,6 +1633,8 @@ model AssemblyFormula {
   organizationId Int
   family         AssemblyFamily
   label          String
+  // Free notes about this model - what it is, which variant, what to watch for.
+  description    String?
   productCodes   String[]
   sourceFile     String?
   createdAt      DateTime       @default(now())

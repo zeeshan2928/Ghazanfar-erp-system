@@ -21,7 +21,7 @@
 
   position: relative;
   display: grid;
-  grid-template-columns: 320px 1fr;
+  grid-template-columns: auto 1fr;
   gap: 16px;
   min-height: calc(100vh - 60px);
   padding: 16px;
@@ -131,7 +131,7 @@
 }
 
 /* the accumulation-line "build up" motif behind the rows */
-.afx-ledger { position: relative; overflow-y: auto; padding-left: 18px; }
+.afx-ledger { position: relative; flex: 1; min-height: 0; overflow-y: auto; padding-left: 18px; }
 .afx-ledger::before {
   content: ""; position: absolute; left: 5px; top: 6px; bottom: 6px; width: 2px;
   background: linear-gradient(var(--afx-line), var(--afx-torque));
@@ -182,3 +182,79 @@
 .afx-banner-warn { background: rgba(217,102,11,0.12); border: 1px solid rgba(217,102,11,0.4); color: #f3a15f; }
 .afx-banner-info { background: rgba(78,155,196,0.1); border: 1px solid rgba(78,155,196,0.35); color: #9ecbe0; }
 .afx-hint { font-size: 11px; color: var(--afx-slate); margin-top: 6px; }
+
+
+/* ------------------------------------------------------------------ *
+ * Editable model name, notes, and a rail you can drag out of the way.
+ * The parts ledger is what this screen is for, so everything above it is
+ * kept tight and everything else gives way to it.
+ * ------------------------------------------------------------------ */
+
+/* The rail clips its own overflow, so the grab strip has to live INSIDE its
+   right edge - at right:-8px it was outside the box, clipped away, and could
+   not be clicked at all. The rail carries extra right padding so the strip does
+   not sit on top of the list's scrollbar. */
+.afx-rail { position: relative; padding-right: 22px; }
+.afx-rail-resize {
+  position: absolute; top: 0; right: 0;
+  width: 10px; height: 100%;
+  cursor: col-resize;
+  border-radius: 0 14px 14px 0;
+}
+.afx-rail-resize::after {
+  content: ""; position: absolute; top: 50%; left: 3px;
+  width: 3px; height: 40px; border-radius: 3px;
+  background: var(--afx-line);
+  transform: translateY(-50%);
+}
+.afx-rail-resize:hover { background: rgba(217, 102, 11, 0.18); }
+.afx-rail-resize:hover::after { background: var(--afx-torque); }
+
+/* The name reads as text until you touch it - a permanent input box would say
+   "this is a form", and this is a title. */
+.afx-editable {
+  display: inline-flex; align-items: center; gap: 8px;
+  cursor: text; border-radius: 6px;
+  padding: 2px 6px; margin-left: -6px;
+}
+.afx-editable:hover { background: var(--afx-glass); }
+.afx-edit-pencil { font-size: 13px; color: var(--afx-slate); opacity: 0; transition: opacity 0.12s; }
+.afx-editable:hover .afx-edit-pencil { opacity: 1; }
+
+.afx-title-input {
+  width: 100%;
+  font-family: var(--afx-sans);
+  font-size: 22px; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--afx-offwhite);
+  background: var(--afx-graphite);
+  border: 1px solid var(--afx-torque);
+  border-radius: 8px;
+  padding: 3px 8px;
+}
+
+.afx-head-meta { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.afx-saving { font-size: 11px; color: var(--afx-slate); }
+
+/* Notes. Vertical resize only: dragging it wider would fight the ledger's
+   columns underneath, and 3 rows is enough until it isn't. */
+.afx-desc {
+  width: 100%;
+  margin-top: 10px;
+  min-height: 44px;
+  max-height: 220px;
+  resize: vertical;
+  font-family: var(--afx-sans); font-size: 12.5px; line-height: 1.5;
+  color: var(--afx-offwhite);
+  background: var(--afx-graphite);
+  border: 1px solid var(--afx-line);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+.afx-desc::placeholder { color: var(--afx-slate); }
+.afx-desc:focus { border-color: var(--afx-torque); outline: none; }
+
+/* Give the ledger the screen. The head was carrying a long hint line and a lot
+   of padding; both were spending space the parts list needed. */
+.afx-formula-head { margin-bottom: 10px; }
+.afx-main { max-height: none; height: calc(100vh - 132px); }
+.afx-rail { max-height: none; height: calc(100vh - 132px); }

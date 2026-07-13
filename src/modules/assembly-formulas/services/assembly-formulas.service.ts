@@ -17,6 +17,7 @@ export interface FormulaView {
   id: number;
   family: AssemblyFamily;
   label: string;
+  description: string | null;
   productCodes: string[];
   sourceFile: string | null;
   lines: FormulaLineView[];
@@ -62,6 +63,45 @@ export class AssemblyFormulasService {
     return this.toView(f);
   }
 
+  // Rename a model, or note what it is. The labels came straight off the source
+  // spreadsheets ("1764 PC+1760 PC+2225 (7025CC)"), which describe the file, not
+  // the product - only the user knows what the thing is actually called.
+  async updateFormula(
+    organizationId: number,
+    id: number,
+    dto: { label?: string; description?: string },
+  ) {
+    const existing = await this.prisma.assemblyFormula.findFirst({ where: { id, organizationId } });
+    if (!existing) throw new NotFoundException('Assembly formula not found');
+
+    const data: { label?: string; description?: string | null } = {};
+
+    if (dto.label !== undefined) {
+      const label = dto.label.trim();
+      if (!label) throw new BadRequestException('Model name cannot be empty');
+      // The label is the formula's identity (@@unique on org+label), so a clash
+      // has to be refused rather than left to surface as a raw Prisma error.
+      const clash = await this.prisma.assemblyFormula.findFirst({
+        where: { organizationId, label, id: { not: id } },
+        select: { id: true },
+      });
+      if (clash) throw new BadRequestException(`Another model is already called "${label}"`);
+      data.label = label;
+    }
+
+    if (dto.description !== undefined) {
+      const description = dto.description.trim();
+      data.description = description.length > 0 ? description : null;
+    }
+
+    const updated = await this.prisma.assemblyFormula.update({
+      where: { id },
+      data,
+      include: { lines: { include: { part: true } } },
+    });
+    return this.toView(updated);
+  }
+
   // Update a single shared part's price - this is the "change one thing"
   // action; every formula using this part recomputes its total on next read.
   async updatePartCost(organizationId: number, partId: number, unitCost: number) {
@@ -102,6 +142,7 @@ export class AssemblyFormulasService {
       id: f.id,
       family: f.family,
       label: f.label,
+      description: f.description ?? null,
       productCodes: f.productCodes,
       sourceFile: f.sourceFile,
       lines,

@@ -28,6 +28,10 @@ interface FormulaStore {
   loadLocal: () => void;
   loadFromServer: (opts?: { force?: boolean }) => Promise<{ ok: boolean; blockedByDirty?: boolean }>;
   updatePartCost: (partId: number | string, unitCost: number) => void;
+  // Renaming/describing a model goes straight to the server rather than into
+  // the dirty-parts queue: unlike a price, it changes nothing that has to be
+  // recomputed, and there is no offline conflict to reconcile.
+  updateFormulaMeta: (id: number | string, dto: { label?: string; description?: string }) => Promise<{ ok: boolean; error?: string }>;
   syncToServer: () => Promise<{ synced: number; failed: number; message: string }>;
   computedFormulas: () => ComputedFormula[];
   partById: (id: number | string) => StoredPart | undefined;
@@ -89,6 +93,7 @@ export const useFormulaStore = create<FormulaStore>((set, get) => ({
         id: f.id,
         family: f.family,
         label: f.label,
+        description: f.description ?? null,
         productCodes: f.productCodes,
         sourceFile: f.sourceFile,
         lineParts: f.lines.map((l: any) => ({ partId: l.partId, name: l.name, quantity: l.quantity })),
@@ -109,6 +114,30 @@ export const useFormulaStore = create<FormulaStore>((set, get) => ({
   // Local-only edit: updates the part price + recomputes everything on next
   // render, marks the part dirty, persists to localStorage. NO network call -
   // this is what makes the tool instantly usable offline.
+  updateFormulaMeta: async (id, dto) => {
+    try {
+      await apiClient.updateAssemblyFormula(id, dto);
+    } catch (err: any) {
+      return { ok: false, error: err?.response?.data?.message || 'Could not save.' };
+    }
+    // Reflect it locally at once (and into the offline cache), so the workbench
+    // does not need a round-trip to show the new name.
+    const formulas = get().formulas.map(f =>
+      f.id === id
+        ? {
+            ...f,
+            ...(dto.label !== undefined ? { label: dto.label.trim() } : {}),
+            ...(dto.description !== undefined
+              ? { description: dto.description.trim() || null }
+              : {}),
+          }
+        : f,
+    );
+    formulaOfflineStorage.saveFormulas(formulas);
+    set({ formulas });
+    return { ok: true };
+  },
+
   updatePartCost: (partId, unitCost) => {
     const parts = get().parts.map(p =>
       p.id === partId ? { ...p, unitCost, hadPriceConflict: false, conflictNote: null } : p,

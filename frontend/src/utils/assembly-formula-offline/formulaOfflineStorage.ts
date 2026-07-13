@@ -23,6 +23,7 @@ export interface StoredFormula {
   id: number | string;
   family: 'JUICER' | 'BLENDER';
   label: string;
+  description: string | null;
   productCodes: string[];
   sourceFile: string | null;
   lineParts: StoredFormulaLine[]; // references parts by id; total is derived from part prices

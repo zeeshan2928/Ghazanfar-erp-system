@@ -20,7 +20,7 @@ import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
 import { RequireAction } from '@common/decorators/require-action.decorator';
 import { AssemblyFormulasService } from './services/assembly-formulas.service';
 import { AssemblyFormulaImportService } from './services/assembly-formula-import.service';
-import { UpdatePartCostDto } from './dto/assembly-formula.dto';
+import { UpdateFormulaDto, UpdatePartCostDto } from './dto/assembly-formula.dto';
 import { AssemblyFamily } from './services/assembly-formula-parser.service';
 
 // Whole module is cost/financial data, so gate the entire controller behind
@@ -72,6 +72,20 @@ export class AssemblyFormulasController {
     @OrgContext() orgContext: any,
   ) {
     return this.service.updatePartCost(orgContext.organizationId, id, dto.unitCost);
+  }
+
+  // Rename a model, or note what it is. Names came from spreadsheet filenames
+  // ("1764 PC+1760 PC+2225 (7025CC)") and only the user knows what they should
+  // really be called.
+  @Patch(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('assembly-formulas.edit')
+  async updateFormula(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateFormulaDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.service.updateFormula(orgContext.organizationId, id, dto);
   }
 
   @Post('import')

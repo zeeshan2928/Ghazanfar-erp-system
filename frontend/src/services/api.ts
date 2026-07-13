@@ -1191,6 +1191,12 @@ class ApiClient {
     return response.data;
   }
 
+  // Rename a model, or note what it is.
+  async updateAssemblyFormula(id: number | string, dto: { label?: string; description?: string }) {
+    const response = await this.client.patch(`/assembly-formulas/${id}`, dto);
+    return response.data;
+  }
+
   async importAssemblyFormulas(formData: FormData) {
     const response = await this.client.post('/assembly-formulas/import', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
