@@ -37,3 +37,57 @@ th {
 tr:hover {
   background-color: #f9f9f9;
 }
+
+/* ==========================================================================
+   Keyboard access
+   The app is operated by data-entry staff who should never have to reach for
+   the mouse. Two things make that possible, and both belong here rather than
+   in any one screen, so they apply to every field in the software at once.
+   ========================================================================== */
+
+/* 1. You must be able to SEE where you are.
+   Nothing in this app drew a focus ring, and a dozen stylesheets set
+   `outline: none` on their inputs - so tabbing through a form was invisible.
+   :focus-visible (not :focus) means the ring appears for keyboard users and
+   stays out of the way when clicking with a mouse. The !important is
+   deliberate: it has to beat the per-component `outline: none` rules that
+   would otherwise silently erase it again. */
+:focus-visible {
+  outline: 2px solid #7c3aed !important;
+  outline-offset: 2px !important;
+  border-radius: 3px;
+}
+
+/* Inputs sit inside tight table cells where an offset ring would be clipped by
+   the neighbouring cell, so they get the ring tight to the control instead. */
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: 2px solid #7c3aed !important;
+  outline-offset: 0 !important;
+  border-color: #7c3aed !important;
+}
+
+/* 2. The row you are arrowing through must stand out as clearly as a hover.
+   Applied by the arrow-key navigation helper (useArrowNav). */
+[data-kbd-active='true'] {
+  background-color: #eef2ff !important;
+  box-shadow: inset 3px 0 0 #7c3aed;
+}
+
+/* Skip link: lets a keyboard user jump straight past the 40-odd sidebar links
+   into the screen they are actually working in. Visible only when focused. */
+.skip-to-content {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 5000;
+  padding: 10px 16px;
+  background: #7c3aed;
+  color: white;
+  font-weight: 600;
+  border-radius: 0 0 6px 0;
+}
+.skip-to-content:focus {
+  left: 0;
+}

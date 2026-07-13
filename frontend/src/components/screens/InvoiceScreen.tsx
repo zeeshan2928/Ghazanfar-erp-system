@@ -1023,10 +1023,34 @@ export function InvoiceScreen() {
     return () => window.removeEventListener('keydown', onKeyDown);
   }, [handleSave]);
 
+  // Escape closes whichever popup is open. These popups close by clicking their
+  // dark backdrop, and a keyboard has no backdrop to click - so without this,
+  // a popup opened from the keyboard could only be dismissed with the mouse.
+  //
+  // It stops propagation so the double-Esc shortcut below does not ALSO fire:
+  // while a popup is open, Escape means "close this", not "open the product
+  // picker". (This listener is on document; that one is on window, which is
+  // later in the bubble path, so stopping here is enough to hold it back.)
+  useEffect(() => {
+    const open = walkInPopupOpen || quickAddProductOpen || stockPopup || historyPopup || purchasePopup;
+    if (!open) return;
+    function onKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Escape') return;
+      e.stopPropagation();
+      if (walkInPopupOpen) setWalkInPopupOpen(false);
+      else if (quickAddProductOpen) setQuickAddProductOpen(false);
+      else if (stockPopup) setStockPopup(null);
+      else if (historyPopup) setHistoryPopup(null);
+      else if (purchasePopup) setPurchasePopup(null);
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [walkInPopupOpen, quickAddProductOpen, stockPopup, historyPopup, purchasePopup]);
+
   // Double-Esc opens the product picker for whichever line was last
   // focused. Two Escape presses within 500ms count as "double"; a single
-  // Escape still closes whatever popup is open (browser default / the
-  // picker's own Escape handler), so this only fires on the second press.
+  // Escape closes whatever popup is open (see the effect above), so this only
+  // fires on the second press.
   // Falls back to the last line in the invoice if nothing has been focused
   // yet this session (e.g. right after loading the screen or adding a new
   // line without having clicked into it first) - previously this silently

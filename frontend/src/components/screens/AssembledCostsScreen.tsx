@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../services/api';
+import { useGridArrowNav } from '../../utils/keyboardNav';
 
 interface Suggestion {
   formulaId: number;
@@ -64,8 +65,12 @@ function FormulaPicker({
   const [open, setOpen] = useState(false);
   const [q, setQ] = useState('');
   const [hover, setHover] = useState<string | null>(null);
+  // Which option the arrow keys are currently standing on. Kept separate from
+  // hover so mouse and keyboard can each highlight without fighting.
+  const [active, setActive] = useState(0);
   const anchorRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
 
   const selected = valueId != null ? formulas.find(f => f.id === valueId) : undefined;
@@ -112,24 +117,80 @@ function FormulaPicker({
   const suggIds = new Set(sugg.map(s => s.formulaId));
   const rest = formulas.filter(f => matches(f.label, f.family) && !suggIds.has(f.id));
 
+  // One flat list, in the order they appear on screen - the arrow keys must walk
+  // exactly what the eye sees, group headings and all being skipped.
+  const options: { key: string; id: number | null }[] = [
+    { key: 'none', id: null },
+    ...sugg.map(s => ({ key: `s${s.formulaId}`, id: s.formulaId })),
+    ...rest.map(f => ({ key: `f${f.id}`, id: f.id })),
+  ];
+
+  // Typing re-filters the list, so whatever was highlighted is meaningless now.
+  useEffect(() => {
+    setActive(0);
+  }, [q, open]);
+
+  // Keep the highlighted option scrolled into view as the arrows walk past the
+  // bottom of the list.
+  useEffect(() => {
+    if (!open) return;
+    const el = listRef.current?.querySelector<HTMLElement>(`[data-opt="${options[active]?.key}"]`);
+    el?.scrollIntoView({ block: 'nearest' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, open]);
+
   function pick(id: number | null) {
     onPick(id);
     setOpen(false);
     setQ('');
   }
 
-  const item = (key: string, onClick: () => void, children: React.ReactNode) => (
-    <button
-      key={key}
-      type="button"
-      style={{ ...styles.popItem, ...(hover === key ? styles.popItemHover : {}) }}
-      onMouseEnter={() => setHover(key)}
-      onMouseLeave={() => setHover(h => (h === key ? null : h))}
-      onClick={onClick}
-    >
-      {children}
-    </button>
-  );
+  function onSearchKeyDown(e: React.KeyboardEvent) {
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setActive(a => Math.min(a + 1, options.length - 1));
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setActive(a => Math.max(a - 1, 0));
+    } else if (e.key === 'Home') {
+      e.preventDefault();
+      setActive(0);
+    } else if (e.key === 'End') {
+      e.preventDefault();
+      setActive(options.length - 1);
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      const o = options[active];
+      if (o) pick(o.id);
+    } else if (e.key === 'Escape') {
+      e.preventDefault();
+      setOpen(false);
+      anchorRef.current?.focus();
+    }
+  }
+
+  const item = (key: string, onClick: () => void, children: React.ReactNode) => {
+    const idx = options.findIndex(o => o.key === key);
+    const isActive = idx === active;
+    return (
+      <button
+        key={key}
+        data-opt={key}
+        type="button"
+        role="option"
+        aria-selected={isActive}
+        // -1: the search box keeps the focus and drives the list, so Tab must
+        // not have to walk through 31 options to get out of the popup.
+        tabIndex={-1}
+        style={{ ...styles.popItem, ...(hover === key || isActive ? styles.popItemHover : {}) }}
+        onMouseEnter={() => setHover(key)}
+        onMouseLeave={() => setHover(h => (h === key ? null : h))}
+        onClick={onClick}
+      >
+        {children}
+      </button>
+    );
+  };
 
   return (
     <>
@@ -137,7 +198,16 @@ function FormulaPicker({
         ref={anchorRef}
         type="button"
         style={styles.pickerBtn}
+        aria-haspopup="listbox"
+        aria-expanded={open}
         onClick={() => setOpen(o => !o)}
+        // Down-arrow opens the list, the way a native <select> does.
+        onKeyDown={e => {
+          if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+            e.preventDefault();
+            setOpen(true);
+          }
+        }}
         title={selected ? selected.label : 'Pick a BOM formula'}
       >
         <span style={selected ? styles.pickerValue : styles.pickerPlaceholder}>
@@ -147,20 +217,26 @@ function FormulaPicker({
       </button>
 
       {open && pos && (
-        <div ref={popRef} style={{ ...styles.pop, top: pos.top, left: pos.left, width: pos.width }}>
+        <div
+          ref={popRef}
+          // Tells the table's Up/Down grid navigation to keep its hands off:
+          // inside this popup the arrows belong to the option list.
+          data-kbd-owns-arrows="true"
+          style={{ ...styles.pop, top: pos.top, left: pos.left, width: pos.width }}
+        >
           <input
             autoFocus
+            role="combobox"
+            aria-expanded
+            aria-controls="formula-listbox"
+            aria-activedescendant={options[active]?.key}
             style={styles.popSearch}
-            placeholder="Search formulas… (e.g. 7020, white body, 4440)"
+            placeholder="Search… ↑↓ to move, Enter to pick, Esc to close"
             value={q}
             onChange={e => setQ(e.target.value)}
-            onKeyDown={e => {
-              if (e.key !== 'Enter') return;
-              const first = sugg.length > 0 ? sugg[0].formulaId : rest[0]?.id;
-              if (first != null) pick(first);
-            }}
+            onKeyDown={onSearchKeyDown}
           />
-          <div style={styles.popList}>
+          <div ref={listRef} id="formula-listbox" role="listbox" style={styles.popList}>
             {item('none', () => pick(null), <span style={styles.pickerPlaceholder}>— not mapped —</span>)}
 
             {sugg.length > 0 && <div style={styles.popGroup}>Suggested for this product</div>}
@@ -210,6 +286,11 @@ export function AssembledCostsScreen() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
+
+  // Up/Down walks a whole column: from one row's cost field straight to the
+  // next row's, so 101 costs can be entered without touching the mouse.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useGridArrowNav(gridRef);
 
   useEffect(() => {
     load();
@@ -352,7 +433,7 @@ export function AssembledCostsScreen() {
         </span>
       </div>
 
-      <div style={styles.card}>
+      <div ref={gridRef} style={styles.card}>
         {loading ? (
           <p>Loading…</p>
         ) : visible.length === 0 ? (

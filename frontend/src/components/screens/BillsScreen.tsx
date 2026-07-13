@@ -11,6 +11,7 @@ import {
 } from '../../types/filters';
 import { apiClient } from '../../services/api';
 import { BillDetailModal } from '../bills/BillDetailModal';
+import { activatable } from '../../utils/keyboardNav';
 
 interface Bill {
   id: number;
@@ -238,7 +239,14 @@ export function BillsScreen() {
               </thead>
               <tbody>
                 {bills.map((bill) => (
-                  <tr key={bill.id} style={styles.trClickable} onClick={() => setSelectedBillId(bill.id)}>
+                  // The row opens the invoice, so it must be reachable and
+                  // activatable by keyboard exactly like the button it really is.
+                  <tr
+                    key={bill.id}
+                    style={styles.trClickable}
+                    aria-label={`Open invoice ${bill.billNumber}`}
+                    {...activatable(() => setSelectedBillId(bill.id))}
+                  >
                     <td style={styles.td}>{bill.billNumber}</td>
                     <td style={styles.td}>{bill.customerName}</td>
                     <td style={styles.td}>Rs {bill.amount.toLocaleString()}</td>

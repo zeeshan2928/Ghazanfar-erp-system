@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
+import { useModalKeyboard } from '../../utils/keyboardNav';
 import { apiClient } from '../../services/api';
 
 interface BillLineDetail {
@@ -60,6 +61,8 @@ interface BillDetailModalProps {
  * popover so both open the exact same experience.
  */
 export function BillDetailModal({ billId, onClose, onSaved }: BillDetailModalProps) {
+  const dialogRef = useRef<HTMLDivElement>(null);
+  useModalKeyboard(dialogRef, onClose, billId != null);
   const [billDetail, setBillDetail] = useState<BillDetail | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
   const [detailError, setDetailError] = useState('');
@@ -212,7 +215,15 @@ export function BillDetailModal({ billId, onClose, onSaved }: BillDetailModalPro
 
   return (
     <div style={styles.modalOverlay} onClick={onClose}>
-      <div style={styles.modal} onClick={e => e.stopPropagation()}>
+      {/* Escape closes it, Tab stays inside it: a keyboard has no backdrop to click. */}
+      <div
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        tabIndex={-1}
+        style={styles.modal}
+        onClick={e => e.stopPropagation()}
+      >
         {detailLoading && <p>Loading invoice...</p>}
         {detailError && <div style={styles.alertError}>{detailError}</div>}
 

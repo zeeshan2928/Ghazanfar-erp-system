@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef} from 'react';
 import { apiClient } from '../../services/api';
+import { useModalKeyboard } from '../../utils/keyboardNav';
 
 interface Warehouse {
   id: number;
@@ -49,6 +50,8 @@ export function WarehouseTransfersScreen() {
   const [remarks, setRemarks] = useState('');
 
   const [receivingTransfer, setReceivingTransfer] = useState<Transfer | null>(null);
+  const receiptDialogRef = useRef<HTMLDivElement>(null);
+  useModalKeyboard(receiptDialogRef, () => setReceivingTransfer(null), !!receivingTransfer);
   const [receiveQuantities, setReceiveQuantities] = useState<Record<number, string>>({});
   const [receiveRemarks, setReceiveRemarks] = useState('');
 
@@ -320,7 +323,15 @@ export function WarehouseTransfersScreen() {
 
       {receivingTransfer && (
         <div style={styles.popupOverlay} onClick={() => setReceivingTransfer(null)}>
-          <div style={styles.popup} onClick={e => e.stopPropagation()}>
+          {/* Escape closes it, Tab stays inside it - a keyboard has no backdrop to click. */}
+          <div
+            ref={receiptDialogRef}
+            role="dialog"
+            aria-modal="true"
+            tabIndex={-1}
+            style={styles.popup}
+            onClick={e => e.stopPropagation()}
+          >
             <h4 style={styles.popupTitle}>Confirm receipt - {receivingTransfer.transfer_number}</h4>
             <table style={styles.table}>
               <thead>

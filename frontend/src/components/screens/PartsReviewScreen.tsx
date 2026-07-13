@@ -1,5 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../services/api';
+import { useGridArrowNav } from '../../utils/keyboardNav';
 
 interface Candidate {
   itemName: string;
@@ -25,6 +26,9 @@ export function PartsReviewScreen() {
   const [saving, setSaving] = useState(false);
   const [banner, setBanner] = useState<{ kind: 'ok' | 'err'; text: string } | null>(null);
   const [newItem, setNewItem] = useState('');
+  // Up/Down walks the PART checkboxes straight down the column.
+  const gridRef = useRef<HTMLDivElement>(null);
+  useGridArrowNav(gridRef);
 
   useEffect(() => {
     load();
@@ -144,7 +148,7 @@ export function PartsReviewScreen() {
         <span style={{ fontSize: '12px', color: '#888' }}>then click Save classification</span>
       </div>
 
-      <div style={styles.card}>
+      <div ref={gridRef} style={styles.card}>
         {loading ? <p>Loading…</p> : visible.length === 0 ? <p>No items match.</p> : (
           <table style={styles.table}>
             <thead>

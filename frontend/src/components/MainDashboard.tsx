@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useListArrowNav } from '../utils/keyboardNav';
 import { apiClient } from '../services/api';
 import { DashboardScreen } from './screens/DashboardScreen';
 import { BillsScreen } from './screens/BillsScreen';
@@ -177,6 +178,9 @@ interface MainDashboardProps {
 
 export function MainDashboard({ onLogout }: MainDashboardProps) {
   const [activeScreen, setActiveScreen] = useState<Screen>('dashboard');
+  // Up/Down moves through the 40-odd nav items instead of Tab-ing one by one.
+  const sidebarRef = useRef<HTMLElement>(null);
+  useListArrowNav(sidebarRef);
   const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>(
     () => Object.fromEntries(GROUPS.map(g => [g.name, true])),
   );
@@ -395,6 +399,10 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
 
   return (
     <div style={styles.container}>
+      {/* First stop for a keyboard user: jump past 40-odd nav links straight into
+          the screen they came to work in. Only visible while focused. */}
+      <a href="#main-content" className="skip-to-content">Skip to main content</a>
+
       {/* Header */}
       <div style={styles.header}>
         <h1 style={styles.title}>📦 Ghazanfar ERP System</h1>
@@ -463,8 +471,8 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
       </div>
 
       <div style={styles.mainContent}>
-        {/* Sidebar Navigation */}
-        <nav style={styles.sidebar}>
+        {/* Sidebar Navigation - Up/Down walks the nav items */}
+        <nav ref={sidebarRef} style={styles.sidebar} aria-label="Main navigation">
           <div style={styles.navTitle}>Navigation</div>
           {navItems.filter(item => !item.group).map((item) => (
             <button
@@ -505,7 +513,7 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         </nav>
 
         {/* Main Content Area */}
-        <div style={styles.content}>
+        <div id="main-content" tabIndex={-1} style={styles.content}>
           {renderScreen()}
         </div>
       </div>
