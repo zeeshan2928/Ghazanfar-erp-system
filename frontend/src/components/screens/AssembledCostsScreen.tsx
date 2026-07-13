@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { apiClient } from '../../services/api';
 
 interface Suggestion {
@@ -42,6 +42,155 @@ interface Formula {
 }
 
 const fmt = (n: number) => Math.round(n).toLocaleString();
+
+// A searchable formula picker. A native <select> cannot be typed into, and with
+// 31 formulas the user was left scrolling a long list on every row.
+//
+// The popup is position:fixed rather than absolute on purpose: the table sits in
+// a horizontally scrolling card, and an absolutely positioned menu would be
+// clipped by that scroll container. Being fixed, it escapes the clip - at the
+// cost of having to be re-placed whenever anything scrolls or resizes.
+function FormulaPicker({
+  valueId,
+  suggestions,
+  formulas,
+  onPick,
+}: {
+  valueId: number | null;
+  suggestions: Suggestion[];
+  formulas: Formula[];
+  onPick: (id: number | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const [q, setQ] = useState('');
+  const [hover, setHover] = useState<string | null>(null);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const popRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; width: number } | null>(null);
+
+  const selected = valueId != null ? formulas.find(f => f.id === valueId) : undefined;
+
+  useEffect(() => {
+    if (!open) return;
+    const place = () => {
+      const r = anchorRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const width = Math.max(r.width, 340);
+      // Keep it on screen: flip above the field if there is no room below.
+      const below = window.innerHeight - r.bottom;
+      const height = 330;
+      const top = below < height && r.top > height ? r.top - height - 4 : r.bottom + 4;
+      const left = Math.min(r.left, window.innerWidth - width - 12);
+      setPos({ top, left, width });
+    };
+    place();
+    const onDown = (e: MouseEvent) => {
+      const t = e.target as Node;
+      if (popRef.current?.contains(t) || anchorRef.current?.contains(t)) return;
+      setOpen(false);
+    };
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setOpen(false);
+    };
+    window.addEventListener('scroll', place, true);
+    window.addEventListener('resize', place);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      window.removeEventListener('scroll', place, true);
+      window.removeEventListener('resize', place);
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  const needle = q.trim().toLowerCase();
+  const matches = (label: string, family: string) =>
+    !needle || label.toLowerCase().includes(needle) || family.toLowerCase().includes(needle);
+
+  const sugg = suggestions.filter(s => matches(s.label, s.family));
+  const suggIds = new Set(sugg.map(s => s.formulaId));
+  const rest = formulas.filter(f => matches(f.label, f.family) && !suggIds.has(f.id));
+
+  function pick(id: number | null) {
+    onPick(id);
+    setOpen(false);
+    setQ('');
+  }
+
+  const item = (key: string, onClick: () => void, children: React.ReactNode) => (
+    <button
+      key={key}
+      type="button"
+      style={{ ...styles.popItem, ...(hover === key ? styles.popItemHover : {}) }}
+      onMouseEnter={() => setHover(key)}
+      onMouseLeave={() => setHover(h => (h === key ? null : h))}
+      onClick={onClick}
+    >
+      {children}
+    </button>
+  );
+
+  return (
+    <>
+      <button
+        ref={anchorRef}
+        type="button"
+        style={styles.pickerBtn}
+        onClick={() => setOpen(o => !o)}
+        title={selected ? selected.label : 'Pick a BOM formula'}
+      >
+        <span style={selected ? styles.pickerValue : styles.pickerPlaceholder}>
+          {selected ? `${selected.label} (${fmt(selected.cost)})` : '— or pick a BOM formula —'}
+        </span>
+        <span style={styles.caret}>▾</span>
+      </button>
+
+      {open && pos && (
+        <div ref={popRef} style={{ ...styles.pop, top: pos.top, left: pos.left, width: pos.width }}>
+          <input
+            autoFocus
+            style={styles.popSearch}
+            placeholder="Search formulas… (e.g. 7020, white body, 4440)"
+            value={q}
+            onChange={e => setQ(e.target.value)}
+            onKeyDown={e => {
+              if (e.key !== 'Enter') return;
+              const first = sugg.length > 0 ? sugg[0].formulaId : rest[0]?.id;
+              if (first != null) pick(first);
+            }}
+          />
+          <div style={styles.popList}>
+            {item('none', () => pick(null), <span style={styles.pickerPlaceholder}>— not mapped —</span>)}
+
+            {sugg.length > 0 && <div style={styles.popGroup}>Suggested for this product</div>}
+            {sugg.map(s =>
+              item(`s${s.formulaId}`, () => pick(s.formulaId), (
+                <>
+                  {s.label} <span style={styles.popCost}>({fmt(s.cost)})</span>
+                </>
+              )),
+            )}
+
+            {rest.length > 0 && <div style={styles.popGroup}>All formulas</div>}
+            {rest.map(f =>
+              item(`f${f.id}`, () => pick(f.id), (
+                <>
+                  <span style={styles.popFam}>{f.family === 'JUICER' ? 'Juicer' : 'Blender'}</span> {f.label}{' '}
+                  <span style={styles.popCost}>({fmt(f.cost)})</span>
+                </>
+              )),
+            )}
+
+            {sugg.length === 0 && rest.length === 0 && (
+              <div style={styles.popEmpty}>No formula matches “{q}”.</div>
+            )}
+          </div>
+        </div>
+      )}
+    </>
+  );
+}
 
 // Cost Verification: every product we sell but have no purchase price for -
 // either we assemble it (it appears in the purchase file only at 0) or it is
@@ -276,29 +425,12 @@ export function AssembledCostsScreen() {
                         value={d?.manualCost ?? ''}
                         onChange={e => setManual(c.itemKey, e.target.value)}
                       />
-                      <select
-                        style={styles.select}
-                        value={d?.formulaId ?? ''}
-                        onChange={e => setFormula(c.itemKey, e.target.value === '' ? null : Number(e.target.value))}
-                      >
-                        <option value="">— or pick a BOM formula —</option>
-                        {c.suggestions.length > 0 && (
-                          <optgroup label="Suggested for this product">
-                            {c.suggestions.map(s => (
-                              <option key={`s${s.formulaId}`} value={s.formulaId}>
-                                {s.label} ({fmt(s.cost)})
-                              </option>
-                            ))}
-                          </optgroup>
-                        )}
-                        <optgroup label="All formulas">
-                          {formulas.map(f => (
-                            <option key={f.id} value={f.id}>
-                              {f.family === 'JUICER' ? 'Juicer' : 'Blender'} · {f.label} ({fmt(f.cost)})
-                            </option>
-                          ))}
-                        </optgroup>
-                      </select>
+                      <FormulaPicker
+                        valueId={d?.formulaId ?? null}
+                        suggestions={c.suggestions}
+                        formulas={formulas}
+                        onPick={id => setFormula(c.itemKey, id)}
+                      />
                     </td>
                     <td style={styles.tdR}>
                       {profit != null ? (
@@ -344,8 +476,64 @@ const styles: Record<string, React.CSSProperties> = {
   tdMuted: { borderBottom: '1px solid #eee', padding: '7px 8px', fontSize: '12px', color: '#aaa', verticalAlign: 'top' },
   meta: { fontSize: '11px', color: '#888', marginTop: '2px', maxWidth: '260px' },
   rowVerified: { background: '#f0fdf4' },
-  select: { padding: '5px', border: '1px solid #ccc', borderRadius: '5px', fontSize: '11px', maxWidth: '230px', marginTop: '4px', display: 'block' },
   manual: { padding: '6px', border: '1px solid #ccc', borderRadius: '5px', fontSize: '12px', width: '90px', textAlign: 'right' },
+
+  // --- searchable formula picker ---
+  pickerBtn: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '6px',
+    width: '230px',
+    marginTop: '4px',
+    padding: '6px 8px',
+    background: 'white',
+    border: '1px solid #ccc',
+    borderRadius: '5px',
+    fontSize: '11px',
+    cursor: 'pointer',
+    textAlign: 'left',
+  },
+  pickerValue: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#111' },
+  pickerPlaceholder: { overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: '#888' },
+  caret: { color: '#888', fontSize: '10px', flexShrink: 0 },
+  pop: {
+    position: 'fixed',
+    zIndex: 3000,
+    display: 'flex',
+    flexDirection: 'column',
+    maxHeight: '330px',
+    padding: '8px',
+    background: 'white',
+    border: '1px solid #ccc',
+    borderRadius: '8px',
+    boxShadow: '0 12px 32px rgba(0,0,0,0.18)',
+  },
+  popSearch: {
+    padding: '7px 9px',
+    border: '1px solid #ccc',
+    borderRadius: '6px',
+    fontSize: '12px',
+    width: '100%',
+    boxSizing: 'border-box',
+  },
+  popList: { overflowY: 'auto', marginTop: '6px' },
+  popItem: {
+    display: 'block',
+    width: '100%',
+    padding: '6px 8px',
+    background: 'none',
+    border: 'none',
+    borderRadius: '4px',
+    fontSize: '12px',
+    textAlign: 'left',
+    cursor: 'pointer',
+  },
+  popItemHover: { background: '#eef2ff' },
+  popGroup: { padding: '8px 8px 3px', fontSize: '10px', fontWeight: 700, color: '#999', textTransform: 'uppercase', letterSpacing: '0.4px' },
+  popCost: { color: '#7c3aed', fontWeight: 600 },
+  popFam: { color: '#999' },
+  popEmpty: { padding: '10px 8px', fontSize: '12px', color: '#888' },
   useBtn: { marginLeft: '6px', background: '#7c3aed', color: 'white', border: 'none', borderRadius: '4px', padding: '2px 7px', cursor: 'pointer', fontSize: '11px', fontWeight: 600 },
   confHigh: { marginLeft: '6px', background: '#dcfce7', color: '#166534', borderRadius: '999px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 },
   confMed: { marginLeft: '6px', background: '#fef9c3', color: '#854d0e', borderRadius: '999px', padding: '1px 7px', fontSize: '10px', fontWeight: 700 },
