@@ -161,8 +161,12 @@ export class SalesAnalysisController {
   // ---- Assembled-model costs (BOM) : items we build, so no purchase price ----
   @Get('assembled-costs/candidates')
   @UseGuards(FinancialAccessGuard)
-  async assembledCandidates(@OrgContext() orgContext: any) {
-    return this.assembledCost.getCandidates(orgContext.organizationId);
+  async assembledCandidates(@Query('limit') limit: string | undefined, @OrgContext() orgContext: any) {
+    const n = limit ? parseInt(limit, 10) : 200;
+    return this.assembledCost.getCandidates(
+      orgContext.organizationId,
+      Number.isFinite(n) && n > 0 ? n : 200,
+    );
   }
 
   @Get('assembled-costs/formulas')

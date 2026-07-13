@@ -155,7 +155,7 @@ const navItems: NavItem[] = [
   { id: 'sales-analysis', label: 'Sales Report Analysis', icon: '🔍', group: 'Reports' },
   { id: 'purchase-analysis', label: 'Purchase Report Analysis', icon: '📥', group: 'Reports' },
   { id: 'parts-review', label: 'Parts Review (vendor components)', icon: '🧩', group: 'Reports' },
-  { id: 'assembled-costs', label: 'Assembled Costs (BOM)', icon: '🔧', group: 'Reports' },
+  { id: 'assembled-costs', label: 'Cost Verification (no cost price)', icon: '🔧', group: 'Reports' },
   { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💎', group: 'Reports' },
   { id: 'pnl-statement', label: 'P&L (Gross Profit)', icon: '🧮', group: 'Reports' },
   { id: 'assembly-formulas', label: 'Assembly Costs (BOM)', icon: '🔧', group: 'Reports' },

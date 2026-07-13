@@ -1071,9 +1071,10 @@ class ApiClient {
     return response.data;
   }
 
-  // Assembled models (built, not bought): their cost comes from a BOM formula.
-  async getAssembledCostCandidates() {
-    const response = await this.client.get('/sales-analysis/assembled-costs/candidates');
+  // Products with no purchase price: each carries an assessed cost for the user
+  // to verify. Ranked most-profitable first, so `limit` takes the top N.
+  async getAssembledCostCandidates(limit = 200) {
+    const response = await this.client.get('/sales-analysis/assembled-costs/candidates', { params: { limit } });
     return response.data;
   }
 
