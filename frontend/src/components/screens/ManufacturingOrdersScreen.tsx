@@ -63,7 +63,11 @@ interface WarehouseOption {
 export function ManufacturingOrdersScreen() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [creating, setCreating] = useState(false);
+  const [reporting, setReporting] = useState(false);
 
+  if (reporting) {
+    return <MoCostReport onBack={() => setReporting(false)} />;
+  }
   if (selectedId !== null) {
     return <MoDetail orderId={selectedId} onBack={() => setSelectedId(null)} />;
   }
@@ -75,7 +79,7 @@ export function ManufacturingOrdersScreen() {
       />
     );
   }
-  return <MoList onOpen={setSelectedId} onCreate={() => setCreating(true)} />;
+  return <MoList onOpen={setSelectedId} onCreate={() => setCreating(true)} onReport={() => setReporting(true)} />;
 }
 
 // ============================================================================
@@ -83,7 +87,7 @@ export function ManufacturingOrdersScreen() {
 // PurchaseOrdersScreen two-effect pattern (that one double-fetches on mount).
 // ============================================================================
 
-function MoList({ onOpen, onCreate }: { onOpen: (id: number) => void; onCreate: () => void }) {
+function MoList({ onOpen, onCreate, onReport }: { onOpen: (id: number) => void; onCreate: () => void; onReport: () => void }) {
   const [rows, setRows] = useState<MoListRow[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(false);
@@ -116,7 +120,10 @@ function MoList({ onOpen, onCreate }: { onOpen: (id: number) => void; onCreate: 
     <div style={styles.container}>
       <div style={styles.header}>
         <h2>🏭 Manufacturing Orders</h2>
-        <button style={styles.primaryBtn} onClick={onCreate}>+ New Build</button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button style={styles.secondaryBtn} onClick={onReport}>📊 Cost Report</button>
+          <button style={styles.primaryBtn} onClick={onCreate}>+ New Build</button>
+        </div>
       </div>
 
       <div style={styles.toolbar}>
@@ -318,6 +325,7 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
   const [completing, setCompleting] = useState(false);
   const [quantityProduced, setQuantityProduced] = useState<number>(0);
   const [consumption, setConsumption] = useState<Record<number, number>>({});
+  const [variance, setVariance] = useState<any | null>(null);
 
   useEffect(() => {
     fetchOrder();
@@ -332,6 +340,13 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
       const defaults: Record<number, number> = {};
       for (const line of o.lines) defaults[line.id] = line.quantityRequired;
       setConsumption(defaults);
+      // Planned-vs-actual is only meaningful once the batch is built.
+      if (o.status === 'COMPLETED') {
+        try { setVariance(await apiClient.getManufacturingOrderVariance(orderId)); }
+        catch { setVariance(null); }
+      } else {
+        setVariance(null);
+      }
     } finally {
       setLoading(false);
     }
@@ -441,6 +456,8 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
         </table>
       </div>
 
+      {order.status === 'COMPLETED' && variance && <VariancePanel v={variance} />}
+
       {actionError && <div style={styles.errorBox}>{actionError}</div>}
 
       <div style={styles.actionsBar}>
@@ -476,6 +493,138 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// VARIANCE PANEL — planned vs actual for a completed batch, split into the
+// price move (component prices changed since planning) and usage/scrap.
+// ============================================================================
+
+function money(n: number): string {
+  const s = `Rs ${Math.abs(n).toLocaleString(undefined, { maximumFractionDigits: 2 })}`;
+  return n < 0 ? `(${s})` : s;
+}
+function varianceColor(n: number): React.CSSProperties {
+  // A positive variance = cost OVER plan (bad, red); negative = under (good, green).
+  if (n > 0.001) return { color: '#b91c1c' };
+  if (n < -0.001) return { color: '#166534' };
+  return { color: '#555' };
+}
+
+function VariancePanel({ v }: { v: any }) {
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <h3 style={styles.subheading}>Cost & Variance (planned vs actual)</h3>
+      {!v.captured && (
+        <p style={{ fontSize: '12px', color: '#856404', background: '#fff3cd', padding: '8px 10px', borderRadius: '4px' }}>
+          This order was created before planned costs were captured, so the price variance can't be computed for it. Newer orders will show it.
+        </p>
+      )}
+      <div style={styles.varianceCards}>
+        <div style={styles.vCard}><div style={styles.vLabel}>Planned</div><div style={styles.vBig}>{money(v.plannedTotal)}</div></div>
+        <div style={styles.vCard}><div style={styles.vLabel}>Actual</div><div style={styles.vBig}>{money(v.actualTotal)}</div></div>
+        <div style={styles.vCard}><div style={styles.vLabel}>Price variance</div><div style={{ ...styles.vBig, ...varianceColor(v.priceVariance) }}>{money(v.priceVariance)}</div></div>
+        <div style={styles.vCard}><div style={styles.vLabel}>Usage / scrap variance</div><div style={{ ...styles.vBig, ...varianceColor(v.usageVariance) }}>{money(v.usageVariance)}</div></div>
+        <div style={styles.vCard}><div style={styles.vLabel}>Total variance</div><div style={{ ...styles.vBig, ...varianceColor(v.totalVariance) }}>{money(v.totalVariance)}</div></div>
+      </div>
+
+      <div style={styles.tableWrapper}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Component</th>
+              <th style={styles.th}>Req / Used</th>
+              <th style={styles.th}>Planned unit</th>
+              <th style={styles.th}>Actual unit</th>
+              <th style={styles.th}>Price var.</th>
+              <th style={styles.th}>Usage var.</th>
+              <th style={styles.th}>Line var.</th>
+            </tr>
+          </thead>
+          <tbody>
+            {v.lines.map((l: any, i: number) => (
+              <tr key={i}>
+                <td style={styles.td}>{l.componentCode} - {l.componentName}</td>
+                <td style={styles.td}>{l.quantityRequired} / {l.quantityConsumed}</td>
+                <td style={styles.td}>{money(l.plannedUnitCost)}</td>
+                <td style={styles.td}>{money(l.actualUnitCost)}</td>
+                <td style={{ ...styles.td, ...varianceColor(l.priceVariance) }}>{money(l.priceVariance)}</td>
+                <td style={{ ...styles.td, ...varianceColor(l.usageVariance) }}>{money(l.usageVariance)}</td>
+                <td style={{ ...styles.td, ...varianceColor(l.lineVariance) }}>{money(l.lineVariance)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+// ============================================================================
+// COST REPORT — true unit cost + margin per manufactured product across all
+// completed builds. Cost/margin columns arrive already stripped from the
+// server for users without financial visibility.
+// ============================================================================
+
+function MoCostReport({ onBack }: { onBack: () => void }) {
+  const [rows, setRows] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try { setRows(await apiClient.getManufacturingProductCostSummary()); }
+      finally { setLoading(false); }
+    })();
+  }, []);
+
+  const canSeeCost = rows.some(r => r.avgUnitCost != null);
+
+  return (
+    <div style={styles.container}>
+      <div style={styles.header}>
+        <h2>📊 Manufacturing Cost & Margin</h2>
+        <button style={styles.secondaryBtn} onClick={onBack}>← Back to orders</button>
+      </div>
+
+      {loading ? (
+        <p style={styles.loading}>Loading…</p>
+      ) : rows.length === 0 ? (
+        <p style={styles.noResults}>No completed manufacturing orders yet — build something first.</p>
+      ) : (
+        <>
+          {!canSeeCost && <p style={{ fontSize: '12px', color: '#666' }}>Cost and margin are hidden for your account. You can see how many units were built.</p>}
+          <div style={styles.tableWrapper}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Product</th>
+                  <th style={styles.th}>Builds</th>
+                  <th style={styles.th}>Units produced</th>
+                  {canSeeCost && <th style={styles.th}>Avg unit cost</th>}
+                  {canSeeCost && <th style={styles.th}>Total cost</th>}
+                  {canSeeCost && <th style={styles.th}>Selling price</th>}
+                  {canSeeCost && <th style={styles.th}>Margin</th>}
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.finishedProductId}>
+                    <td style={styles.td}>{r.productCode} - {r.productName}</td>
+                    <td style={styles.td}>{r.orders}</td>
+                    <td style={styles.td}>{r.unitsProduced}</td>
+                    {canSeeCost && <td style={styles.td}>{r.avgUnitCost != null ? money(r.avgUnitCost) : '—'}</td>}
+                    {canSeeCost && <td style={styles.td}>{r.totalActualCost != null ? money(r.totalActualCost) : '—'}</td>}
+                    {canSeeCost && <td style={styles.td}>{r.sellingPrice != null ? money(r.sellingPrice) : '—'}</td>}
+                    {canSeeCost && <td style={styles.td}>{r.margin != null ? <span style={varianceColor(-r.margin)}>{money(r.margin)}{r.marginPercent != null ? ` (${r.marginPercent.toFixed(0)}%)` : ''}</span> : '—'}</td>}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -520,6 +669,10 @@ const styles: Record<string, React.CSSProperties> = {
   remarks: { fontSize: '13px', color: '#666', fontStyle: 'italic', marginBottom: '12px' },
   subheading: { fontSize: '15px', marginTop: '20px', marginBottom: '8px' },
   serviceTag: { marginLeft: '6px', fontSize: '10px', padding: '2px 6px', borderRadius: '3px', backgroundColor: '#e2e3e5', color: '#555' },
+  varianceCards: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' },
+  vCard: { flex: '1 1 120px', minWidth: '120px', padding: '12px', background: '#f9f9f9', border: '1px solid #eee', borderRadius: '6px' },
+  vLabel: { fontSize: '11px', color: '#666', marginBottom: '4px' },
+  vBig: { fontSize: '16px', fontWeight: 700 },
   actionsBar: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginTop: '10px' },
   completeForm: { display: 'flex', flexDirection: 'column', gap: '6px', maxWidth: '320px', padding: '14px', backgroundColor: '#f9f9f9', borderRadius: '4px', border: '1px solid #eee' },
 };

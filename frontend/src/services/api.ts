@@ -1319,6 +1319,16 @@ class ApiClient {
     return response.data;
   }
 
+  async getManufacturingOrderVariance(id: number) {
+    const response = await this.client.get(`/manufacturing-orders/${id}/variance`);
+    return response.data;
+  }
+
+  async getManufacturingProductCostSummary() {
+    const response = await this.client.get('/manufacturing-orders/reports/product-cost');
+    return response.data;
+  }
+
   // ==================== PRODUCT MASTER SEEDING & CLASSIFICATION REVIEW ====================
   async analyzeProductSeed(formData: FormData) {
     const response = await this.client.post('/products/seed/analyze', formData, {

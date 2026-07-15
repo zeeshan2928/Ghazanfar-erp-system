@@ -29,11 +29,30 @@ export class ManufacturingOrdersController {
     return this.manufacturingOrdersService.search(orgContext.organizationId, dto);
   }
 
+  // Declared BEFORE the ':id' route - Express matches in order, so putting
+  // 'reports/product-cost' after would let "reports" be parsed as an id.
+  @Get('reports/product-cost')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async productCostSummary(@OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.getProductCostSummary(
+      orgContext.organizationId,
+      !!orgContext.canViewFinancials,
+    );
+  }
+
   @Get(':id')
   @UseGuards(ActionPermissionGuard)
   @RequireAction('manufacturing.view')
   async getById(@Param('id') id: string, @OrgContext() orgContext: any) {
     return this.manufacturingOrdersService.getById(orgContext.organizationId, parseInt(id, 10));
+  }
+
+  @Get(':id/variance')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async variance(@Param('id') id: string, @OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.getVariance(orgContext.organizationId, parseInt(id, 10));
   }
 
   @Post(':id/start')

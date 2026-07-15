@@ -20,7 +20,49 @@ export interface ManufacturingOrderLineView {
   isService: boolean;
   quantityRequired: number;
   quantityConsumed: number | null;
+  plannedUnitCost: number | null;
   unitCostSnapshot: number | null;
+}
+
+export interface VarianceLineView {
+  componentName: string;
+  componentCode: string;
+  quantityRequired: number;
+  quantityConsumed: number;
+  plannedUnitCost: number;
+  actualUnitCost: number;
+  plannedCost: number; // quantityRequired x plannedUnitCost
+  priceVariance: number; // quantityRequired x (actual - planned)
+  usageVariance: number; // (consumed - required) x actual
+  lineVariance: number; // priceVariance + usageVariance
+}
+
+export interface VarianceView {
+  orderId: number;
+  orderNumber: string;
+  finishedProductName: string;
+  quantityPlanned: number;
+  quantityProduced: number;
+  plannedTotal: number;
+  actualTotal: number; // sum of consumed x actual unit cost
+  priceVariance: number;
+  usageVariance: number;
+  totalVariance: number; // actualTotal - plannedTotal
+  captured: boolean; // false if plannedUnitCost was never recorded (pre-Phase-3 order)
+  lines: VarianceLineView[];
+}
+
+export interface ProductCostSummaryRow {
+  finishedProductId: number;
+  productName: string;
+  productCode: string;
+  orders: number;
+  unitsProduced: number;
+  totalActualCost: number | null; // null when caller can't view financials
+  avgUnitCost: number | null;
+  sellingPrice: number | null;
+  margin: number | null;
+  marginPercent: number | null;
 }
 
 export interface ManufacturingOrderView {
@@ -117,6 +159,11 @@ export class ManufacturingOrdersService {
           slotName: line.slotName,
           componentProductId: line.componentProductId,
           quantityRequired: Number(line.quantity) * runs,
+          // Freeze the component's cost as of NOW. Compared against
+          // unitCostSnapshot (frozen at completion), this is the price
+          // variance - how much a component's price moved between planning
+          // the batch and building it.
+          plannedUnitCost: line.component.cost_price,
         })),
       });
 
@@ -350,8 +397,162 @@ export class ManufacturingOrdersService {
         isService: line.component.productType === 'SERVICE',
         quantityRequired: Number(line.quantityRequired),
         quantityConsumed: line.quantityConsumed != null ? Number(line.quantityConsumed) : null,
+        plannedUnitCost: line.plannedUnitCost != null ? Number(line.plannedUnitCost) : null,
         unitCostSnapshot: line.unitCostSnapshot != null ? Number(line.unitCostSnapshot) : null,
       })),
     };
+  }
+
+  // ---------------------------------------------------------------------
+  // VARIANCE (per completed order) — planned vs actual, decomposed into:
+  //   price variance = standard qty x (completion price - creation price)
+  //   usage variance = (actual consumed - standard qty) x completion price
+  // Both readable straight from what the order already froze at creation
+  // (plannedUnitCost) and completion (unitCostSnapshot, quantityConsumed).
+  // ---------------------------------------------------------------------
+  async getVariance(organizationId: number, id: number): Promise<VarianceView> {
+    const order = await this.prisma.manufacturingOrder.findFirst({
+      where: { id, organizationId },
+      include: {
+        finishedProduct: { select: { name: true } },
+        lines: { include: { component: { select: { name: true, code: true } } } },
+      },
+    });
+    if (!order) throw new NotFoundException('Manufacturing order not found');
+    if (order.status !== 'COMPLETED') {
+      throw new BadRequestException('Variance is only available once the order is completed.');
+    }
+
+    let plannedTotal = 0;
+    let actualTotal = 0;
+    let priceVariance = 0;
+    let usageVariance = 0;
+    let captured = true;
+
+    const lines: VarianceLineView[] = order.lines.map(line => {
+      const required = Number(line.quantityRequired);
+      const consumed = line.quantityConsumed != null ? Number(line.quantityConsumed) : required;
+      const actualUnit = line.unitCostSnapshot != null ? Number(line.unitCostSnapshot) : 0;
+      // Fall back to the completion price if this order predates plannedUnitCost
+      // (then price variance is 0 - we simply can't know what it was planned at).
+      if (line.plannedUnitCost == null) captured = false;
+      const plannedUnit = line.plannedUnitCost != null ? Number(line.plannedUnitCost) : actualUnit;
+
+      const plannedCost = required * plannedUnit;
+      const linePrice = required * (actualUnit - plannedUnit);
+      const lineUsage = (consumed - required) * actualUnit;
+      const actualCost = consumed * actualUnit;
+
+      plannedTotal += plannedCost;
+      actualTotal += actualCost;
+      priceVariance += linePrice;
+      usageVariance += lineUsage;
+
+      return {
+        componentName: line.component.name,
+        componentCode: line.component.code,
+        quantityRequired: required,
+        quantityConsumed: consumed,
+        plannedUnitCost: plannedUnit,
+        actualUnitCost: actualUnit,
+        plannedCost,
+        priceVariance: linePrice,
+        usageVariance: lineUsage,
+        lineVariance: linePrice + lineUsage,
+      };
+    });
+
+    return {
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      finishedProductName: order.finishedProduct.name,
+      quantityPlanned: order.quantityPlanned,
+      quantityProduced: order.quantityProduced,
+      plannedTotal,
+      actualTotal,
+      priceVariance,
+      usageVariance,
+      totalVariance: actualTotal - plannedTotal,
+      captured,
+      lines,
+    };
+  }
+
+  // ---------------------------------------------------------------------
+  // COST & MARGIN per manufactured product, across all COMPLETED orders.
+  // Cost/margin fields are stripped entirely when the caller can't view
+  // financials (FOUNDATIONS profit-privacy rule).
+  // ---------------------------------------------------------------------
+  async getProductCostSummary(
+    organizationId: number,
+    canViewFinancials: boolean,
+  ): Promise<ProductCostSummaryRow[]> {
+    const orders = await this.prisma.manufacturingOrder.findMany({
+      where: { organizationId, status: 'COMPLETED' },
+      select: {
+        finishedProductId: true,
+        quantityProduced: true,
+        unitCostSnapshot: true,
+        finishedProduct: { select: { name: true, code: true } },
+      },
+    });
+
+    // Aggregate per finished product.
+    const byProduct = new Map<
+      number,
+      { name: string; code: string; orders: number; units: number; totalCost: number }
+    >();
+    for (const o of orders) {
+      const agg = byProduct.get(o.finishedProductId) ?? {
+        name: o.finishedProduct.name,
+        code: o.finishedProduct.code,
+        orders: 0,
+        units: 0,
+        totalCost: 0,
+      };
+      const unit = o.unitCostSnapshot != null ? Number(o.unitCostSnapshot) : 0;
+      agg.orders += 1;
+      agg.units += o.quantityProduced;
+      agg.totalCost += unit * o.quantityProduced;
+      byProduct.set(o.finishedProductId, agg);
+    }
+
+    // Representative selling price: active COUNTER (in-shop retail) list price
+    // if present.
+    const productIds = Array.from(byProduct.keys());
+    const prices = await this.prisma.productPrice.findMany({
+      where: { productId: { in: productIds }, channel: 'COUNTER', isActive: true },
+      select: { productId: true, price: true },
+      orderBy: { effectiveFrom: 'desc' },
+    });
+    const priceByProduct = new Map<number, number>();
+    for (const p of prices) {
+      // ProductPrice.price is stored in the smallest unit (paisa) -> rupees.
+      if (!priceByProduct.has(p.productId)) priceByProduct.set(p.productId, p.price / 100);
+    }
+
+    const rows: ProductCostSummaryRow[] = [];
+    for (const [productId, agg] of byProduct) {
+      const avgUnitCost = agg.units > 0 ? agg.totalCost / agg.units : 0;
+      const sellingPrice = priceByProduct.get(productId) ?? null;
+      const margin = sellingPrice != null ? sellingPrice - avgUnitCost : null;
+      const marginPercent = sellingPrice != null && sellingPrice > 0 ? (margin! / sellingPrice) * 100 : null;
+
+      rows.push({
+        finishedProductId: productId,
+        productName: agg.name,
+        productCode: agg.code,
+        orders: agg.orders,
+        unitsProduced: agg.units,
+        totalActualCost: canViewFinancials ? agg.totalCost : null,
+        avgUnitCost: canViewFinancials ? avgUnitCost : null,
+        sellingPrice: canViewFinancials ? sellingPrice : null,
+        margin: canViewFinancials ? margin : null,
+        marginPercent: canViewFinancials ? marginPercent : null,
+      });
+    }
+
+    rows.sort((a, b) => b.unitsProduced - a.unitsProduced);
+    return rows;
   }
 }

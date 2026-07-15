@@ -1851,6 +1851,11 @@ model ManufacturingOrderLine {
   // if nothing differed). scrap = quantityConsumed - quantityRequired -
   // measured after the fact, never a number typed into the recipe in advance.
   quantityConsumed     Decimal? @db.Decimal(12, 4)
+  // component.cost_price AT CREATION, frozen. The counterpart to
+  // unitCostSnapshot below: comparing the two is the price variance (component
+  // price moved between planning the batch and building it). Nullable because
+  // it was added in Phase 3, after some orders may already exist.
+  plannedUnitCost      Decimal? @db.Decimal(12, 2)
   unitCostSnapshot     Decimal? @db.Decimal(12, 2)           // component.cost_price AT COMPLETION, frozen
 
   manufacturingOrder ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
