@@ -1266,9 +1266,22 @@ class ApiClient {
 
   async migrateFormula(
     formulaId: number,
-    body: { outputProductId: number; lineMappings: { formulaLineId: number; componentProductId: number }[] },
+    body: {
+      outputProductId: number;
+      lineMappings?: { formulaLineId: number; componentProductId: number }[];
+      // Assisted mode: only pass overrides for lines you want to change; every
+      // other component is auto-linked (exact match) or created as a new
+      // raw-material product server-side.
+      overrides?: { formulaLineId: number; componentProductId: number }[];
+      assisted?: boolean;
+    },
   ) {
     const response = await this.client.post(`/boms/migration/${formulaId}`, body);
+    return response.data;
+  }
+
+  async runAllFormulaMigrations() {
+    const response = await this.client.post('/boms/migration/run-all', {});
     return response.data;
   }
 

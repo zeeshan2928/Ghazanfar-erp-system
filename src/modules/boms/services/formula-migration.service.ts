@@ -33,6 +33,23 @@ export interface PendingFormulaLine {
   quantity: number;
   unitCost: number;
   candidates: Candidate[];
+  // The product whose name EXACTLY matches this part's, if any. This is the
+  // only auto-link the migration trusts without a human - an exact match
+  // cannot be the "wrong part". null means "no exact match; a dedicated
+  // raw-material product will be CREATED for this part on migrate".
+  suggestedComponent: { productId: number; code: string; name: string } | null;
+}
+
+export interface MigrationReportRow {
+  formulaId: number;
+  label: string;
+  bomId: number | null;
+  outputProductChosen: { productId: number; name: string; code: string } | null;
+  // How strong the name match to the chosen output was (word-overlap count).
+  // Low = worth a human double-check; surfaced so a weak best-guess is visible.
+  outputScore: number | null;
+  partsCreated: { partName: string; productId: number; code: string }[];
+  skippedReason: string | null;
 }
 
 export interface PendingFormula {
@@ -100,6 +117,10 @@ export class FormulaMigrationService {
 
     const pending = formulas.filter(f => !migratedLabels.has(f.label));
 
+    // Exact (case-insensitive) name -> product, for the trusted auto-link.
+    const byExactName = new Map<string, { productId: number; code: string; name: string }>();
+    for (const p of products) byExactName.set(p.name.trim().toLowerCase(), { productId: p.id, code: p.code, name: p.name });
+
     return pending.map(formula => {
       const outputQuery = [formula.label, ...formula.productCodes].join(' ');
       return {
@@ -116,9 +137,174 @@ export class FormulaMigrationService {
           quantity: Number(line.quantity),
           unitCost: Number(line.part.unitCost),
           candidates: this.scoreCandidates(line.part.name, products),
+          suggestedComponent: byExactName.get(line.part.name.trim().toLowerCase()) ?? null,
         })),
       };
     });
+  }
+
+  // Turn a legacy AssemblyPart into a real Product to link a recipe line to.
+  // The ONLY safe auto-behaviour: reuse a product ONLY on an exact
+  // (case-insensitive) name match; otherwise CREATE a dedicated RAW_MATERIAL
+  // product that is a faithful copy of the part. A created product can never
+  // be the "wrong part" (worst case a harmless duplicate); a fuzzy auto-link
+  // to an existing product could deduct the wrong thing from stock forever -
+  // which is exactly why migrateOne() never guesses. cost_price is Decimal:
+  // pass a string, never a JS number (see the Product model comment).
+  async findOrCreateComponentForPart(
+    organizationId: number,
+    part: { id: number; name: string; unitCost: unknown },
+  ): Promise<{ productId: number; created: boolean; name: string; code: string }> {
+    const existing = await this.prisma.product.findFirst({
+      where: { organizationId, name: { equals: part.name, mode: 'insensitive' } },
+      select: { id: true, name: true, code: true },
+    });
+    if (existing) {
+      return { productId: existing.id, created: false, name: existing.name, code: existing.code };
+    }
+
+    // Product.code is globally @unique - derive a stable, traceable code from
+    // the part id and only bump it in the (near-impossible) event of a clash
+    // with a real shelf code.
+    let code = `LEGACY-PART-${part.id}`;
+    for (let attempt = 1; await this.prisma.product.findUnique({ where: { code }, select: { id: true } }); attempt++) {
+      code = `LEGACY-PART-${part.id}-${attempt}`;
+    }
+
+    const created = await this.prisma.product.create({
+      data: {
+        organizationId,
+        code,
+        name: part.name,
+        description: 'Created from legacy assembly part during recipe migration',
+        cost_price: String(part.unitCost),
+        productType: 'RAW_MATERIAL',
+      },
+      select: { id: true, name: true, code: true },
+    });
+    return { productId: created.id, created: true, name: created.name, code: created.code };
+  }
+
+  // Like migrateOne, but any line the caller did not explicitly map is
+  // resolved through findOrCreateComponentForPart - so the mapping is ALWAYS
+  // complete and the migration can always finish. The output product is still
+  // the caller's decision (shelf-code ambiguity lives there - never guessed
+  // here). Returns the created Bom plus the list of products it had to create.
+  async migrateAssisted(
+    organizationId: number,
+    userId: number,
+    formulaId: number,
+    outputProductId: number,
+    overrides: { formulaLineId: number; componentProductId: number }[] = [],
+  ): Promise<{ bom: BomView; partsCreated: { partName: string; productId: number; code: string }[] }> {
+    const formula = await this.prisma.assemblyFormula.findFirst({
+      where: { id: formulaId, organizationId },
+      include: { lines: { include: { part: true } } },
+    });
+    if (!formula) throw new NotFoundException('Formula not found');
+
+    // Pre-check BEFORE creating any component products: if this output already
+    // has an active recipe (a sibling formula got there first, or this one was
+    // already migrated), bail now. Otherwise we'd create faithful part-products
+    // and then throw inside migrateOne, leaving orphan products behind - and
+    // making a re-run non-idempotent.
+    const existingForOutput = await this.prisma.bom.findFirst({
+      where: { organizationId, productId: outputProductId, isActive: true },
+      select: { id: true },
+    });
+    if (existingForOutput) {
+      throw new BadRequestException(
+        `The chosen product already has an active recipe (Bom #${existingForOutput.id}). ` +
+          `Migrate this formula to a different product, or edit that recipe instead.`,
+      );
+    }
+
+    const overrideByLine = new Map(overrides.map(o => [o.formulaLineId, o.componentProductId]));
+    const lineMappings: { formulaLineId: number; componentProductId: number }[] = [];
+    const partsCreated: { partName: string; productId: number; code: string }[] = [];
+
+    for (const line of formula.lines) {
+      const override = overrideByLine.get(line.id);
+      if (override) {
+        lineMappings.push({ formulaLineId: line.id, componentProductId: override });
+        continue;
+      }
+      const resolved = await this.findOrCreateComponentForPart(organizationId, line.part);
+      lineMappings.push({ formulaLineId: line.id, componentProductId: resolved.productId });
+      if (resolved.created) {
+        partsCreated.push({ partName: line.part.name, productId: resolved.productId, code: resolved.code });
+      }
+    }
+
+    const bom = await this.migrateOne(organizationId, userId, formulaId, outputProductId, lineMappings);
+    return { bom, partsCreated };
+  }
+
+  // Best-guess bulk migration: for every pending formula, take its top output
+  // candidate and let migrateAssisted create/link every component. This is the
+  // "get them all in, review afterwards" path - it never blocks on an
+  // unmappable line. It SKIPS (never crashes on) a formula with no output
+  // candidate or whose chosen output already has an active recipe, reporting
+  // why so nothing fails silently.
+  async runAll(organizationId: number, userId: number): Promise<MigrationReportRow[]> {
+    const pending = await this.listPending(organizationId);
+    const report: MigrationReportRow[] = [];
+
+    // One product can hold only one active recipe. Several legacy formulas
+    // best-match the SAME product (e.g. many "White Body" variants top-match
+    // "1760 White Body..."). So track which output products are already spoken
+    // for - both those with a pre-existing recipe and those picked earlier in
+    // this same pass - and walk each formula DOWN its candidate list to the
+    // first still-free product, rather than colliding and skipping.
+    const used = new Set<number>();
+    const existing = await this.prisma.bom.findMany({
+      where: { organizationId, isActive: true },
+      select: { productId: true },
+    });
+    for (const b of existing) used.add(b.productId);
+
+    for (const formula of pending) {
+      const base: MigrationReportRow = {
+        formulaId: formula.formulaId,
+        label: formula.label,
+        bomId: null,
+        outputProductChosen: null,
+        outputScore: null,
+        partsCreated: [],
+        skippedReason: null,
+      };
+
+      const chosen = formula.outputCandidates.find(c => !used.has(c.productId));
+      if (!chosen) {
+        report.push({
+          ...base,
+          skippedReason:
+            'Every matching product already has a recipe - migrate this one by hand to a different product.',
+        });
+        continue;
+      }
+
+      try {
+        const { bom, partsCreated } = await this.migrateAssisted(
+          organizationId,
+          userId,
+          formula.formulaId,
+          chosen.productId,
+        );
+        used.add(chosen.productId);
+        report.push({
+          ...base,
+          bomId: bom.id,
+          outputProductChosen: { productId: chosen.productId, name: chosen.name, code: chosen.code },
+          outputScore: chosen.score,
+          partsCreated,
+        });
+      } catch (e: any) {
+        report.push({ ...base, skippedReason: e?.message ?? 'Migration failed for this formula.' });
+      }
+    }
+
+    return report;
   }
 
   async migrateOne(

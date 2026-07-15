@@ -55,7 +55,7 @@ export function RecipesScreen() {
       </div>
       {tab === 'recipes' && <RecipesTab />}
       {tab === 'review' && <ReviewTab />}
-      {tab === 'migrate' && <MigrateTab />}
+      {tab === 'migrate' && <MigrateTab onGoToRecipes={() => setTab('recipes')} />}
     </div>
   );
 }
@@ -587,37 +587,107 @@ function ReviewTab() {
 // TAB 3: MIGRATE LEGACY FORMULAS
 // ============================================================================
 
-function MigrateTab() {
+function MigrateTab({ onGoToRecipes }: { onGoToRecipes: () => void }) {
   const [pending, setPending] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  // A failed fetch and "there is genuinely nothing left to migrate" must
+  // never look the same - they used to both render as an empty `pending`
+  // array, so a broken request quietly celebrated "All migrated" instead of
+  // reporting the failure.
+  const [error, setError] = useState<string | null>(null);
   const [expandedId, setExpandedId] = useState<number | null>(null);
 
   useEffect(() => { load(); }, []);
 
   async function load() {
     setLoading(true);
+    setError(null);
     try {
       setPending(await apiClient.listPendingFormulaMigrations());
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? e?.message ?? 'Failed to load pending formula migrations');
     } finally {
       setLoading(false);
     }
   }
 
+  const [report, setReport] = useState<any[] | null>(null);
+  const [runningAll, setRunningAll] = useState(false);
+
+  async function handleRunAll() {
+    if (!window.confirm(
+      'Migrate ALL legacy formulas using best-guess matches?\n\n' +
+      '• Each formula is attached to its top-matching product.\n' +
+      '• Any component part with no exact product match gets a NEW raw-material product created for it.\n' +
+      '• Nothing is deleted; you can review and fix every recipe afterward.',
+    )) return;
+    setRunningAll(true);
+    setError(null);
+    try {
+      const result = await apiClient.runAllFormulaMigrations();
+      setReport(result);
+      await load();
+    } catch (e: any) {
+      setError(e?.response?.data?.message ?? e?.message ?? 'Bulk migration failed');
+    } finally {
+      setRunningAll(false);
+    }
+  }
+
   if (loading) return <p style={styles.loading}>Loading…</p>;
-  if (pending.length === 0) return <p style={styles.noResults}>All legacy formulas have been migrated. 🎉</p>;
+  if (error) return (
+    <div>
+      <p style={styles.noResults}>⚠️ Could not load pending migrations: {error}</p>
+      <button style={styles.tabBtn} onClick={load}>Retry</button>
+    </div>
+  );
 
   return (
     <div>
-      <p style={styles.subtle}>{pending.length} legacy formula(s) not yet migrated to the new recipe system. Nothing here is automatic - confirm the product and every component before migrating.</p>
-      {pending.map(f => (
-        <FormulaMigrationCard
-          key={f.formulaId}
-          formula={f}
-          expanded={expandedId === f.formulaId}
-          onToggle={() => setExpandedId(expandedId === f.formulaId ? null : f.formulaId)}
-          onMigrated={() => { setExpandedId(null); load(); }}
-        />
-      ))}
+      {report && <MigrationReport report={report} onGoToRecipes={onGoToRecipes} onDismiss={() => setReport(null)} />}
+
+      {pending.length === 0 ? (
+        <p style={styles.noResults}>All legacy formulas have been migrated. 🎉</p>
+      ) : (
+        <>
+          <div style={styles.toolbar}>
+            <span style={styles.subtle}>{pending.length} legacy formula(s) not yet migrated. Migrate one at a time to confirm each, or migrate them all with best-guess matches and review after.</span>
+            <button style={styles.btnPrimary} onClick={handleRunAll} disabled={runningAll}>
+              {runningAll ? 'Migrating all…' : `Migrate all ${pending.length} (best guess — review after)`}
+            </button>
+          </div>
+          {pending.map(f => (
+            <FormulaMigrationCard
+              key={f.formulaId}
+              formula={f}
+              expanded={expandedId === f.formulaId}
+              onToggle={() => setExpandedId(expandedId === f.formulaId ? null : f.formulaId)}
+              onMigrated={() => { setExpandedId(null); load(); }}
+            />
+          ))}
+        </>
+      )}
+    </div>
+  );
+}
+
+function MigrationReport({ report, onGoToRecipes, onDismiss }: { report: any[]; onGoToRecipes: () => void; onDismiss: () => void }) {
+  const migrated = report.filter(r => r.bomId);
+  const skipped = report.filter(r => !r.bomId);
+  const totalCreated = migrated.reduce((n, r) => n + (r.partsCreated?.length ?? 0), 0);
+  return (
+    <div style={styles.note}>
+      <strong>Migration finished:</strong> {migrated.length} recipe(s) created{totalCreated > 0 ? `, ${totalCreated} new raw-material product(s) added for unmatched parts` : ''}
+      {skipped.length > 0 && <div style={{ marginTop: '6px' }}>⚠️ {skipped.length} skipped — need a manual output-product choice:</div>}
+      {skipped.length > 0 && (
+        <ul style={{ margin: '6px 0 0', paddingLeft: '20px' }}>
+          {skipped.map(r => <li key={r.formulaId} style={{ fontSize: '12px' }}>{r.label} — {r.skippedReason}</li>)}
+        </ul>
+      )}
+      <div style={{ marginTop: '10px', display: 'flex', gap: '8px' }}>
+        <button style={styles.btnPrimary} onClick={onGoToRecipes}>See the recipes →</button>
+        <button style={styles.btn} onClick={onDismiss}>Dismiss</button>
+      </div>
     </div>
   );
 }
@@ -626,31 +696,28 @@ function FormulaMigrationCard({ formula, expanded, onToggle, onMigrated }: { for
   const [outputProduct, setOutputProduct] = useState<{ id: number; name: string; code: string } | null>(
     formula.outputCandidates[0] ? { id: formula.outputCandidates[0].productId, code: formula.outputCandidates[0].code, name: formula.outputCandidates[0].name } : null,
   );
-  const [lineMap, setLineMap] = useState<Record<number, { id: number; name: string; code: string } | null>>(() => {
-    const initial: Record<number, { id: number; name: string; code: string } | null> = {};
-    for (const line of formula.lines) {
-      initial[line.formulaLineId] = line.candidates[0]
-        ? { id: line.candidates[0].productId, code: line.candidates[0].code, name: line.candidates[0].name }
-        : null;
-    }
-    return initial;
-  });
+  // Assisted mode: a line needs an entry here ONLY if the user overrides its
+  // default. Default = the exact-match product (suggestedComponent) or, if
+  // none, a new raw-material product the server creates on migrate. So the
+  // user usually just confirms the output and clicks Migrate.
+  const [overrides, setOverrides] = useState<Record<number, { id: number; name: string; code: string }>>({});
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  const mappedCount = Object.values(lineMap).filter(Boolean).length;
+  const willCreateCount = formula.lines.filter((l: any) => !l.suggestedComponent && !overrides[l.formulaLineId]).length;
 
   async function handleMigrate() {
     if (!outputProduct) { setError('Pick which product this formula makes.'); return; }
-    const missing = formula.lines.filter((l: any) => !lineMap[l.formulaLineId]);
-    if (missing.length > 0) { setError(`Map every component first - ${missing.length} still unmapped.`); return; }
-
     setSaving(true);
     setError('');
     try {
       await apiClient.migrateFormula(formula.formulaId, {
+        assisted: true,
         outputProductId: outputProduct.id,
-        lineMappings: formula.lines.map((l: any) => ({ formulaLineId: l.formulaLineId, componentProductId: lineMap[l.formulaLineId]!.id })),
+        overrides: Object.entries(overrides).map(([formulaLineId, p]) => ({
+          formulaLineId: Number(formulaLineId),
+          componentProductId: p.id,
+        })),
       });
       onMigrated();
     } catch (e: any) {
@@ -664,7 +731,7 @@ function FormulaMigrationCard({ formula, expanded, onToggle, onMigrated }: { for
     <div style={styles.card}>
       <div style={styles.row} onClick={onToggle}>
         <strong style={{ cursor: 'pointer' }}>{formula.label}</strong>
-        <span style={styles.subtle}>[{formula.family}] · {formula.lines.length} components · {mappedCount}/{formula.lines.length} mapped</span>
+        <span style={styles.subtle}>[{formula.family}] · {formula.lines.length} components{willCreateCount > 0 ? ` · ${willCreateCount} new part product(s) will be created` : ''}</span>
       </div>
 
       {expanded && (
@@ -687,20 +754,31 @@ function FormulaMigrationCard({ formula, expanded, onToggle, onMigrated }: { for
               <tr><th style={styles.th}>Part</th><th style={styles.th}>Qty</th><th style={styles.th}>Maps to</th></tr>
             </thead>
             <tbody>
-              {formula.lines.map((line: any) => (
-                <tr key={line.formulaLineId}>
-                  <td style={styles.td}>{line.partName}</td>
-                  <td style={styles.td}>{line.quantity}</td>
-                  <td style={styles.td}>
-                    <ProductPicker
-                      value={lineMap[line.formulaLineId]?.id ?? null}
-                      valueLabel={lineMap[line.formulaLineId] ? `${lineMap[line.formulaLineId]!.code} - ${lineMap[line.formulaLineId]!.name}` : undefined}
-                      onChange={p => setLineMap(prev => ({ ...prev, [line.formulaLineId]: p }))}
-                      placeholder={line.candidates.length ? `suggested: ${line.candidates[0].name}` : 'no suggestion - search…'}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {formula.lines.map((line: any) => {
+                const override = overrides[line.formulaLineId];
+                const current = override
+                  ? { id: override.id, code: override.code, name: override.name }
+                  : line.suggestedComponent
+                    ? { id: line.suggestedComponent.productId, code: line.suggestedComponent.code, name: line.suggestedComponent.name }
+                    : null;
+                return (
+                  <tr key={line.formulaLineId}>
+                    <td style={styles.td}>{line.partName}</td>
+                    <td style={styles.td}>{line.quantity}</td>
+                    <td style={styles.td}>
+                      {current === null && (
+                        <div style={styles.willCreate}>➕ new raw-material product "{line.partName}" (Rs {line.unitCost}) — or pick an existing one:</div>
+                      )}
+                      <ProductPicker
+                        value={current?.id ?? null}
+                        valueLabel={current ? `${current.code} - ${current.name}` : undefined}
+                        onChange={p => setOverrides(prev => ({ ...prev, [line.formulaLineId]: p }))}
+                        placeholder={line.candidates.length ? `or search (suggested: ${line.candidates[0].name})` : 'or search to pick an existing product…'}
+                      />
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -748,6 +826,7 @@ const styles: Record<string, React.CSSProperties> = {
   textInput: { padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', minWidth: '260px' },
   lineRow: { display: 'flex', gap: '8px', alignItems: 'center', marginBottom: '8px' },
   slotInput: { padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', width: '140px' },
+  willCreate: { fontSize: '11px', color: '#166534', marginBottom: '4px' },
   qtyInput: { padding: '6px 8px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px', width: '80px' },
   versionTag: { fontSize: '12px', color: '#666', fontWeight: 400 },
   subtle: { color: '#666', fontSize: '12px' },

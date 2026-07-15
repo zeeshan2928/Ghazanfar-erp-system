@@ -39,20 +39,46 @@ export class BomsController {
     return this.formulaMigrationService.listPending(orgContext.organizationId);
   }
 
+  // Best-guess bulk migrate of every pending formula. Declared BEFORE the
+  // :formulaId route below - Express matches in declaration order, so putting
+  // it after would let "run-all" be parsed as a formulaId.
+  @Post('migration/run-all')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('boms.create')
+  async runAllMigrations(@OrgContext() orgContext: any) {
+    return this.formulaMigrationService.runAll(orgContext.organizationId, orgContext.userId);
+  }
+
   @Post('migration/:formulaId')
   @UseGuards(ActionPermissionGuard)
   @RequireAction('boms.create')
   async migrateFormula(
     @Param('formulaId') formulaId: string,
-    @Body() body: { outputProductId: number; lineMappings: { formulaLineId: number; componentProductId: number }[] },
+    @Body() body: {
+      outputProductId: number;
+      // Full mapping (migrateOne) OR partial overrides + auto-fill the rest
+      // (migrateAssisted). `assisted: true` picks the latter.
+      lineMappings?: { formulaLineId: number; componentProductId: number }[];
+      overrides?: { formulaLineId: number; componentProductId: number }[];
+      assisted?: boolean;
+    },
     @OrgContext() orgContext: any,
   ) {
+    if (body.assisted) {
+      return this.formulaMigrationService.migrateAssisted(
+        orgContext.organizationId,
+        orgContext.userId,
+        parseInt(formulaId, 10),
+        body.outputProductId,
+        body.overrides ?? [],
+      );
+    }
     return this.formulaMigrationService.migrateOne(
       orgContext.organizationId,
       orgContext.userId,
       parseInt(formulaId, 10),
       body.outputProductId,
-      body.lineMappings,
+      body.lineMappings ?? [],
     );
   }
 
