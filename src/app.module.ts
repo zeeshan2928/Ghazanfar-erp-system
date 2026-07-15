@@ -39,6 +39,8 @@ import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { SalesAnalysisModule } from './modules/sales-analysis/sales-analysis.module';
 import { PurchaseAnalysisModule } from './modules/purchase-analysis/purchase-analysis.module';
 import { AssemblyFormulasModule } from './modules/assembly-formulas/assembly-formulas.module';
+import { BomsModule } from './modules/boms/boms.module';
+import { ManufacturingOrdersModule } from './modules/manufacturing-orders/manufacturing-orders.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -99,6 +101,8 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     SalesAnalysisModule,
     PurchaseAnalysisModule,
     AssemblyFormulasModule,
+    BomsModule,
+    ManufacturingOrdersModule,
   ],
   controllers: [],
   providers: [

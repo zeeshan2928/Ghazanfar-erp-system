@@ -235,6 +235,33 @@ export const PERMISSION_CATALOG: PermissionCatalogModule[] = [
       { key: 'assembly-formulas.import', label: 'Import BOM cost spreadsheets' },
     ],
   },
+  {
+    module: 'boms',
+    label: 'Recipes (BOM)',
+    permissions: [
+      { key: 'boms.view', label: 'View recipes, costs, and where-used' },
+      { key: 'boms.create', label: 'Create a recipe' },
+      { key: 'boms.edit', label: 'Edit a recipe, create a new version, or deactivate' },
+    ],
+  },
+  {
+    module: 'product-seed',
+    label: 'Product Master Seeding',
+    permissions: [
+      { key: 'product-seed.run', label: 'Seed products from inventory/sales/purchase data, and review classification' },
+    ],
+  },
+  {
+    module: 'manufacturing',
+    label: 'Manufacturing Orders',
+    permissions: [
+      { key: 'manufacturing.view', label: 'View manufacturing orders' },
+      { key: 'manufacturing.create', label: 'Create a manufacturing order' },
+      { key: 'manufacturing.start', label: 'Start production (checks material availability)' },
+      { key: 'manufacturing.complete', label: 'Complete production - moves stock, freezes batch cost' },
+      { key: 'manufacturing.cancel', label: 'Cancel a manufacturing order' },
+    ],
+  },
 ];
 
 export const ALL_PERMISSION_KEYS: string[] = PERMISSION_CATALOG.flatMap((m) =>

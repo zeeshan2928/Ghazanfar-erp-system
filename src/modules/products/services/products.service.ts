@@ -29,7 +29,10 @@ export class ProductsService {
       throw new NotFoundException('Product not found');
     }
 
-    return product;
+    // Prisma's Decimal serializes to JSON as a STRING ("90000", not 90000) -
+    // convert explicitly so the API response shape doesn't silently change
+    // for every existing frontend consumer of this endpoint.
+    return { ...product, cost_price: Number(product.cost_price) };
   }
 
   async getPurchaseHistory(organizationId: number, productId: number, limit = 5) {

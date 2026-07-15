@@ -104,6 +104,17 @@ export class ImportExportService {
           continue;
         }
 
+        // cost_price is Decimal now - pass the trimmed string straight
+        // through rather than parseInt (which truncates "12.50" to 12) or
+        // parseFloat (which reintroduces binary float imprecision on write).
+        // Prisma/Postgres parse the decimal string exactly.
+        const trimmedCost = String(costPrice).trim();
+        if (!/^\d+(\.\d{1,2})?$/.test(trimmedCost)) {
+          skipped++;
+          errors.push({ row: rowNum, reason: `Invalid cost_price: "${costPrice}"` });
+          continue;
+        }
+
         // Create product
         await this.prisma.product.create({
           data: {
@@ -111,7 +122,7 @@ export class ImportExportService {
             code: code.trim(),
             name: name.trim(),
             description: description?.trim(),
-            cost_price: parseInt(costPrice, 10),
+            cost_price: trimmedCost,
             isActive: true,
           },
         });

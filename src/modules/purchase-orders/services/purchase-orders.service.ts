@@ -1,7 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/database/prisma.service';
 import { TransactionService } from 'src/common/services/transaction.service';
+import { TransactionSequenceService } from 'src/common/services/transaction-sequence.service';
+import { DOC_SEQUENCE, DOC_PATTERN } from 'src/common/config/document-sequences';
 import { NotificationsService } from '../../notifications/services/notifications.service';
+import { InventoryOperationsService } from '../../inventory/services/inventory-operations.service';
 import {
   CreatePurchaseOrderDto,
   ConfirmReceiptDto,
@@ -16,22 +19,31 @@ export class PurchaseOrdersService {
     private readonly prisma: PrismaService,
     private readonly transactionService: TransactionService,
     private readonly notificationsService: NotificationsService,
+    private readonly inventoryOperations: InventoryOperationsService,
+    private readonly transactionSequenceService: TransactionSequenceService,
   ) {}
 
+  // This used to be `count() + 1`. A row count is not a sequence: with 3 POs
+  // numbered 2/3/4 it generated a second "PO-000004" and the unique constraint
+  // rejected it - PO creation was completely dead. Now on the shared counter.
+  // Format stays PO-000005; only the source of the number changed.
   private async generatePoNumber(organizationId: number): Promise<string> {
-    const year = new Date().getFullYear();
-    const count = await this.prisma.purchaseOrder.count({
-      where: {
-        organizationId,
-        createdAt: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`),
-        },
+    const next = await this.transactionSequenceService.getNextCounterSeeded(
+      organizationId,
+      DOC_SEQUENCE.purchaseOrder(),
+      async db => {
+        const rows = await db.purchaseOrder.findMany({
+          where: { organizationId },
+          select: { po_number: true },
+        });
+        return TransactionSequenceService.highestSequence(
+          rows.map(r => r.po_number),
+          DOC_PATTERN.purchaseOrder,
+        );
       },
-    });
+    );
 
-    const sequence = String(count + 1).padStart(6, '0');
-    return `PO-${sequence}`;
+    return `PO-${String(next).padStart(6, '0')}`;
   }
 
   async create(organizationId: number, userId: number, createDto: CreatePurchaseOrderDto) {
@@ -249,35 +261,22 @@ export class PurchaseOrdersService {
           data: { quantity_received: { increment: receiveItem.quantityReceived } },
         });
 
-        // Update inventory
-        let inventory = await tx.inventory.findFirst({
-          where: {
-            productId: receiveItem.productId,
-            warehouseId: receiveItem.warehouseId,
-            organizationId,
-          },
+        // Receiving stock was hand-rolled here, and got two things wrong: it
+        // incremented physical_on_hand without incrementing `available` (so
+        // goods received from a vendor were never sellable), and it wrote no
+        // InventoryMovement, leaving a hole in the audit trail exactly where
+        // the highest-volume stock inflow happens. Both are the shared stock
+        // gateway's job - go through it.
+        await this.inventoryOperations.applyStockInTx(tx, {
+          organizationId,
+          productId: receiveItem.productId,
+          warehouseId: receiveItem.warehouseId,
+          quantity: receiveItem.quantityReceived,
+          reference: po.po_number,
+          createdBy: userId,
+          movementType: 'STOCK_IN',
+          remarks: confirmDto.remarks,
         });
-
-        if (!inventory) {
-          inventory = await tx.inventory.create({
-            data: {
-              organizationId,
-              productId: receiveItem.productId,
-              warehouseId: receiveItem.warehouseId,
-              physical_on_hand: receiveItem.quantityReceived,
-              reserved: 0,
-            },
-          });
-        } else {
-          await tx.inventory.update({
-            where: { id: inventory.id },
-            data: {
-              physical_on_hand: {
-                increment: receiveItem.quantityReceived,
-              },
-            },
-          });
-        }
       }
 
       // Check if all items received by comparing receipts with orders

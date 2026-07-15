@@ -64,6 +64,8 @@ model Organization {
   assemblyFormulas       AssemblyFormula[]
   assemblyParts          AssemblyPart[]
   assembledItemCosts     AssembledItemCost[]
+  boms                   Bom[]
+  manufacturingOrders    ManufacturingOrder[]
   importMappingTemplates ImportMappingTemplate[]
   salesItemClassifications SalesItemClassification[]
 }
@@ -146,6 +148,7 @@ model Warehouse {
   organization                                                     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   warehouseTransfersFrom WarehouseTransfer[] @relation("WarehouseTransfer_from")
   warehouseTransfersTo   WarehouseTransfer[] @relation("WarehouseTransfer_to")
+  manufacturingOrders    ManufacturingOrder[]
 
   @@unique([organizationId, slug])
 }
@@ -505,7 +508,19 @@ model Product {
   category           ProductCategory?    @relation(fields: [categoryId], references: [id])
   brandId            Int?
   brand              Brand?              @relation(fields: [brandId], references: [id])
-  cost_price         Int                 @default(0)
+  // Decimal, not Int: components like "Nut 7 ML" / "Bolt Gata" cost paisa, and a
+  // recipe using 4 of them would otherwise round the whole line to zero. Prisma
+  // returns this as a Decimal object at runtime - never do bare JS arithmetic on
+  // it (number * Decimal = NaN); convert with Number(...) at the read site.
+  cost_price         Decimal             @default(0) @db.Decimal(12, 2)
+  productType        ProductType         @default(FINISHED_GOOD)
+  // Set true only by the bulk product seeder, for items where the evidence
+  // was genuinely ambiguous (e.g. purchased but never sold - could be a spare
+  // part or a slow-selling appliance). productType still gets a safe default
+  // so nothing is broken meanwhile; this flag is how the review queue finds
+  // "guessed, not confirmed" rows after the fact - once seeded, a guessed
+  // FINISHED_GOOD is indistinguishable from a confirmed one without it.
+  needsClassificationReview Boolean       @default(false)
   isVisibleOnCounter Boolean             @default(true)
   isVisibleOnWebsite Boolean             @default(false)
   isVisibleWholesale Boolean             @default(false)
@@ -530,9 +545,16 @@ model Product {
   salesmanCommissions SalesmanProductCommission[]
   salesOrderLines    SalesOrderLine[]
   media              ProductMedia[]
+  boms               Bom[]               @relation("BomOutput")
+  bomLinesAsComponent BomLine[]          @relation("BomComponent")
+  bomAlternates      BomLineAlternate[]  @relation("BomAlternate")
+  manufacturingOrdersAsOutput ManufacturingOrder[]     @relation("ManufacturingOrderOutput")
+  manufacturingOrderLines     ManufacturingOrderLine[] @relation("ManufacturingOrderLineComponent")
 
   @@unique([organizationId, code])
   @@index([organizationId, name])
+  @@index([organizationId, productType])
+  @@index([organizationId, needsClassificationReview])
 }
 
 // Product Studio: a gallery of images/videos per product, stored on local
@@ -993,6 +1015,8 @@ enum InventoryMovementType {
   DAMAGE
   SHRINKAGE
   RETURN
+  MANUFACTURE_IN   // finished good produced by a ManufacturingOrder
+  MANUFACTURE_OUT  // component consumed by a ManufacturingOrder
 }
 
 enum ReconciliationStatus {
@@ -1691,6 +1715,148 @@ model AssemblyFormulaLine {
   @@unique([formulaId, partId])
   @@index([formulaId])
   @@index([partId])
+}
+
+// ============================================================================
+// RECIPE ENGINE (the new, generic BOM — replaces the JUICER|BLENDER hardcoding)
+// ============================================================================
+
+// What a product IS. The recipe is the ground truth (a thing is a PART iff it
+// appears in a recipe; MANUFACTURED iff it has one) - this stored type is the
+// bootstrap classification and a display hint, never allowed to contradict the
+// recipe graph.
+enum ProductType {
+  RAW_MATERIAL    // a stocked component you buy (Motor, Body, Box, Bolt)
+  SERVICE         // has a cost, has no stock (Labour, Transport, Electricity)
+  FINISHED_GOOD   // bought and resold as-is (the safe default)
+  ASSEMBLED_GOOD  // you manufacture it from the above, via a Bom
+}
+
+// A recipe: makes ONE output product from other products. Versioned so that a
+// completed manufacturing order can pin the exact recipe it used and keep its
+// cost even after the recipe is later edited (Phase 2 freezes version + cost
+// onto the batch).
+model Bom {
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  productId      Int      // the ASSEMBLED_GOOD this recipe makes
+  name           String
+  version        Int      @default(1)
+  outputQuantity Decimal  @default(1) @db.Decimal(12, 3) // a recipe may yield N units
+  isActive       Boolean  @default(true)
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization        Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product             Product              @relation("BomOutput", fields: [productId], references: [id], onDelete: Cascade)
+  lines               BomLine[]
+  manufacturingOrders ManufacturingOrder[]
+
+  @@unique([organizationId, productId, version])
+  @@index([organizationId, productId, isActive])
+}
+
+// One SLOT in a recipe: a generic role ("Motor", "Body", "Jug") filled by a
+// specific chosen product, plus a quantity. Alternates are the other products
+// valid in the same slot (7025 Copper vs 7030 vs 8820).
+model BomLine {
+  id                 Int     @id @default(autoincrement())
+  bomId              Int
+  sequence           Int     @default(0)
+  slotName           String  // the generic term shown on screen: "Motor", "Body"
+  componentProductId Int     // the CHOSEN product - always set, so cost always computes
+  quantity           Decimal @default(1) @db.Decimal(12, 4) // 0.5 wire, 4 bolts
+
+  bom        Bom                @relation(fields: [bomId], references: [id], onDelete: Cascade)
+  component  Product            @relation("BomComponent", fields: [componentProductId], references: [id], onDelete: Restrict)
+  alternates BomLineAlternate[]
+
+  @@unique([bomId, slotName])
+  @@index([bomId])
+  @@index([componentProductId]) // powers "where is this part used?"
+}
+
+// Other products the user may pick for a slot without editing the recipe.
+model BomLineAlternate {
+  id        Int @id @default(autoincrement())
+  bomLineId Int
+  productId Int
+
+  bomLine BomLine @relation(fields: [bomLineId], references: [id], onDelete: Cascade)
+  product Product @relation("BomAlternate", fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([bomLineId, productId])
+  @@index([bomLineId])
+  @@index([productId])
+}
+
+// ============================================================================
+// MANUFACTURING ORDER — where a recipe finally moves real stock (Phase 2).
+// A recipe (Bom) only ever describes cost; this is the document that says
+// "we actually built N of these on this date" and is the only thing that
+// deducts components / adds the finished good.
+// ============================================================================
+
+enum ManufacturingOrderStatus {
+  DRAFT        // planned; nothing has moved
+  IN_PROGRESS  // material availability confirmed; ready to build
+  COMPLETED    // stock moved: components out, finished good in - irreversible
+  CANCELLED    // abandoned before completion; nothing ever moved
+}
+
+model ManufacturingOrder {
+  id                Int      @id @default(autoincrement())
+  organizationId    Int
+  orderNumber       String                                  // the batch identity - "MO-2026-000001"
+  bomId             Int                                      // the recipe used - Bom rows are
+                                                               // immutable-once-superseded (new
+                                                               // version = new row), so this FK alone
+                                                               // pins the exact recipe this batch used
+  finishedProductId Int                                      // denormalized from bom.productId
+  warehouseId       Int
+  quantityPlanned   Int
+  quantityProduced  Int      @default(0)
+  status            ManufacturingOrderStatus @default(DRAFT)
+  // FROZEN at COMPLETED, from quantityRequired x each line's cost snapshot -
+  // never recomputed afterward, even if a component's price later changes.
+  // This is the "what did THIS batch cost" the user explicitly needed, since
+  // cost is not printed on the product itself.
+  unitCostSnapshot  Decimal? @db.Decimal(12, 2)
+  createdBy         Int
+  completedBy       Int?
+  completedAt       DateTime?
+  remarks           String?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bom             Bom                      @relation(fields: [bomId], references: [id])
+  finishedProduct Product                  @relation("ManufacturingOrderOutput", fields: [finishedProductId], references: [id])
+  warehouse       Warehouse                @relation(fields: [warehouseId], references: [id])
+  lines           ManufacturingOrderLine[]
+
+  @@unique([organizationId, orderNumber])
+  @@index([organizationId, status])
+  @@index([organizationId, createdAt])
+}
+
+model ManufacturingOrderLine {
+  id                   Int      @id @default(autoincrement())
+  manufacturingOrderId Int
+  slotName             String                                // copied from BomLine at creation time
+  componentProductId   Int
+  quantityRequired     Decimal  @db.Decimal(12, 4)           // bomLine.quantity x quantityPlanned, frozen at creation
+  // ACTUAL quantity used, entered at completion (defaults to quantityRequired
+  // if nothing differed). scrap = quantityConsumed - quantityRequired -
+  // measured after the fact, never a number typed into the recipe in advance.
+  quantityConsumed     Decimal? @db.Decimal(12, 4)
+  unitCostSnapshot     Decimal? @db.Decimal(12, 2)           // component.cost_price AT COMPLETION, frozen
+
+  manufacturingOrder ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
+  component          Product            @relation("ManufacturingOrderLineComponent", fields: [componentProductId], references: [id])
+
+  @@index([manufacturingOrderId])
 }
 
 // A remembered column-mapping for the format-agnostic importer. Keyed by a

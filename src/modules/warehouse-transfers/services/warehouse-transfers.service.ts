@@ -1,6 +1,10 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
+import { DOC_SEQUENCE, DOC_PATTERN } from '@common/config/document-sequences';
+import { InventoryOperationsService } from '../../inventory/services/inventory-operations.service';
 import {
   CreateWarehouseTransferDto,
   ConfirmTransferReceiptDto,
@@ -12,22 +16,37 @@ export class WarehouseTransfersService {
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
+    private transactionSequenceService: TransactionSequenceService,
+    private inventoryOperations: InventoryOperationsService,
   ) {}
 
-  private async generateTransferNumber(organizationId: number, tx: any): Promise<string> {
+  // Was `count() + 1`, which is not a sequence: delete one transfer and the
+  // count goes backwards, so the next number collides with an existing one.
+  // Counter-based now - a deleted number stays burned. Runs on the caller's
+  // tx, so the number is only consumed if the transfer actually commits.
+  private async generateTransferNumber(
+    organizationId: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
     const year = new Date().getFullYear();
-    const count = await tx.warehouseTransfer.count({
-      where: {
-        organizationId,
-        createdAt: {
-          gte: new Date(`${year}-01-01`),
-          lt: new Date(`${year + 1}-01-01`),
-        },
-      },
-    });
 
-    const sequence = String(count + 1).padStart(6, '0');
-    return `TRF-${year}-${sequence}`;
+    const next = await this.transactionSequenceService.getNextCounterSeeded(
+      organizationId,
+      DOC_SEQUENCE.warehouseTransfer(year),
+      async db => {
+        const rows = await db.warehouseTransfer.findMany({
+          where: { organizationId, transfer_number: { startsWith: `TRF-${year}-` } },
+          select: { transfer_number: true },
+        });
+        return TransactionSequenceService.highestSequence(
+          rows.map(r => r.transfer_number),
+          DOC_PATTERN.warehouseTransfer(year),
+        );
+      },
+      tx,
+    );
+
+    return `TRF-${year}-${String(next).padStart(6, '0')}`;
   }
 
   async create(organizationId: number, userId: number, createDto: CreateWarehouseTransferDto) {
@@ -253,7 +272,7 @@ export class WarehouseTransfersService {
   async confirmReceipt(
     organizationId: number,
     transferId: number,
-    _userId: number,
+    userId: number,
     confirmDto: ConfirmTransferReceiptDto,
   ) {
     return this.transactionService.run(async tx => {
@@ -294,44 +313,27 @@ export class WarehouseTransfersService {
       for (const received of confirmDto.items) {
         const item = transfer.items.find(i => i.productId === received.productId);
 
-        // Add to destination warehouse inventory
-        const destInventory = await tx.inventory.findFirst({
-          where: {
-            organizationId,
-            productId: received.productId,
-            warehouseId: transfer.to_warehouse_id,
-          },
+        // Destination: a plain stock-in, so it goes through the shared gateway,
+        // which also writes the InventoryMovement audit row this flow was
+        // missing entirely.
+        await this.inventoryOperations.applyStockInTx(tx, {
+          organizationId,
+          productId: received.productId,
+          warehouseId: transfer.to_warehouse_id,
+          quantity: received.quantityReceived,
+          reference: transfer.transfer_number,
+          createdBy: userId,
+          movementType: 'TRANSFER_IN',
         });
 
-        if (destInventory) {
-          await tx.inventory.update({
-            where: { id: destInventory.id },
-            data: {
-              physical_on_hand: {
-                increment: received.quantityReceived,
-              },
-              available: {
-                increment: received.quantityReceived,
-              },
-            },
-          });
-        } else {
-          // Create new inventory record if it doesn't exist
-          await tx.inventory.create({
-            data: {
-              organizationId,
-              productId: received.productId,
-              warehouseId: transfer.to_warehouse_id,
-              physical_on_hand: received.quantityReceived,
-              available: received.quantityReceived,
-              opening_balance: 0,
-            },
-          });
-        }
-
-        // Deduct from source warehouse
+        // Source: NOT a plain stock-out - this releases the reservation taken
+        // when the transfer started. The whole hold comes off `reserved`, the
+        // shortfall (goods that never arrived) is credited back to `available`,
+        // and only what actually shipped leaves `physical_on_hand`.
+        // stockOut() cannot express this: it never touches `reserved`. So the
+        // quantity math stays here, and only the audit row is delegated.
         const shortageQty = item.quantity - received.quantityReceived;
-        await tx.inventory.update({
+        const sourceInventory = await tx.inventory.update({
           where: {
             organizationId_productId_warehouseId: {
               organizationId,
@@ -350,6 +352,15 @@ export class WarehouseTransfersService {
               decrement: received.quantityReceived,
             },
           },
+        });
+
+        await this.inventoryOperations.recordMovementTx(tx, {
+          organizationId,
+          inventoryId: sourceInventory.id,
+          movementType: 'TRANSFER_OUT',
+          quantity: received.quantityReceived,
+          reference: transfer.transfer_number,
+          createdBy: userId,
         });
       }
 

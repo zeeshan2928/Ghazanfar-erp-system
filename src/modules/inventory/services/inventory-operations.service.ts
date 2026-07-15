@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ConflictException,
 } from '@nestjs/common';
+import { Prisma, InventoryMovementType } from '@prisma/client';
 import { PrismaService } from '../../../database/prisma.service';
 import { TransactionService } from '../../../common/services/transaction.service';
 
@@ -13,6 +14,182 @@ export class InventoryOperationsService {
     private prisma: PrismaService,
     private transactionService: TransactionService,
   ) {}
+
+  /**
+   * Increment stock inside a caller's existing transaction.
+   *
+   * `stockIn` below opens its own transaction, so it cannot be called from
+   * within one (Prisma would run it on a separate connection, outside the
+   * caller's atomicity). Multi-step flows that already hold a `tx` - PO
+   * receipt, warehouse transfer - must use this instead, so that the stock
+   * change and its InventoryMovement commit or roll back with the rest of
+   * the document.
+   *
+   * Both `physical_on_hand` and `available` move together. Reservations are
+   * the only thing that makes them diverge, and this method does not touch
+   * `reserved` - a caller with reservation semantics of its own (e.g. the
+   * transfer source, releasing a hold) must do that math itself and call
+   * `recordMovementTx` for the audit row.
+   */
+  async applyStockInTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organizationId: number;
+      productId: number;
+      warehouseId: number;
+      quantity: number;
+      reference: string;
+      createdBy: number;
+      movementType?: InventoryMovementType;
+      remarks?: string;
+    },
+  ) {
+    const { organizationId, productId, warehouseId, quantity, reference, createdBy } = params;
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new BadRequestException('Quantity must be a positive number');
+    }
+
+    const inventory = await tx.inventory.upsert({
+      where: {
+        organizationId_productId_warehouseId: { organizationId, productId, warehouseId },
+      },
+      create: {
+        organizationId,
+        productId,
+        warehouseId,
+        physical_on_hand: quantity,
+        available: quantity,
+        reserved: 0,
+        opening_balance: 0,
+      },
+      update: {
+        physical_on_hand: { increment: quantity },
+        available: { increment: quantity },
+      },
+    });
+
+    const movement = await tx.inventoryMovement.create({
+      data: {
+        organizationId,
+        inventoryId: inventory.id,
+        movementType: params.movementType ?? 'STOCK_IN',
+        quantity,
+        reference,
+        remarks: params.remarks,
+        createdBy,
+      },
+    });
+
+    return { inventory, movement };
+  }
+
+  /**
+   * Decrement stock inside a caller's existing transaction - the applyStockInTx
+   * counterpart for callers that already hold a `tx` (manufacturing order
+   * completion, currently the only one). Unlike stock-in, a stock-out can never
+   * upsert a missing row into existence - there is nothing to take out of a
+   * product that was never in this warehouse.
+   *
+   * Available stock is computed the same way the standalone `stockOut()`
+   * above does (`physical_on_hand - reserved`), not read from the stored
+   * `available` column, so both call paths agree on what "available" means.
+   *
+   * The insufficient-stock check below is exactly the class of bug CLAUDE.md
+   * documents as the worst in this codebase's history: a field-name typo once
+   * made `NaN < quantity` silently evaluate `false`, bypassing this exact
+   * check. `Number.isFinite` is asserted before the comparison is ever made,
+   * on purpose - never remove it "to simplify".
+   */
+  async applyStockOutTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organizationId: number;
+      productId: number;
+      warehouseId: number;
+      quantity: number;
+      reference: string;
+      createdBy: number;
+      movementType?: InventoryMovementType;
+      remarks?: string;
+    },
+  ) {
+    const { organizationId, productId, warehouseId, quantity, reference, createdBy } = params;
+
+    if (!Number.isFinite(quantity) || quantity <= 0) {
+      throw new BadRequestException('Quantity must be a positive number');
+    }
+
+    const inventory = await tx.inventory.findFirst({
+      where: { organizationId, productId, warehouseId },
+    });
+    if (!inventory) {
+      throw new NotFoundException('Inventory not found for this product in this warehouse');
+    }
+
+    const available = inventory.physical_on_hand - (inventory.reserved || 0);
+    if (!Number.isFinite(available)) {
+      throw new Error(`Bad inventory read for product ${productId} in warehouse ${warehouseId}`);
+    }
+    if (available < quantity) {
+      throw new BadRequestException(
+        `Insufficient stock. Available: ${available}, Required: ${quantity}`,
+      );
+    }
+
+    const updated = await tx.inventory.update({
+      where: { id: inventory.id },
+      data: {
+        physical_on_hand: { decrement: quantity },
+        available: { decrement: quantity },
+      },
+    });
+
+    const movement = await tx.inventoryMovement.create({
+      data: {
+        organizationId,
+        inventoryId: inventory.id,
+        movementType: params.movementType ?? 'STOCK_OUT',
+        quantity,
+        reference,
+        remarks: params.remarks,
+        createdBy,
+      },
+    });
+
+    return { inventory: updated, movement };
+  }
+
+  /**
+   * Write an InventoryMovement audit row for a quantity change the caller has
+   * already applied itself. Only for callers whose quantity math this service
+   * cannot express - currently the warehouse-transfer source, which releases a
+   * reservation rather than performing a plain stock-out.
+   */
+  async recordMovementTx(
+    tx: Prisma.TransactionClient,
+    params: {
+      organizationId: number;
+      inventoryId: number;
+      movementType: InventoryMovementType;
+      quantity: number;
+      reference: string;
+      createdBy: number;
+      remarks?: string;
+    },
+  ) {
+    return tx.inventoryMovement.create({
+      data: {
+        organizationId: params.organizationId,
+        inventoryId: params.inventoryId,
+        movementType: params.movementType,
+        quantity: params.quantity,
+        reference: params.reference,
+        remarks: params.remarks,
+        createdBy: params.createdBy,
+      },
+    });
+  }
 
   /**
    * CREATE INVENTORY - Initialize inventory for a product in a warehouse
@@ -91,66 +268,18 @@ export class InventoryOperationsService {
     createdBy: number,
     remarks?: string,
   ) {
-    if (quantity <= 0) {
-      throw new BadRequestException('Quantity must be greater than 0');
-    }
-
     return this.transactionService.run(async tx => {
-      // Get or create inventory
-      let inventory = await tx.inventory.findFirst({
-        where: {
-          organizationId,
-          productId,
-          warehouseId,
-        },
+      const { inventory, movement } = await this.applyStockInTx(tx, {
+        organizationId,
+        productId,
+        warehouseId,
+        quantity,
+        reference,
+        createdBy,
+        remarks,
       });
 
-      if (!inventory) {
-        // Create new inventory record if it doesn't exist
-        inventory = await tx.inventory.create({
-          data: {
-            organizationId,
-            productId,
-            warehouseId,
-            physical_on_hand: 0,
-            opening_balance: 0,
-            reserved: 0,
-            available: 0,
-          },
-        });
-      }
-
-      // Update inventory
-      const updated = await tx.inventory.update({
-        where: { id: inventory.id },
-        data: {
-          physical_on_hand: {
-            increment: quantity,
-          },
-          available: {
-            increment: quantity,
-          },
-        },
-      });
-
-      // Record movement
-      const movement = await tx.inventoryMovement.create({
-        data: {
-          organizationId,
-          inventoryId: inventory.id,
-          movementType: 'STOCK_IN',
-          quantity,
-          reference,
-          remarks,
-          createdBy,
-        },
-      });
-
-      return {
-        success: true,
-        inventory: updated,
-        movement,
-      };
+      return { success: true, inventory, movement };
     });
   }
 
@@ -636,7 +765,9 @@ export class InventoryOperationsService {
 
       // On-hand quantity x unit cost - this was previously never
       // accumulated at all (stuck at 0), so totalValue always reported 0.
-      const itemValue = inv.physical_on_hand * (inv.Product?.cost_price || 0);
+      // cost_price is a Prisma Decimal object, not a JS number - `number *
+      // Decimal` silently evaluates to NaN, so it must be converted first.
+      const itemValue = inv.physical_on_hand * Number(inv.Product?.cost_price ?? 0);
       summary.totalValue += itemValue;
       summary.byWarehouse[warehouseName].totalValue += itemValue;
 

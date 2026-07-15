@@ -45,11 +45,13 @@ import { AssembledCostsScreen } from './screens/AssembledCostsScreen';
 import { ProfitDashboardScreen } from './screens/ProfitDashboardScreen';
 import { PnLStatementScreen } from './screens/PnLStatementScreen';
 import { AssemblyFormulasScreen } from './screens/AssemblyFormulasScreen';
+import { RecipesScreen } from './screens/RecipesScreen';
+import { ManufacturingOrdersScreen } from './screens/ManufacturingOrdersScreen';
 import { SalesDashboardScreen } from './screens/SalesDashboardScreen';
 import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders';
 
 interface NotificationItem {
   id: number;
@@ -137,6 +139,7 @@ const navItems: NavItem[] = [
   { id: 'warehouses', label: 'Warehouses', icon: '🏭', group: 'Inventory & Stock' },
   { id: 'inventory', label: 'Inventory', icon: '📥', group: 'Inventory & Stock' },
   { id: 'warehouse-transfers', label: 'Warehouse Transfers', icon: '🔄', group: 'Inventory & Stock' },
+  { id: 'manufacturing-orders', label: 'Manufacturing Orders', icon: '🏭', group: 'Inventory & Stock' },
   { id: 'reorder', label: 'Reorder / Low Stock', icon: '📉', group: 'Inventory & Stock' },
 
   // ==================== PURCHASING ====================
@@ -160,6 +163,7 @@ const navItems: NavItem[] = [
   { id: 'profit-dashboard', label: 'Profit Dashboard', icon: '💎', group: 'Reports' },
   { id: 'pnl-statement', label: 'P&L (Gross Profit)', icon: '🧮', group: 'Reports' },
   { id: 'assembly-formulas', label: 'Assembly Costs (BOM)', icon: '🔧', group: 'Reports' },
+  { id: 'recipes', label: 'Recipes (BOM)', icon: '🧪', group: 'Reports' },
 ];
 
 // Sidebar display order + icon per group header.
@@ -440,6 +444,10 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <PnLStatementScreen />;
       case 'assembly-formulas':
         return <AssemblyFormulasScreen />;
+      case 'recipes':
+        return <RecipesScreen />;
+      case 'manufacturing-orders':
+        return <ManufacturingOrdersScreen />;
       case 'invoice':
         return <InvoiceScreen />;
       case 'sales-orders':

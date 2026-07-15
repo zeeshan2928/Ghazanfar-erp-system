@@ -1203,6 +1203,138 @@ class ApiClient {
     });
     return response.data;
   }
+
+  // ==================== RECIPES (generic BOM - replaces the JUICER|BLENDER hardcoding) ====================
+  async createBom(dto: any) {
+    const response = await this.client.post('/boms', dto);
+    return response.data;
+  }
+
+  async searchBoms(request: SearchRequestDto & { search?: string; productId?: number }) {
+    const response = await this.client.post('/boms/search', request);
+    return response.data;
+  }
+
+  async getBom(id: number) {
+    const response = await this.client.get(`/boms/${id}`);
+    return response.data;
+  }
+
+  async getActiveBomForProduct(productId: number) {
+    const response = await this.client.get(`/boms/product/${productId}`);
+    return response.data;
+  }
+
+  async getBomWhereUsed(productId: number) {
+    const response = await this.client.get(`/boms/where-used/${productId}`);
+    return response.data;
+  }
+
+  async updateBom(id: number, dto: any) {
+    const response = await this.client.patch(`/boms/${id}`, dto);
+    return response.data;
+  }
+
+  async createBomNewVersion(id: number) {
+    const response = await this.client.post(`/boms/${id}/new-version`, {});
+    return response.data;
+  }
+
+  async deactivateBom(id: number) {
+    const response = await this.client.post(`/boms/${id}/deactivate`, {});
+    return response.data;
+  }
+
+  async analyzeBomImport(formData: FormData) {
+    const response = await this.client.post('/boms/import/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async commitBomImport(formData: FormData) {
+    const response = await this.client.post('/boms/import/commit', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async listPendingFormulaMigrations() {
+    const response = await this.client.get('/boms/migration/pending');
+    return response.data;
+  }
+
+  async migrateFormula(
+    formulaId: number,
+    body: { outputProductId: number; lineMappings: { formulaLineId: number; componentProductId: number }[] },
+  ) {
+    const response = await this.client.post(`/boms/migration/${formulaId}`, body);
+    return response.data;
+  }
+
+  // ==================== MANUFACTURING ORDERS (recipes actually moving stock) ====================
+  async createManufacturingOrder(dto: { bomId: number; quantityPlanned: number; warehouseId: number; remarks?: string }) {
+    const response = await this.client.post('/manufacturing-orders', dto);
+    return response.data;
+  }
+
+  async searchManufacturingOrders(request: SearchRequestDto & { search?: string; status?: string }) {
+    const response = await this.client.post('/manufacturing-orders/search', request);
+    return response.data;
+  }
+
+  async getManufacturingOrder(id: number) {
+    const response = await this.client.get(`/manufacturing-orders/${id}`);
+    return response.data;
+  }
+
+  async startManufacturingOrder(id: number) {
+    const response = await this.client.post(`/manufacturing-orders/${id}/start`, {});
+    return response.data;
+  }
+
+  async completeManufacturingOrder(
+    id: number,
+    dto: { quantityProduced: number; lineConsumption?: { lineId: number; quantityConsumed: number }[] },
+  ) {
+    const response = await this.client.post(`/manufacturing-orders/${id}/complete`, dto);
+    return response.data;
+  }
+
+  async cancelManufacturingOrder(id: number) {
+    const response = await this.client.post(`/manufacturing-orders/${id}/cancel`, {});
+    return response.data;
+  }
+
+  // ==================== PRODUCT MASTER SEEDING & CLASSIFICATION REVIEW ====================
+  async analyzeProductSeed(formData: FormData) {
+    const response = await this.client.post('/products/seed/analyze', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async commitProductSeed(formData: FormData) {
+    const response = await this.client.post('/products/seed/commit', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    });
+    return response.data;
+  }
+
+  async getClassificationReviewQueue() {
+    const response = await this.client.get('/products/classification/review-queue');
+    return response.data;
+  }
+
+  async confirmClassification(productId: number, kind: 'PART' | 'PRODUCT') {
+    const response = await this.client.post(`/products/classification/${productId}/confirm`, { kind });
+    return response.data;
+  }
+
+  async bulkConfirmParts(productIds: number[]) {
+    const response = await this.client.post('/products/classification/bulk-confirm-parts', { productIds });
+    return response.data;
+  }
 }
 
 export const apiClient = new ApiClient();

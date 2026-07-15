@@ -20,7 +20,10 @@ export class ProductsController {
 
   @Post()
   async createProduct(@Body() data: CreateProductDto, @OrgContext() orgContext: any) {
-    return this.productsService.createProduct(orgContext.organizationId, data);
+    const product = await this.productsService.createProduct(orgContext.organizationId, data);
+    // cost_price is Decimal - serializes to JSON as a string ("90000") unless
+    // converted; keep the response shape a real number.
+    return stripProductCost({ ...product, cost_price: Number(product.cost_price) }, orgContext.canViewFinancials);
   }
 
   @Get(':productId')

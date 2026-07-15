@@ -127,7 +127,10 @@ export class ProductsSearchService {
       code: product.code,
       brand_name: product.brand?.name || 'N/A',
       category_name: product.category?.name || 'N/A',
-      cost_price: product.cost_price,
+      // cost_price is a Prisma Decimal object - convert explicitly so the
+      // declared `number` type here is actually true, and so the JSON
+      // response carries a real number rather than Decimal's toJSON() string.
+      cost_price: Number(product.cost_price),
       stock_level: this.getStockLevel(stockByProduct.get(product.id) || 0),
       brand: product.brand ? { id: product.brand.id, name: product.brand.name } : null,
       category: product.category ? { id: product.category.id, name: product.category.name } : null,

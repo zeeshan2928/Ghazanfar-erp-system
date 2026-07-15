@@ -460,7 +460,8 @@ export class ReportingService {
       // quantity with no cost multiplication at all, so "totalInventoryValue"
       // was actually just a unit count mislabeled as money.
       const quantity = inv.available + inv.reserved;
-      const value = quantity * (inv.Product?.cost_price || 0);
+      // cost_price is a Prisma Decimal object - `number * Decimal` is NaN.
+      const value = quantity * Number(inv.Product?.cost_price ?? 0);
       totalValue += value;
 
       stockLevels.push({

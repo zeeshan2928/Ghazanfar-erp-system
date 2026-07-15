@@ -1,6 +1,8 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
+import { DOC_SEQUENCE, DOC_PATTERN } from '@common/config/document-sequences';
 import { MailerService } from '@common/services/mailer.service';
 import { CreateBillDto, DiscountType, TransactionType } from '../dto/create-bill.dto';
 import { OrderStatus } from '@prisma/client';
@@ -11,6 +13,7 @@ export class BillsService {
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
+    private transactionSequenceService: TransactionSequenceService,
     private mailerService: MailerService,
   ) {}
 
@@ -19,61 +22,65 @@ export class BillsService {
   // instead of deriving the number from existing rows. Format: INV-<block>-
   // <count padded to 5 digits>; block starts at 124 and rolls over to the
   // next block after 10,000 invoices, per the business's existing numbering.
+  // Invoice numbering is counter-based, so it was already immune to the
+  // "delete invoice 7 and the next invoice is 7 again" bug - a deleted number
+  // stays burned. But the increment was read-then-write in JS, so two invoices
+  // created at the same instant both read N and both wrote N+1, producing a
+  // DUPLICATE invoice number. The increment is now done by the database.
   private async generateInvoiceNumber(tx: any, organizationId: number): Promise<string> {
-    let seq = await tx.invoiceSequence.findUnique({
+    await tx.invoiceSequence.upsert({
       where: { organizationId },
+      create: { organizationId },
+      update: {},
     });
 
-    if (!seq) {
-      seq = await tx.invoiceSequence.create({
-        data: { organizationId },
+    const seq = await tx.invoiceSequence.update({
+      where: { organizationId },
+      data: { currentCount: { increment: 1 } },
+    });
+
+    // Roll over into the next block once a block is exhausted. Read back the
+    // post-increment value, so this decision is made on the number this call
+    // actually owns rather than one another caller may have moved underneath us.
+    if (seq.currentCount > 10000) {
+      const rolled = await tx.invoiceSequence.update({
+        where: { organizationId },
+        data: { currentBlock: { increment: 1 }, currentCount: 1 },
       });
+      return `INV-${rolled.currentBlock}-${String(rolled.currentCount).padStart(5, '0')}`;
     }
 
-    let { currentBlock, currentCount } = seq;
-    currentCount += 1;
-    if (currentCount > 10000) {
-      currentBlock += 1;
-      currentCount = 1;
-    }
-
-    await tx.invoiceSequence.update({
-      where: { organizationId },
-      data: { currentBlock, currentCount },
-    });
-
-    return `INV-${currentBlock}-${String(currentCount).padStart(5, '0')}`;
+    return `INV-${seq.currentBlock}-${String(seq.currentCount).padStart(5, '0')}`;
   }
 
+  // This used to load EVERY gate pass issued this year and take the max - on
+  // every invoice creation. Two defects: (1) MAX+1 re-issues the number of a
+  // deleted gate pass, and (2) the query grew every day of the year, so invoice
+  // creation got steadily slower until 31 December.
+  //
+  // Now a counter: O(1), and a deleted number stays burned.
+  // website-orders.service.ts emits this same GP-{year}-{nnnnnn} shape, so it
+  // draws from the SAME counter key - otherwise the two modules would
+  // eventually hand out the same number.
   private async generateGatePassNumber(organizationId: number): Promise<string> {
-    const today = new Date();
-    const year = today.getFullYear();
+    const year = new Date().getFullYear();
 
-    // NOTE: sorting a number field as a string is unsafe when historical rows
-    // have inconsistent zero-padding - lexicographic order picks the wrong
-    // "last" row and regenerates a duplicate. Fetch all matches and take the
-    // true numeric max instead.
-    const gatePasses = await this.prisma.gatePass.findMany({
-      where: {
-        organizationId,
-        gate_pass_number: {
-          startsWith: `GP-${year}-`,
-        },
+    const next = await this.transactionSequenceService.getNextCounterSeeded(
+      organizationId,
+      DOC_SEQUENCE.gatePassYearly(year),
+      async db => {
+        const rows = await db.gatePass.findMany({
+          where: { organizationId, gate_pass_number: { startsWith: `GP-${year}-` } },
+          select: { gate_pass_number: true },
+        });
+        return TransactionSequenceService.highestSequence(
+          rows.map(r => r.gate_pass_number),
+          DOC_PATTERN.gatePassYearly(year),
+        );
       },
-      select: { gate_pass_number: true },
-    });
+    );
 
-    let maxSequence = 0;
-    for (const gp of gatePasses) {
-      const parts = gp.gate_pass_number.split('-');
-      const num = parseInt(parts[2], 10);
-      if (!isNaN(num) && num > maxSequence) {
-        maxSequence = num;
-      }
-    }
-
-    const sequence = maxSequence + 1;
-    return `GP-${year}-${String(sequence).padStart(6, '0')}`;
+    return `GP-${year}-${String(next).padStart(6, '0')}`;
   }
 
   /**

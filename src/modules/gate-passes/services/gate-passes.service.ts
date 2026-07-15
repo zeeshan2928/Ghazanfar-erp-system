@@ -2,6 +2,8 @@ import { Injectable, BadRequestException, NotFoundException, ForbiddenException 
 import { UserRole } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
+import { DOC_SEQUENCE, DOC_PATTERN } from '@common/config/document-sequences';
 import { ConfirmGatePassDto, RejectGatePassDto } from '../dto/confirm-gate-pass.dto';
 
 @Injectable()
@@ -9,6 +11,7 @@ export class GatePassesService {
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
+    private transactionSequenceService: TransactionSequenceService,
   ) {}
 
   // Called by the frontend right before actually printing a gate pass (not
@@ -483,27 +486,24 @@ export class GatePassesService {
       // Create gate passes per warehouse
       const gatePasses = [];
       for (const [warehouseId, warehouseLines] of warehouseGroups.entries()) {
-        // NOTE: sorting gate_pass_number as a string is unsafe if padding is
-        // ever inconsistent (see the identical fix in bills.service.ts) - fetch
-        // all matches and take the true numeric max instead of relying on sort.
-        const existingGatePasses = await tx.gatePass.findMany({
-          where: {
-            organizationId,
-            gate_pass_number: {
-              startsWith: `GP-${dateStr}`,
-            },
+        // Was MAX(existing today) + 1, which re-issued the number of a deleted
+        // gate pass and re-read the day's rows on every pass. Counter now, on
+        // the caller's tx so the number is only consumed if the bill commits.
+        const sequenceNum = await this.transactionSequenceService.getNextCounterSeeded(
+          organizationId,
+          DOC_SEQUENCE.gatePassDaily(dateStr),
+          async db => {
+            const rows = await db.gatePass.findMany({
+              where: { organizationId, gate_pass_number: { startsWith: `GP-${dateStr}-` } },
+              select: { gate_pass_number: true },
+            });
+            return TransactionSequenceService.highestSequence(
+              rows.map(r => r.gate_pass_number),
+              DOC_PATTERN.gatePassDaily(dateStr),
+            );
           },
-          select: { gate_pass_number: true },
-        });
-
-        let sequenceNum = 0;
-        for (const gp of existingGatePasses) {
-          const seq = parseInt(gp.gate_pass_number.split('-')[2], 10);
-          if (!isNaN(seq) && seq > sequenceNum) {
-            sequenceNum = seq;
-          }
-        }
-        sequenceNum += 1;
+          tx,
+        );
 
         const gatePassNumber = `GP-${dateStr}-${String(sequenceNum).padStart(5, '0')}`;
 

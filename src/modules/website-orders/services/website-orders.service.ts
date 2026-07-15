@@ -1,6 +1,9 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '@database/prisma.service';
 import { TransactionService } from '@common/services/transaction.service';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
+import { DOC_SEQUENCE, DOC_PATTERN } from '@common/config/document-sequences';
 import { ApproveWebsiteOrderDto, RejectWebsiteOrderDto } from '../dto/website-order.dto';
 
 @Injectable()
@@ -8,6 +11,7 @@ export class WebsiteOrdersService {
   constructor(
     private prisma: PrismaService,
     private transactionService: TransactionService,
+    private transactionSequenceService: TransactionSequenceService,
   ) {}
 
   async getPending(organizationId: number, skip = 0, take = 10) {
@@ -227,62 +231,59 @@ export class WebsiteOrdersService {
     });
   }
 
-  private async generateBillNumber(organizationId: number, tx: any): Promise<string> {
-    const today = new Date();
-    const year = today.getFullYear();
+  // Was MAX(existing) + 1 over every bill in the year: it re-issued the number
+  // of a deleted bill, and re-read the whole year on every write. Counter now.
+  private async generateBillNumber(
+    organizationId: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    const year = new Date().getFullYear();
 
-    // NOTE: sorting bill_number as a string is unsafe when historical rows have
-    // inconsistent zero-padding (e.g. "BILL-2026-001" vs "BILL-2026-000002") -
-    // lexicographic order picks the wrong "last" row and regenerates a number
-    // that already exists. Fetch all matches for the year and take the true
-    // numeric max instead.
-    const bills = await tx.bill.findMany({
-      where: {
-        organizationId,
-        bill_number: {
-          startsWith: `BILL-${year}-`,
-        },
+    const next = await this.transactionSequenceService.getNextCounterSeeded(
+      organizationId,
+      DOC_SEQUENCE.websiteBill(year),
+      async db => {
+        const rows = await db.bill.findMany({
+          where: { organizationId, bill_number: { startsWith: `BILL-${year}-` } },
+          select: { bill_number: true },
+        });
+        return TransactionSequenceService.highestSequence(
+          rows.map(r => r.bill_number),
+          DOC_PATTERN.websiteBill(year),
+        );
       },
-      select: { bill_number: true },
-    });
+      tx,
+    );
 
-    let maxSequence = 0;
-    for (const bill of bills) {
-      const parts = bill.bill_number.split('-');
-      const num = parseInt(parts[2], 10);
-      if (!isNaN(num) && num > maxSequence) {
-        maxSequence = num;
-      }
-    }
-
-    const sequence = maxSequence + 1;
-    return `BILL-${year}-${String(sequence).padStart(6, '0')}`;
+    return `BILL-${year}-${String(next).padStart(6, '0')}`;
   }
 
-  private async generateGatePassNumber(organizationId: number, tx: any): Promise<string> {
-    const today = new Date();
-    const year = today.getFullYear();
+  // Same GP-{year}-{nnnnnn} shape that bills.service.ts emits. These two used
+  // to compute "next" independently, each blind to the other, so they would
+  // eventually hand out the same gate pass number twice. They now share one
+  // counter key (DOC_SEQUENCE.gatePassYearly), which makes that impossible.
+  private async generateGatePassNumber(
+    organizationId: number,
+    tx: Prisma.TransactionClient,
+  ): Promise<string> {
+    const year = new Date().getFullYear();
 
-    const gatePasses = await tx.gatePass.findMany({
-      where: {
-        organizationId,
-        gate_pass_number: {
-          startsWith: `GP-${year}-`,
-        },
+    const next = await this.transactionSequenceService.getNextCounterSeeded(
+      organizationId,
+      DOC_SEQUENCE.gatePassYearly(year),
+      async db => {
+        const rows = await db.gatePass.findMany({
+          where: { organizationId, gate_pass_number: { startsWith: `GP-${year}-` } },
+          select: { gate_pass_number: true },
+        });
+        return TransactionSequenceService.highestSequence(
+          rows.map(r => r.gate_pass_number),
+          DOC_PATTERN.gatePassYearly(year),
+        );
       },
-      select: { gate_pass_number: true },
-    });
+      tx,
+    );
 
-    let maxSequence = 0;
-    for (const gp of gatePasses) {
-      const parts = gp.gate_pass_number.split('-');
-      const num = parseInt(parts[2], 10);
-      if (!isNaN(num) && num > maxSequence) {
-        maxSequence = num;
-      }
-    }
-
-    const sequence = maxSequence + 1;
-    return `GP-${year}-${String(sequence).padStart(6, '0')}`;
+    return `GP-${year}-${String(next).padStart(6, '0')}`;
   }
 }
