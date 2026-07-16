@@ -22,6 +22,7 @@ export interface ManufacturingOrderLineView {
   quantityConsumed: number | null;
   plannedUnitCost: number | null;
   unitCostSnapshot: number | null;
+  componentBatch: string | null;
 }
 
 export interface VarianceLineView {
@@ -52,6 +53,63 @@ export interface VarianceView {
   lines: VarianceLineView[];
 }
 
+export interface ComponentBatch {
+  batchNumber: string;
+  receivedDate: Date;
+  quantityReceived: number;
+  poNumber: string;
+  vendorName: string;
+}
+
+export interface BatchTraceLine {
+  slotName: string;
+  componentName: string;
+  componentCode: string;
+  componentBatch: string | null;
+  receivedDate: Date | null;
+  poNumber: string | null;
+  vendorName: string | null;
+}
+
+export interface BatchTraceView {
+  orderId: number;
+  finishedBatch: string; // the MO orderNumber
+  finishedProductName: string;
+  status: string;
+  quantityProduced: number;
+  lines: BatchTraceLine[];
+}
+
+export interface BatchWhereUsedRow {
+  orderId: number;
+  finishedBatch: string;
+  finishedProductName: string;
+  componentName: string;
+  quantityConsumed: number | null;
+  completedAt: Date | null;
+}
+
+export interface YieldScrapRow {
+  finishedProductId: number;
+  productName: string;
+  productCode: string;
+  orders: number;
+  totalPlanned: number;
+  totalProduced: number;
+  totalRejected: number;
+  yieldPercent: number; // produced / (produced + rejected)
+  componentScrapCost: number | null; // null when caller can't view financials
+}
+
+export interface VendorDefectRow {
+  vendorId: number;
+  vendorName: string;
+  scrappedQuantity: number;
+  receivedQuantity: number;
+  scrapRatePercent: number; // scrapped / received
+  scrapCost: number | null; // null when caller can't view financials
+}
+
 export interface ProductCostSummaryRow {
   finishedProductId: number;
   productName: string;
@@ -79,6 +137,8 @@ export interface ManufacturingOrderView {
   warehouseName: string;
   quantityPlanned: number;
   quantityProduced: number;
+  quantityRejected: number;
+  rejectReason: string | null;
   status: string;
   unitCostSnapshot: number | null;
   remarks: string | null;
@@ -237,6 +297,7 @@ export class ManufacturingOrdersService {
     }
 
     const consumptionByLine = new Map((dto.lineConsumption ?? []).map(c => [c.lineId, c.quantityConsumed]));
+    const batchByLine = new Map((dto.lineBatches ?? []).map(b => [b.lineId, b.componentBatch]));
 
     await this.transactionService.run(async tx => {
       let totalCost = 0;
@@ -244,6 +305,7 @@ export class ManufacturingOrdersService {
       for (const line of order.lines) {
         const consumed = consumptionByLine.get(line.id) ?? Number(line.quantityRequired);
         const unitCost = Number(line.component.cost_price);
+        const componentBatch = batchByLine.get(line.id) ?? null;
 
         if (line.component.productType !== 'SERVICE' && consumed > 0) {
           await this.inventoryOperations.applyStockOutTx(tx, {
@@ -259,7 +321,7 @@ export class ManufacturingOrdersService {
 
         await tx.manufacturingOrderLine.update({
           where: { id: line.id },
-          data: { quantityConsumed: consumed, unitCostSnapshot: unitCost },
+          data: { quantityConsumed: consumed, unitCostSnapshot: unitCost, componentBatch },
         });
 
         // Batch cost reflects what the RECIPE says it should cost at today's
@@ -287,6 +349,8 @@ export class ManufacturingOrdersService {
         data: {
           status: 'COMPLETED',
           quantityProduced: dto.quantityProduced,
+          quantityRejected: dto.quantityRejected ?? 0,
+          rejectReason: dto.rejectReason ?? null,
           unitCostSnapshot: totalCost / order.quantityPlanned,
           completedBy: userId,
           completedAt: new Date(),
@@ -383,6 +447,8 @@ export class ManufacturingOrdersService {
       warehouseName: order.warehouse.name,
       quantityPlanned: order.quantityPlanned,
       quantityProduced: order.quantityProduced,
+      quantityRejected: order.quantityRejected,
+      rejectReason: order.rejectReason,
       status: order.status,
       unitCostSnapshot: order.unitCostSnapshot != null ? Number(order.unitCostSnapshot) : null,
       remarks: order.remarks,
@@ -399,6 +465,7 @@ export class ManufacturingOrdersService {
         quantityConsumed: line.quantityConsumed != null ? Number(line.quantityConsumed) : null,
         plannedUnitCost: line.plannedUnitCost != null ? Number(line.plannedUnitCost) : null,
         unitCostSnapshot: line.unitCostSnapshot != null ? Number(line.unitCostSnapshot) : null,
+        componentBatch: line.componentBatch ?? null,
       })),
     };
   }
@@ -554,5 +621,249 @@ export class ManufacturingOrdersService {
 
     rows.sort((a, b) => b.unitsProduced - a.unitsProduced);
     return rows;
+  }
+
+  // ---------------------------------------------------------------------
+  // BATCH / LOT TRACEABILITY
+  // ---------------------------------------------------------------------
+
+  // The batches actually received for a component, newest first - feeds the
+  // completion form's "batch used" picker and its latest-batch default.
+  async getComponentBatches(
+    organizationId: number,
+    productId: number,
+    warehouseId?: number,
+  ): Promise<ComponentBatch[]> {
+    const receipts = await this.prisma.purchaseOrderReceipt.findMany({
+      where: {
+        productId,
+        batch_number: { not: null },
+        purchaseOrder: { organizationId },
+        ...(warehouseId ? { warehouse_id: warehouseId } : {}),
+      },
+      orderBy: { received_date: 'desc' },
+      take: 50,
+      include: { purchaseOrder: { select: { po_number: true, vendor: { select: { name: true } } } } },
+    });
+
+    return receipts.map(r => ({
+      batchNumber: r.batch_number!,
+      receivedDate: r.received_date,
+      quantityReceived: r.quantity_received,
+      poNumber: r.purchaseOrder.po_number,
+      vendorName: r.purchaseOrder.vendor.name,
+    }));
+  }
+
+  // Backward recall: a completed build -> the vendor batch every component came
+  // from. "This juicer batch used Motor from RCPT-2026-000045 (PO-.., Vendor X)."
+  async getBatchTrace(organizationId: number, id: number): Promise<BatchTraceView> {
+    const order = await this.prisma.manufacturingOrder.findFirst({
+      where: { id, organizationId },
+      include: {
+        finishedProduct: { select: { name: true } },
+        lines: { include: { component: { select: { name: true, code: true } } } },
+      },
+    });
+    if (!order) throw new NotFoundException('Manufacturing order not found');
+
+    // Resolve each consumed batch to its receipt/PO/vendor in one query.
+    const batchNumbers = order.lines.map(l => l.componentBatch).filter((b): b is string => !!b);
+    const receipts = batchNumbers.length
+      ? await this.prisma.purchaseOrderReceipt.findMany({
+          where: { batch_number: { in: batchNumbers }, purchaseOrder: { organizationId } },
+          include: { purchaseOrder: { select: { po_number: true, vendor: { select: { name: true } } } } },
+        })
+      : [];
+    const byBatch = new Map(receipts.map(r => [r.batch_number!, r]));
+
+    return {
+      orderId: order.id,
+      finishedBatch: order.orderNumber,
+      finishedProductName: order.finishedProduct.name,
+      status: order.status,
+      quantityProduced: order.quantityProduced,
+      lines: order.lines.map(l => {
+        const r = l.componentBatch ? byBatch.get(l.componentBatch) : undefined;
+        return {
+          slotName: l.slotName,
+          componentName: l.component.name,
+          componentCode: l.component.code,
+          componentBatch: l.componentBatch ?? null,
+          receivedDate: r?.received_date ?? null,
+          poNumber: r?.purchaseOrder.po_number ?? null,
+          vendorName: r?.purchaseOrder.vendor.name ?? null,
+        };
+      }),
+    };
+  }
+
+  // Forward: given a vendor batch, which builds consumed it. "Motor batch
+  // RCPT-45 went into these juicer builds" - the start of a recall.
+  async whereBatchUsed(organizationId: number, batchNumber: string): Promise<BatchWhereUsedRow[]> {
+    const lines = await this.prisma.manufacturingOrderLine.findMany({
+      where: { componentBatch: batchNumber, manufacturingOrder: { organizationId } },
+      include: {
+        component: { select: { name: true } },
+        manufacturingOrder: { select: { id: true, orderNumber: true, quantityProduced: true, completedAt: true, finishedProduct: { select: { name: true } } } },
+      },
+    });
+
+    return lines.map(l => ({
+      orderId: l.manufacturingOrder.id,
+      finishedBatch: l.manufacturingOrder.orderNumber,
+      finishedProductName: l.manufacturingOrder.finishedProduct.name,
+      componentName: l.component.name,
+      quantityConsumed: l.quantityConsumed != null ? Number(l.quantityConsumed) : null,
+      completedAt: l.manufacturingOrder.completedAt,
+    }));
+  }
+
+  // ---------------------------------------------------------------------
+  // QUALITY REPORTS
+  // ---------------------------------------------------------------------
+
+  // Yield & scrap per manufactured product across completed builds. Yield is
+  // good units over units built (good + rejected); component scrap cost is the
+  // extra material consumed beyond the recipe (the positive usage variance).
+  async getYieldScrapReport(
+    organizationId: number,
+    canViewFinancials: boolean,
+  ): Promise<YieldScrapRow[]> {
+    const orders = await this.prisma.manufacturingOrder.findMany({
+      where: { organizationId, status: 'COMPLETED' },
+      select: {
+        finishedProductId: true,
+        quantityPlanned: true,
+        quantityProduced: true,
+        quantityRejected: true,
+        finishedProduct: { select: { name: true, code: true } },
+        lines: { select: { quantityRequired: true, quantityConsumed: true, unitCostSnapshot: true } },
+      },
+    });
+
+    const byProduct = new Map<number, YieldScrapRow & { _cost: number }>();
+    for (const o of orders) {
+      const row = byProduct.get(o.finishedProductId) ?? {
+        finishedProductId: o.finishedProductId,
+        productName: o.finishedProduct.name,
+        productCode: o.finishedProduct.code,
+        orders: 0,
+        totalPlanned: 0,
+        totalProduced: 0,
+        totalRejected: 0,
+        yieldPercent: 0,
+        componentScrapCost: 0,
+        _cost: 0,
+      };
+      row.orders += 1;
+      row.totalPlanned += o.quantityPlanned;
+      row.totalProduced += o.quantityProduced;
+      row.totalRejected += o.quantityRejected;
+      for (const l of o.lines) {
+        const required = Number(l.quantityRequired);
+        const consumed = l.quantityConsumed != null ? Number(l.quantityConsumed) : required;
+        const unit = l.unitCostSnapshot != null ? Number(l.unitCostSnapshot) : 0;
+        row._cost += Math.max(0, consumed - required) * unit;
+      }
+      byProduct.set(o.finishedProductId, row);
+    }
+
+    return Array.from(byProduct.values())
+      .map(r => {
+        const built = r.totalProduced + r.totalRejected;
+        // Fall back to planned as the denominator when no rejects were recorded.
+        const denom = built > 0 ? built : r.totalPlanned;
+        const yieldPercent = denom > 0 ? (r.totalProduced / denom) * 100 : 0;
+        return {
+          finishedProductId: r.finishedProductId,
+          productName: r.productName,
+          productCode: r.productCode,
+          orders: r.orders,
+          totalPlanned: r.totalPlanned,
+          totalProduced: r.totalProduced,
+          totalRejected: r.totalRejected,
+          yieldPercent,
+          componentScrapCost: canViewFinancials ? r._cost : null,
+        };
+      })
+      .sort((a, b) => a.yieldPercent - b.yieldPercent); // worst yield first
+  }
+
+  // Which vendor's components get scrapped most. Attributes each line's positive
+  // usage variance (consumed beyond the recipe) to the vendor of the batch it
+  // consumed, and rates it against how much was received from that vendor.
+  async getVendorDefectScorecard(
+    organizationId: number,
+    canViewFinancials: boolean,
+  ): Promise<VendorDefectRow[]> {
+    // Scrap side: completed MO lines that carry a batch and used more than planned.
+    const lines = await this.prisma.manufacturingOrderLine.findMany({
+      where: {
+        componentBatch: { not: null },
+        manufacturingOrder: { organizationId, status: 'COMPLETED' },
+      },
+      select: { componentBatch: true, quantityRequired: true, quantityConsumed: true, unitCostSnapshot: true },
+    });
+
+    // Resolve each consumed batch -> vendor.
+    const batchNumbers = Array.from(new Set(lines.map(l => l.componentBatch!).filter(Boolean)));
+    const receipts = batchNumbers.length
+      ? await this.prisma.purchaseOrderReceipt.findMany({
+          where: { batch_number: { in: batchNumbers }, purchaseOrder: { organizationId } },
+          select: { batch_number: true, purchaseOrder: { select: { vendorId: true, vendor: { select: { name: true } } } } },
+        })
+      : [];
+    const vendorByBatch = new Map(receipts.map(r => [r.batch_number!, { id: r.purchaseOrder.vendorId, name: r.purchaseOrder.vendor.name }]));
+
+    const agg = new Map<number, { name: string; scrapQty: number; scrapCost: number }>();
+    for (const l of lines) {
+      const v = vendorByBatch.get(l.componentBatch!);
+      if (!v) continue;
+      const required = Number(l.quantityRequired);
+      const consumed = l.quantityConsumed != null ? Number(l.quantityConsumed) : required;
+      const scrap = Math.max(0, consumed - required);
+      if (scrap <= 0) continue;
+      const unit = l.unitCostSnapshot != null ? Number(l.unitCostSnapshot) : 0;
+      const a = agg.get(v.id) ?? { name: v.name, scrapQty: 0, scrapCost: 0 };
+      a.scrapQty += scrap;
+      a.scrapCost += scrap * unit;
+      agg.set(v.id, a);
+    }
+
+    if (agg.size === 0) return [];
+
+    // Received side: total qty received from each of those vendors (the rate denominator).
+    const receivedByVendor = await this.prisma.purchaseOrderReceipt.groupBy({
+      by: ['poId'],
+      where: { purchaseOrder: { organizationId, vendorId: { in: Array.from(agg.keys()) } } },
+      _sum: { quantity_received: true },
+    });
+    // groupBy poId -> need vendor; fetch po->vendor map.
+    const pos = await this.prisma.purchaseOrder.findMany({
+      where: { id: { in: receivedByVendor.map(r => r.poId) } },
+      select: { id: true, vendorId: true },
+    });
+    const vendorByPo = new Map(pos.map(p => [p.id, p.vendorId]));
+    const receivedQtyByVendor = new Map<number, number>();
+    for (const r of receivedByVendor) {
+      const vid = vendorByPo.get(r.poId);
+      if (vid == null) continue;
+      receivedQtyByVendor.set(vid, (receivedQtyByVendor.get(vid) ?? 0) + (r._sum.quantity_received ?? 0));
+    }
+
+    return Array.from(agg.entries())
+      .map(([vendorId, a]) => {
+        const received = receivedQtyByVendor.get(vendorId) ?? 0;
+        return {
+          vendorId,
+          vendorName: a.name,
+          scrappedQuantity: a.scrapQty,
+          receivedQuantity: received,
+          scrapRatePercent: received > 0 ? (a.scrapQty / received) * 100 : 0,
+          scrapCost: canViewFinancials ? a.scrapCost : null,
+        };
+      })
+      .sort((a, b) => b.scrapRatePercent - a.scrapRatePercent); // worst vendor first
   }
 }

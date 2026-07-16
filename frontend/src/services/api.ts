@@ -1308,7 +1308,13 @@ class ApiClient {
 
   async completeManufacturingOrder(
     id: number,
-    dto: { quantityProduced: number; lineConsumption?: { lineId: number; quantityConsumed: number }[] },
+    dto: {
+      quantityProduced: number;
+      quantityRejected?: number;
+      rejectReason?: string;
+      lineConsumption?: { lineId: number; quantityConsumed: number }[];
+      lineBatches?: { lineId: number; componentBatch: string }[];
+    },
   ) {
     const response = await this.client.post(`/manufacturing-orders/${id}/complete`, dto);
     return response.data;
@@ -1326,6 +1332,33 @@ class ApiClient {
 
   async getManufacturingProductCostSummary() {
     const response = await this.client.get('/manufacturing-orders/reports/product-cost');
+    return response.data;
+  }
+
+  async getComponentBatches(productId: number, warehouseId?: number) {
+    const response = await this.client.get(`/manufacturing-orders/component-batches/${productId}`, {
+      params: warehouseId ? { warehouseId } : undefined,
+    });
+    return response.data;
+  }
+
+  async getManufacturingOrderTrace(id: number) {
+    const response = await this.client.get(`/manufacturing-orders/${id}/trace`);
+    return response.data;
+  }
+
+  async whereBatchUsed(batchNumber: string) {
+    const response = await this.client.get(`/manufacturing-orders/reports/batch/${encodeURIComponent(batchNumber)}`);
+    return response.data;
+  }
+
+  async getManufacturingYieldScrap() {
+    const response = await this.client.get('/manufacturing-orders/reports/yield-scrap');
+    return response.data;
+  }
+
+  async getManufacturingVendorDefects() {
+    const response = await this.client.get('/manufacturing-orders/reports/vendor-defects');
     return response.data;
   }
 

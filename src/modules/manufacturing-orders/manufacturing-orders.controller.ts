@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ManufacturingOrdersService } from './services/manufacturing-orders.service';
 import {
   CompleteManufacturingOrderDto,
@@ -41,11 +41,63 @@ export class ManufacturingOrdersController {
     );
   }
 
+  // Received batches for a component (feeds the completion batch picker).
+  // Declared before ':id' so "component-batches" isn't parsed as an id.
+  @Get('component-batches/:productId')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async componentBatches(
+    @Param('productId') productId: string,
+    @Query('warehouseId') warehouseId: string | undefined,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.manufacturingOrdersService.getComponentBatches(
+      orgContext.organizationId,
+      parseInt(productId, 10),
+      warehouseId ? parseInt(warehouseId, 10) : undefined,
+    );
+  }
+
+  // Forward recall: which builds consumed a given vendor batch.
+  @Get('reports/batch/:batchNumber')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async whereBatchUsed(@Param('batchNumber') batchNumber: string, @OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.whereBatchUsed(orgContext.organizationId, batchNumber);
+  }
+
+  @Get('reports/yield-scrap')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async yieldScrap(@OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.getYieldScrapReport(
+      orgContext.organizationId,
+      !!orgContext.canViewFinancials,
+    );
+  }
+
+  @Get('reports/vendor-defects')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async vendorDefects(@OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.getVendorDefectScorecard(
+      orgContext.organizationId,
+      !!orgContext.canViewFinancials,
+    );
+  }
+
   @Get(':id')
   @UseGuards(ActionPermissionGuard)
   @RequireAction('manufacturing.view')
   async getById(@Param('id') id: string, @OrgContext() orgContext: any) {
     return this.manufacturingOrdersService.getById(orgContext.organizationId, parseInt(id, 10));
+  }
+
+  @Get(':id/trace')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('manufacturing.view')
+  async trace(@Param('id') id: string, @OrgContext() orgContext: any) {
+    return this.manufacturingOrdersService.getBatchTrace(orgContext.organizationId, parseInt(id, 10));
   }
 
   @Get(':id/variance')

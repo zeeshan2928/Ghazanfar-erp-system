@@ -25,6 +25,7 @@ interface MoLine {
   quantityRequired: number;
   quantityConsumed: number | null;
   unitCostSnapshot: number | null;
+  componentBatch: string | null;
 }
 
 interface MoView {
@@ -34,9 +35,12 @@ interface MoView {
   bomVersion: number;
   finishedProductName: string;
   finishedProductCode: string;
+  warehouseId: number;
   warehouseName: string;
   quantityPlanned: number;
   quantityProduced: number;
+  quantityRejected: number;
+  rejectReason: string | null;
   status: Status;
   unitCostSnapshot: number | null;
   remarks: string | null;
@@ -324,8 +328,14 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
   const [busy, setBusy] = useState(false);
   const [completing, setCompleting] = useState(false);
   const [quantityProduced, setQuantityProduced] = useState<number>(0);
+  const [quantityRejected, setQuantityRejected] = useState<number>(0);
+  const [rejectReason, setRejectReason] = useState<string>('');
   const [consumption, setConsumption] = useState<Record<number, number>>({});
   const [variance, setVariance] = useState<any | null>(null);
+  const [trace, setTrace] = useState<any | null>(null);
+  // componentProductId -> its received batches; lineId -> the selected batch.
+  const [batchOptions, setBatchOptions] = useState<Record<number, any[]>>({});
+  const [batchByLine, setBatchByLine] = useState<Record<number, string>>({});
 
   useEffect(() => {
     fetchOrder();
@@ -340,12 +350,29 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
       const defaults: Record<number, number> = {};
       for (const line of o.lines) defaults[line.id] = line.quantityRequired;
       setConsumption(defaults);
-      // Planned-vs-actual is only meaningful once the batch is built.
+      // Planned-vs-actual and traceability are only meaningful once built.
       if (o.status === 'COMPLETED') {
-        try { setVariance(await apiClient.getManufacturingOrderVariance(orderId)); }
-        catch { setVariance(null); }
+        try { setVariance(await apiClient.getManufacturingOrderVariance(orderId)); } catch { setVariance(null); }
+        try { setTrace(await apiClient.getManufacturingOrderTrace(orderId)); } catch { setTrace(null); }
       } else {
         setVariance(null);
+        setTrace(null);
+      }
+
+      // For an in-progress order, load each real component's received batches so
+      // the completion form can offer a "batch used" picker defaulted to latest.
+      if (o.status === 'IN_PROGRESS') {
+        const opts: Record<number, any[]> = {};
+        const defaults: Record<number, string> = {};
+        await Promise.all(o.lines.filter((l: MoLine) => !l.isService).map(async (l: MoLine) => {
+          try {
+            const batches = await apiClient.getComponentBatches(l.componentProductId, o.warehouseId);
+            opts[l.componentProductId] = batches;
+            if (batches[0]) defaults[l.id] = batches[0].batchNumber; // latest
+          } catch { /* leave empty */ }
+        }));
+        setBatchOptions(opts);
+        setBatchByLine(defaults);
       }
     } finally {
       setLoading(false);
@@ -385,7 +412,16 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
     setBusy(true);
     try {
       const lineConsumption = order.lines.map((l) => ({ lineId: l.id, quantityConsumed: consumption[l.id] ?? l.quantityRequired }));
-      await apiClient.completeManufacturingOrder(orderId, { quantityProduced, lineConsumption });
+      const lineBatches = order.lines
+        .filter((l) => !l.isService && batchByLine[l.id])
+        .map((l) => ({ lineId: l.id, componentBatch: batchByLine[l.id] }));
+      await apiClient.completeManufacturingOrder(orderId, {
+        quantityProduced,
+        quantityRejected,
+        rejectReason: rejectReason || undefined,
+        lineConsumption,
+        lineBatches,
+      });
       setCompleting(false);
       await fetchOrder();
     } catch (e: any) {
@@ -410,6 +446,9 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
         <div><strong>Finished Product</strong><div>{order.finishedProductCode} - {order.finishedProductName}</div></div>
         <div><strong>Warehouse</strong><div>{order.warehouseName}</div></div>
         <div><strong>Planned / Produced</strong><div>{order.quantityPlanned} / {order.quantityProduced}</div></div>
+        {order.status === 'COMPLETED' && order.quantityRejected > 0 && (
+          <div><strong>Rejected (QC)</strong><div style={{ color: '#b91c1c' }}>{order.quantityRejected}{order.rejectReason ? ` — ${order.rejectReason}` : ''}</div></div>
+        )}
         <div><strong>Batch Cost (frozen)</strong><div>{order.unitCostSnapshot != null ? `Rs ${order.unitCostSnapshot.toLocaleString()}` : '—'}</div></div>
         <div><strong>Created</strong><div>{new Date(order.createdAt).toLocaleString()}</div></div>
         <div><strong>Completed</strong><div>{order.completedAt ? new Date(order.completedAt).toLocaleString() : '—'}</div></div>
@@ -426,17 +465,21 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
               <th style={styles.th}>Component</th>
               <th style={styles.th}>Required</th>
               <th style={styles.th}>Consumed</th>
+              <th style={styles.th}>Batch used</th>
               <th style={styles.th}>Unit Cost</th>
             </tr>
           </thead>
           <tbody>
-            {order.lines.map((l) => (
+            {order.lines.map((l) => {
+              const isCompleting = completing && order.status === 'IN_PROGRESS';
+              const opts = batchOptions[l.componentProductId] ?? [];
+              return (
               <tr key={l.id}>
                 <td style={styles.td}>{l.slotName}{l.isService && <span style={styles.serviceTag}>service</span>}</td>
                 <td style={styles.td}>{l.componentCode} - {l.componentName}</td>
                 <td style={styles.td}>{l.quantityRequired}</td>
                 <td style={styles.td}>
-                  {completing && order.status === 'IN_PROGRESS' ? (
+                  {isCompleting ? (
                     <input
                       style={styles.smallInput}
                       type="number"
@@ -449,14 +492,38 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
                     l.quantityConsumed ?? '—'
                   )}
                 </td>
+                <td style={styles.td}>
+                  {l.isService ? (
+                    <span style={{ color: '#999' }}>—</span>
+                  ) : isCompleting ? (
+                    opts.length ? (
+                      <select
+                        style={styles.smallSelect}
+                        value={batchByLine[l.id] ?? ''}
+                        onChange={(e) => setBatchByLine({ ...batchByLine, [l.id]: e.target.value })}
+                      >
+                        <option value="">(none)</option>
+                        {opts.map((b: any) => (
+                          <option key={b.batchNumber} value={b.batchNumber}>{b.batchNumber} · {new Date(b.receivedDate).toLocaleDateString()}</option>
+                        ))}
+                      </select>
+                    ) : (
+                      <span style={{ color: '#999', fontSize: '11px' }}>no received batches</span>
+                    )
+                  ) : (
+                    l.componentBatch ?? '—'
+                  )}
+                </td>
                 <td style={styles.td}>{l.unitCostSnapshot != null ? `Rs ${l.unitCostSnapshot.toLocaleString()}` : '—'}</td>
               </tr>
-            ))}
+              );
+            })}
           </tbody>
         </table>
       </div>
 
       {order.status === 'COMPLETED' && variance && <VariancePanel v={variance} />}
+      {order.status === 'COMPLETED' && trace && <TraceabilityPanel t={trace} />}
 
       {actionError && <div style={styles.errorBox}>{actionError}</div>}
 
@@ -477,7 +544,7 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
         )}
         {order.status === 'IN_PROGRESS' && completing && (
           <div style={styles.completeForm}>
-            <label style={styles.label}>Quantity actually produced</label>
+            <label style={styles.label}>Quantity produced (passed QC)</label>
             <input
               style={styles.input}
               type="number"
@@ -485,7 +552,27 @@ function MoDetail({ orderId, onBack }: { orderId: number; onBack: () => void }) 
               value={quantityProduced}
               onChange={(e) => setQuantityProduced(parseInt(e.target.value, 10) || 0)}
             />
-            <p style={{ fontSize: '12px', color: '#666' }}>Adjust "Consumed" per component above only if actual usage differed from the plan — the difference becomes your scrap.</p>
+            <label style={styles.label}>Rejected (failed QC)</label>
+            <input
+              style={styles.input}
+              type="number"
+              min={0}
+              value={quantityRejected}
+              onChange={(e) => setQuantityRejected(parseInt(e.target.value, 10) || 0)}
+            />
+            {quantityRejected > 0 && (
+              <>
+                <label style={styles.label}>Reason for rejection</label>
+                <input
+                  style={styles.input}
+                  type="text"
+                  placeholder="e.g. motor noise, cosmetic damage…"
+                  value={rejectReason}
+                  onChange={(e) => setRejectReason(e.target.value)}
+                />
+              </>
+            )}
+            <p style={{ fontSize: '12px', color: '#666' }}>Rejected units aren't added to stock (their parts were still used). Adjust "Consumed" per component above only if usage differed from the plan — the difference is your scrap.</p>
             <div style={{ display: 'flex', gap: '8px' }}>
               <button style={styles.primaryBtn} onClick={handleComplete} disabled={busy}>{busy ? 'Completing…' : 'Confirm — move stock now'}</button>
               <button style={styles.secondaryBtn} onClick={() => setCompleting(false)} disabled={busy}>Cancel</button>
@@ -569,32 +656,45 @@ function VariancePanel({ v }: { v: any }) {
 // ============================================================================
 
 function MoCostReport({ onBack }: { onBack: () => void }) {
+  const [tab, setTab] = useState<'cost' | 'quality'>('cost');
   const [rows, setRows] = useState<any[]>([]);
+  const [yieldRows, setYieldRows] = useState<any[]>([]);
+  const [vendorRows, setVendorRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     (async () => {
-      try { setRows(await apiClient.getManufacturingProductCostSummary()); }
-      finally { setLoading(false); }
+      try {
+        const [cost, ys, vd] = await Promise.all([
+          apiClient.getManufacturingProductCostSummary(),
+          apiClient.getManufacturingYieldScrap(),
+          apiClient.getManufacturingVendorDefects(),
+        ]);
+        setRows(cost); setYieldRows(ys); setVendorRows(vd);
+      } finally { setLoading(false); }
     })();
   }, []);
 
-  const canSeeCost = rows.some(r => r.avgUnitCost != null);
+  const canSeeCost = rows.some(r => r.avgUnitCost != null) || yieldRows.some(r => r.componentScrapCost != null);
 
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h2>📊 Manufacturing Cost & Margin</h2>
+        <h2>📊 Manufacturing Reports</h2>
         <button style={styles.secondaryBtn} onClick={onBack}>← Back to orders</button>
       </div>
 
-      {loading ? (
-        <p style={styles.loading}>Loading…</p>
-      ) : rows.length === 0 ? (
-        <p style={styles.noResults}>No completed manufacturing orders yet — build something first.</p>
-      ) : (
-        <>
-          {!canSeeCost && <p style={{ fontSize: '12px', color: '#666' }}>Cost and margin are hidden for your account. You can see how many units were built.</p>}
+      <div style={styles.tabs}>
+        <button style={{ ...styles.tabBtn, ...(tab === 'cost' ? styles.tabBtnActive : {}) }} onClick={() => setTab('cost')}>Cost & Margin</button>
+        <button style={{ ...styles.tabBtn, ...(tab === 'quality' ? styles.tabBtnActive : {}) }} onClick={() => setTab('quality')}>Yield & Quality</button>
+      </div>
+
+      {loading ? <p style={styles.loading}>Loading…</p> : (
+        !canSeeCost && <p style={{ fontSize: '12px', color: '#666' }}>Cost/margin figures are hidden for your account; operational counts are shown.</p>
+      )}
+
+      {!loading && tab === 'cost' && (
+        rows.length === 0 ? <p style={styles.noResults}>No completed manufacturing orders yet — build something first.</p> : (
           <div style={styles.tableWrapper}>
             <table style={styles.table}>
               <thead>
@@ -623,7 +723,139 @@ function MoCostReport({ onBack }: { onBack: () => void }) {
               </tbody>
             </table>
           </div>
+        )
+      )}
+
+      {!loading && tab === 'quality' && (
+        <>
+          <h3 style={styles.subheading}>Yield & Scrap (per product)</h3>
+          {yieldRows.length === 0 ? <p style={styles.noResults}>Nothing built yet.</p> : (
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Product</th>
+                    <th style={styles.th}>Planned</th>
+                    <th style={styles.th}>Produced</th>
+                    <th style={styles.th}>Rejected</th>
+                    <th style={styles.th}>Yield</th>
+                    {canSeeCost && <th style={styles.th}>Scrap cost</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {yieldRows.map((r) => (
+                    <tr key={r.finishedProductId}>
+                      <td style={styles.td}>{r.productCode} - {r.productName}</td>
+                      <td style={styles.td}>{r.totalPlanned}</td>
+                      <td style={styles.td}>{r.totalProduced}</td>
+                      <td style={{ ...styles.td, ...(r.totalRejected > 0 ? { color: '#b91c1c' } : {}) }}>{r.totalRejected}</td>
+                      <td style={{ ...styles.td, ...(r.yieldPercent < 90 ? { color: '#b91c1c' } : { color: '#166534' }) }}>{r.yieldPercent.toFixed(0)}%</td>
+                      {canSeeCost && <td style={styles.td}>{r.componentScrapCost != null ? money(r.componentScrapCost) : '—'}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          <h3 style={styles.subheading}>Vendor Defect Scorecard</h3>
+          <p style={{ fontSize: '12px', color: '#666', marginTop: '-4px' }}>Which vendors' components get scrapped most (from builds where the batch was recorded).</p>
+          {vendorRows.length === 0 ? <p style={styles.noResults}>No component scrap traced to a vendor yet.</p> : (
+            <div style={styles.tableWrapper}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Vendor</th>
+                    <th style={styles.th}>Scrapped qty</th>
+                    <th style={styles.th}>Received qty</th>
+                    <th style={styles.th}>Scrap rate</th>
+                    {canSeeCost && <th style={styles.th}>Scrap cost</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {vendorRows.map((r) => (
+                    <tr key={r.vendorId}>
+                      <td style={styles.td}>{r.vendorName}</td>
+                      <td style={styles.td}>{r.scrappedQuantity}</td>
+                      <td style={styles.td}>{r.receivedQuantity}</td>
+                      <td style={{ ...styles.td, ...(r.scrapRatePercent > 2 ? { color: '#b91c1c' } : {}) }}>{r.scrapRatePercent.toFixed(1)}%</td>
+                      {canSeeCost && <td style={styles.td}>{r.scrapCost != null ? money(r.scrapCost) : '—'}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
+      )}
+    </div>
+  );
+}
+
+// ============================================================================
+// TRACEABILITY — this build's finished batch + the vendor batch every component
+// came from, plus a "where used" lookup (which builds consumed a given batch).
+// ============================================================================
+
+function TraceabilityPanel({ t }: { t: any }) {
+  const [lookup, setLookup] = useState('');
+  const [used, setUsed] = useState<any[] | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function runLookup(batch: string) {
+    if (!batch) return;
+    setBusy(true);
+    try { setUsed(await apiClient.whereBatchUsed(batch)); }
+    finally { setBusy(false); }
+  }
+
+  return (
+    <div style={{ marginBottom: '20px' }}>
+      <h3 style={styles.subheading}>Traceability</h3>
+      <p style={{ fontSize: '13px', marginBottom: '8px' }}>Finished batch: <strong>{t.finishedBatch}</strong> · {t.quantityProduced} unit(s) of {t.finishedProductName}</p>
+      <div style={styles.tableWrapper}>
+        <table style={styles.table}>
+          <thead>
+            <tr>
+              <th style={styles.th}>Component</th>
+              <th style={styles.th}>Batch used</th>
+              <th style={styles.th}>Received</th>
+              <th style={styles.th}>From PO / Vendor</th>
+              <th style={styles.th}></th>
+            </tr>
+          </thead>
+          <tbody>
+            {t.lines.map((l: any, i: number) => (
+              <tr key={i}>
+                <td style={styles.td}>{l.componentCode} - {l.componentName}</td>
+                <td style={styles.td}>{l.componentBatch ?? <span style={{ color: '#999' }}>—</span>}</td>
+                <td style={styles.td}>{l.receivedDate ? new Date(l.receivedDate).toLocaleDateString() : '—'}</td>
+                <td style={styles.td}>{l.poNumber ? `${l.poNumber} · ${l.vendorName}` : '—'}</td>
+                <td style={styles.td}>
+                  {l.componentBatch && (
+                    <button style={styles.linkBtn} onClick={() => { setLookup(l.componentBatch); runLookup(l.componentBatch); }}>where used →</button>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <div style={{ display: 'flex', gap: '8px', marginTop: '10px', alignItems: 'center', flexWrap: 'wrap' }}>
+        <input style={styles.searchInput} placeholder="Look up a batch (RCPT-…) — which builds used it?" value={lookup} onChange={(e) => setLookup(e.target.value)} />
+        <button style={styles.secondaryBtn} onClick={() => runLookup(lookup.trim())} disabled={busy}>{busy ? 'Searching…' : 'Find builds'}</button>
+      </div>
+      {used && (
+        used.length === 0 ? (
+          <p style={{ fontSize: '13px', color: '#999', marginTop: '8px' }}>No builds consumed that batch.</p>
+        ) : (
+          <ul style={{ marginTop: '8px', paddingLeft: '20px', fontSize: '13px' }}>
+            {used.map((u: any, i: number) => (
+              <li key={i}>{u.finishedBatch} — {u.finishedProductName} (used as {u.componentName}{u.quantityConsumed != null ? `, ${u.quantityConsumed} qty` : ''}{u.completedAt ? `, ${new Date(u.completedAt).toLocaleDateString()}` : ''})</li>
+            ))}
+          </ul>
+        )
       )}
     </div>
   );
@@ -662,6 +894,8 @@ const styles: Record<string, React.CSSProperties> = {
   label: { fontSize: '12px', fontWeight: 600, color: '#555', marginTop: '10px' },
   input: { padding: '8px 10px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '13px' },
   smallInput: { width: '80px', padding: '4px 6px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px' },
+  smallSelect: { padding: '4px 6px', border: '1px solid #ccc', borderRadius: '4px', fontSize: '12px', maxWidth: '200px' },
+  linkBtn: { background: 'none', border: 'none', color: '#2563eb', cursor: 'pointer', fontSize: '12px', padding: 0 },
   dropdown: { position: 'absolute', zIndex: 20, top: '100%', left: 0, right: 0, background: 'white', border: '1px solid #ccc', borderRadius: '4px', maxHeight: '220px', overflowY: 'auto', boxShadow: '0 4px 10px rgba(0,0,0,0.12)' },
   option: { padding: '8px 10px', fontSize: '13px', cursor: 'pointer', borderBottom: '1px solid #f0f0f0' },
   errorBox: { padding: '10px 14px', backgroundColor: '#f8d7da', color: '#721c24', borderRadius: '4px', fontSize: '13px', margin: '10px 0' },
@@ -669,6 +903,9 @@ const styles: Record<string, React.CSSProperties> = {
   remarks: { fontSize: '13px', color: '#666', fontStyle: 'italic', marginBottom: '12px' },
   subheading: { fontSize: '15px', marginTop: '20px', marginBottom: '8px' },
   serviceTag: { marginLeft: '6px', fontSize: '10px', padding: '2px 6px', borderRadius: '3px', backgroundColor: '#e2e3e5', color: '#555' },
+  tabs: { display: 'flex', gap: '8px', marginBottom: '16px', borderBottom: '2px solid #eee' },
+  tabBtn: { padding: '10px 16px', background: 'none', border: 'none', borderBottom: '2px solid transparent', cursor: 'pointer', fontSize: '14px', color: '#666', marginBottom: '-2px' },
+  tabBtnActive: { color: '#2563eb', borderBottom: '2px solid #2563eb', fontWeight: 600 },
   varianceCards: { display: 'flex', gap: '10px', flexWrap: 'wrap', marginBottom: '14px' },
   vCard: { flex: '1 1 120px', minWidth: '120px', padding: '12px', background: '#f9f9f9', border: '1px solid #eee', borderRadius: '6px' },
   vLabel: { fontSize: '11px', color: '#666', marginBottom: '4px' },

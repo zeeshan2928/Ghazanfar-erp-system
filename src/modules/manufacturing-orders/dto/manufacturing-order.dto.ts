@@ -27,12 +27,31 @@ export class LineConsumptionDto {
   quantityConsumed: number;
 }
 
+export class LineBatchDto {
+  @IsNumber()
+  lineId: number;
+
+  @IsString()
+  componentBatch: string;
+}
+
 export class CompleteManufacturingOrderDto {
   // Can be LESS than quantityPlanned (QC failures) - 0 is a valid (if
   // unfortunate) outcome: every unit consumed, nothing usable produced.
   @IsNumber()
   @Min(0)
   quantityProduced: number;
+
+  // Units built but that failed inspection - not stocked, but their components
+  // were consumed. Defaults to 0. rejectReason is free-text why.
+  @IsOptional()
+  @IsNumber()
+  @Min(0)
+  quantityRejected?: number;
+
+  @IsOptional()
+  @IsString()
+  rejectReason?: string;
 
   // Only for lines where reality differed from the recipe's plan. Omitted
   // lines default to consuming exactly quantityRequired. The gap between
@@ -43,6 +62,15 @@ export class CompleteManufacturingOrderDto {
   @ValidateNested({ each: true })
   @Type(() => LineConsumptionDto)
   lineConsumption?: LineConsumptionDto[];
+
+  // Which received batch of each component was consumed (for recall). Omitted
+  // lines record no batch. The UI defaults each to the component's latest
+  // received batch.
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => LineBatchDto)
+  lineBatches?: LineBatchDto[];
 }
 
 export class ManufacturingOrderSearchDto {

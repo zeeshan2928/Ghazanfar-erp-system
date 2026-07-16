@@ -48,6 +48,13 @@ export const DOC_SEQUENCE = {
    * above it never needs `getNextCounterSeeded()` - always starts at 1.
    */
   manufacturingOrder: (year: number): string => `MANUFACTURING_ORDER:${year}`,
+
+  /**
+   * RCPT-2026-000001 - the auto-generated batch/lot number stamped on each
+   * PurchaseOrderReceipt (vendors here don't print lot codes, so each receipt
+   * is its own batch). Brand-new, no legacy history to seed - always from 1.
+   */
+  receiptBatch: (year: number): string => `RECEIPT_BATCH:${year}`,
 } as const;
 
 /** Matchers for the one-time seed scan - see TransactionSequenceService.highestSequence. */

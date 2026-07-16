@@ -886,6 +886,10 @@ model PurchaseOrderReceipt {
   status            ReceiptStatus @default(PENDING)
   received_by       Int
   received_date     DateTime      @default(now())
+  // Auto-generated per receipt ("RCPT-2026-000001") - the batch/lot identity of
+  // this received goods. Nullable: receipts recorded before batch tracking
+  // existed simply carry no batch. snake_case to match this model.
+  batch_number      String?
   remarks           String?
   createdAt         DateTime      @default(now())
   purchaseOrder     PurchaseOrder @relation(fields: [poId], references: [id], onDelete: Cascade)
@@ -1816,7 +1820,12 @@ model ManufacturingOrder {
   finishedProductId Int                                      // denormalized from bom.productId
   warehouseId       Int
   quantityPlanned   Int
-  quantityProduced  Int      @default(0)
+  quantityProduced  Int      @default(0)  // GOOD units (passed QC), added to finished stock
+  // Units built but FAILED inspection - their components were consumed but they
+  // never became sellable stock, so they are the yield loss. rejectReason says
+  // why. Both set at completion.
+  quantityRejected  Int      @default(0)
+  rejectReason      String?
   status            ManufacturingOrderStatus @default(DRAFT)
   // FROZEN at COMPLETED, from quantityRequired x each line's cost snapshot -
   // never recomputed afterward, even if a component's price later changes.
@@ -1857,6 +1866,11 @@ model ManufacturingOrderLine {
   // it was added in Phase 3, after some orders may already exist.
   plannedUnitCost      Decimal? @db.Decimal(12, 2)
   unitCostSnapshot     Decimal? @db.Decimal(12, 2)           // component.cost_price AT COMPLETION, frozen
+  // Which received batch of this component went into the build (a
+  // PurchaseOrderReceipt.batch_number). Recorded at completion for recall -
+  // defective finished good -> the vendor batch its parts came from. Nullable:
+  // a component with no received batch (e.g. pre-batch stock) reads as unknown.
+  componentBatch       String?
 
   manufacturingOrder ManufacturingOrder @relation(fields: [manufacturingOrderId], references: [id], onDelete: Cascade)
   component          Product            @relation("ManufacturingOrderLineComponent", fields: [componentProductId], references: [id])

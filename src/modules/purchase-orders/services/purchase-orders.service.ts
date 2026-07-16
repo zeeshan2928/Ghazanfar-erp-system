@@ -239,6 +239,17 @@ export class PurchaseOrdersService {
           );
         }
 
+        // Auto batch/lot number for this received goods - vendors here don't
+        // print lot codes, so each receipt is its own traceable batch.
+        const year = new Date().getFullYear();
+        const seq = await this.transactionSequenceService.getNextCounter(
+          organizationId,
+          DOC_SEQUENCE.receiptBatch(year),
+          0,
+          tx,
+        );
+        const batchNumber = `RCPT-${year}-${String(seq).padStart(6, '0')}`;
+
         // Create receipt record
         await tx.purchaseOrderReceipt.create({
           data: {
@@ -247,6 +258,7 @@ export class PurchaseOrdersService {
             quantity_received: receiveItem.quantityReceived,
             warehouse_id: receiveItem.warehouseId,
             received_by: userId,
+            batch_number: batchNumber,
             remarks: confirmDto.remarks,
           },
         });
@@ -275,7 +287,7 @@ export class PurchaseOrdersService {
           reference: po.po_number,
           createdBy: userId,
           movementType: 'STOCK_IN',
-          remarks: confirmDto.remarks,
+          remarks: [`Batch ${batchNumber}`, confirmDto.remarks].filter(Boolean).join(' - '),
         });
       }
 
