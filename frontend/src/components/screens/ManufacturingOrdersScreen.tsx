@@ -214,19 +214,20 @@ function MoCreate({ onDone, onCancel }: { onDone: (id: number) => void; onCancel
     apiClient.getWarehouses().then((list) => setWarehouses(list ?? []));
   }, []);
 
+  // Fetch active recipes for the dropdown. An empty query lists them all (up to
+  // 50) so the menu opens with options the moment the field is focused - no
+  // need to type first.
+  async function loadBoms(query: string) {
+    const res = await apiClient.searchBoms({ search: query.trim() || undefined, skip: 0, take: 50 });
+    setBomResults((res.data ?? []).filter((b: BomOption) => b.isActive));
+    setBomOpen(true);
+  }
+
   function handleBomQueryChange(next: string) {
     setBomQuery(next);
     setSelectedBom(null);
     if (debounceRef.current) clearTimeout(debounceRef.current);
-    if (next.trim().length < 2) {
-      setBomResults([]);
-      return;
-    }
-    debounceRef.current = setTimeout(async () => {
-      const res = await apiClient.searchBoms({ search: next, skip: 0, take: 20 });
-      setBomResults((res.data ?? []).filter((b: BomOption) => b.isActive));
-      setBomOpen(true);
-    }, 300);
+    debounceRef.current = setTimeout(() => { loadBoms(next); }, 250);
   }
 
   async function handleSubmit() {
@@ -263,10 +264,10 @@ function MoCreate({ onDone, onCancel }: { onDone: (id: number) => void; onCancel
         <div style={{ position: 'relative' }}>
           <input
             style={styles.input}
-            placeholder="Type to search recipes by name or product…"
+            placeholder="Click to see recipes, or type to filter…"
             value={bomQuery}
             onChange={(e) => handleBomQueryChange(e.target.value)}
-            onFocus={() => { if (bomResults.length) setBomOpen(true); }}
+            onFocus={() => loadBoms(bomQuery)}
           />
           {bomOpen && bomResults.length > 0 && (
             <div style={styles.dropdown}>
