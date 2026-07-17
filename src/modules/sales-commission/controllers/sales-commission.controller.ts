@@ -141,6 +141,15 @@ export class SalesCommissionController {
     );
   }
 
+  // Mark an approved commission PAID and post it to the ledger (Dr Commission
+  // Expense / Cr Cash) so it reaches P&L.
+  @Post(':commissionId/pay')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('commission.mark_paid')
+  async payCommission(@Request() req: any, @Param('commissionId') commissionId: string) {
+    return this.service.markAsPaid(req.user.organizationId, req.user.sub, parseInt(commissionId, 10));
+  }
+
   @Get('history/:salesPersonId')
   @UseGuards(ActionPermissionGuard)
   @RequireAction('commission.view')

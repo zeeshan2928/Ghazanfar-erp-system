@@ -25,6 +25,18 @@ export function CustomersScreen() {
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
   const [showAddForm, setShowAddForm] = useState(false);
   const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '' });
+  // Click a customer row to open their detail + recent sale history.
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [custHistory, setCustHistory] = useState<any[] | null>(null);
+
+  async function openCustomer(c: Customer) {
+    setSelectedCustomer(c);
+    setCustHistory(null);
+    try {
+      const h = await apiClient.getCustomerSaleHistory(c.id);
+      setCustHistory(Array.isArray(h) ? h : (h?.data ?? h?.transactions ?? []));
+    } catch { setCustHistory([]); }
+  }
 
   const columns = [
     { name: 'name', label: 'Name', dataType: DataType.TEXT },
@@ -156,7 +168,7 @@ export function CustomersScreen() {
               </thead>
               <tbody>
                 {customers.map((c) => (
-                  <tr key={c.id}>
+                  <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => openCustomer(c)} title="Click to open">
                     <td style={styles.td}>{c.name}</td>
                     <td style={styles.td}><span style={getTypeStyle(c.customerType)}>{c.customerType}</span></td>
                     <td style={styles.td}>{c.phone}</td>
@@ -176,6 +188,40 @@ export function CustomersScreen() {
           </div>
         </>
       )}
+
+      {selectedCustomer && (
+        <div style={styles.overlay} onClick={() => setSelectedCustomer(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={{ margin: 0 }}>{selectedCustomer.name}</h3>
+              <button style={styles.closeBtn} onClick={() => setSelectedCustomer(null)}>✕</button>
+            </div>
+            <div style={styles.kv}><strong>Type:</strong> {selectedCustomer.customerType}</div>
+            <div style={styles.kv}><strong>Phone:</strong> {selectedCustomer.phone || '—'}</div>
+            <div style={styles.kv}><strong>Email:</strong> {selectedCustomer.email || '—'}</div>
+            <div style={styles.kv}><strong>Credit limit:</strong> Rs {Number(selectedCustomer.creditLimit || 0).toLocaleString()}</div>
+            <h4 style={{ margin: '14px 0 6px' }}>Recent sales</h4>
+            {custHistory === null ? (
+              <p style={styles.info}>Loading…</p>
+            ) : custHistory.length === 0 ? (
+              <p style={styles.info}>No sales recorded for this customer yet.</p>
+            ) : (
+              <table style={styles.table}>
+                <thead><tr><th style={styles.th}>Date</th><th style={styles.th}>Bill</th><th style={styles.th}>Amount</th></tr></thead>
+                <tbody>
+                  {custHistory.slice(0, 20).map((t: any, i: number) => (
+                    <tr key={i}>
+                      <td style={styles.td}>{t.date ? new Date(t.date).toLocaleDateString() : (t.bill_date ? new Date(t.bill_date).toLocaleDateString() : '—')}</td>
+                      <td style={styles.td}>{t.billNumber ?? t.bill_number ?? t.invoiceNumber ?? '—'}</td>
+                      <td style={styles.td}>Rs {Number(t.amount ?? t.total_amount ?? t.totalAmount ?? 0).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -189,6 +235,11 @@ function getTypeStyle(type: string): React.CSSProperties {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { padding: '20px' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  modal: { background: 'white', borderRadius: '8px', padding: '20px', width: 'min(640px, 92vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' },
+  kv: { fontSize: '13px', padding: '3px 0' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
   addBtn: { padding: '10px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' },
   formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' },

@@ -12,27 +12,27 @@ build status. Legend: ✅ done · 🟡 partial · 🔴 missing/stub. Companion t
 | 3 | Invoice screen (fields, Ctrl+Shift+S, gate-pass prompt) | 🟡 | Core form built; gate-pass duplicate-marking & print-prompts still open |
 | 4 | WhatsApp / Email sending (any document) | 🔴 | Email module is a stub (no models); WhatsApp not built |
 | 5 | Sales orders -> convert to invoice | 🟡 | Module exists; one-click convert-to-invoice needs verification |
-| 6 | Invoice specifics (INV-124 #, mandatory phone, walk-in, 3 popups, Sales/Return) | 🟡 | Numbering, phone, walk-in, 3 popups done; Sales/Return toggle & cashbook-number field open |
+| 6 | Invoice specifics (INV-124 #, mandatory phone, walk-in, 3 popups, Sales/Return) | ✅ | Numbering, phone, walk-in, 3 popups done; **Sales/Return is fully built** (radio toggle + Return-to-Warehouse field + backend stock-back-in via `applyReturnStock`) — earlier "open" note was stale |
 | 7 | HR / Payroll / Labour / Accountant monitoring | 🔴 | Labour/attendance/bonus/accountant = stub (no models); commission partial (see #12) |
 | 8 | Performance at scale (segment reads, date folders, purge) | 🔴 | Not built (Phase 6) |
 | 9 | Backup every 30 min (local + multi-cloud) | 🔴 | Not built (Phase 7) |
 | 10 | Security / encryption | 🔴 | Not built (Phase 8); production is HTTP not HTTPS |
 | 11 | Universal search (partial, out-of-order) | ✅ | Done — 16-operator search + "every word matches, any order" |
-| 12 | Salesman commission (per-product %, target/progress, deduct->P&L) | 🟡 | Models + dashboard exist (dashboard has 11 type errors); account-deduction / P&L link unverified |
-| 13 | Auto-PO (min-qty -> notify -> one-click PO, partial receipts) | 🟡 | Auto-gen, min-qty, phased receipts work; "vendor invoice only on receipt" missing (no VendorInvoice model) |
+| 12 | Salesman commission (per-product %, target/progress, deduct->P&L) | 🟡→✅ | **P&L link now built & live-verified (15/15):** marking a commission paid posts Dr Commission Expense / Cr Cash to the ledger (expense account auto-created). Also fixed a pre-existing bug where the commission DTOs had no validators (create/calculate silently failed). Dashboard UI polish (11 type errors) still pending. |
+| 13 | Auto-PO (min-qty -> notify -> one-click PO, partial receipts) | ✅ | Auto-gen, min-qty, phased receipts work; **"vendor invoice only on receipt" is met** — AP aging books a vendor payable only against received quantity (unreceived PO = zero payable) |
 | 14 | Manufacturing (parts -> formula -> product, stock updates) | ✅ | Done & live-tested (Phases 0-4); only demand-driven (Phase 5) remains |
 | 15 | Website integration (approval-gated, warehouse pick, per-channel prices) | 🟡 | Website-orders + approval + per-channel pricing + transfers exist; full 2-way sync unverified |
 | 16 | Invoice 3 popups (stock-by-warehouse, customer history, vendor history) | ✅ | Done & verified live |
-| 17 | Universal UI (sort, filter, next/prev, shortcuts, click-to-open, click-to-edit) | 🟡 | Sort/filter/search done; click-field-to-open & click-to-edit inconsistent across screens |
+| 17 | Universal UI (sort, filter, next/prev, shortcuts, click-to-open, click-to-edit) | 🟡 | Sort/filter/search done; click-to-**edit** on master screens done; **click-to-open added on Purchase Orders + Customers lists** (row opens a detail modal); still to extend to more report screens |
 | 18 | Bulk Excel import (users, vendors, opening balances, inventory, accounts) | 🟡 | Products/bills/POs/customers/vendors importable (products verified in prod); opening balances, inventory, account heads, general entries NOT |
 | 19 | Vendor scorecard (price trends, best price, reorder) | 🟡 | Data exists + defect scorecard built; price-trend scorecard UI not confirmed |
 | 20 | Accounting heads (AR/AP/GL/statements/inventory/reconciliation) | 🟡 | Chart, journal, trial balance, balance sheet, income statement, AR/AP aging, budget built; cash journals, check register, GL detail, cash-flow, valuation, bank reconciliation missing |
 | 21 | Speed at scale (millions of txns, instant reports) | 🟡 | Structure reasonable but unproven; scale strategy from #8 not built; no real data yet to test |
 
-## Tally
-- **Done: 3** — universal search (11), manufacturing (14), invoice 3 popups (16)
-- **Partial: 13** — most of the core (invoice, permissions/privacy, commission, auto-PO, website, accounting, UI universals, imports, offline, scale)
-- **Missing/stub: 6** — WhatsApp/Email (4), HR/Labour/Accountant (7), performance-at-scale (8), backup (9), security (10), + vendor-invoice-on-receipt inside (13)
+## Tally (updated 2026-07-17 after the "near-done partials" pass)
+- **Done: 5** — invoice specifics incl. Sales/Return (6), universal search (11), auto-PO incl. payable-on-receipt (13), manufacturing (14), invoice 3 popups (16); commission P&L (12) now posts to the ledger (dashboard UI polish aside)
+- **Partial: 11** — permissions/privacy, website, accounting, UI universals (click-to-open now on 2 more screens), imports, offline, scale, etc.
+- **Missing/stub: 5** — WhatsApp/Email (4), HR/Labour/Accountant (7), performance-at-scale (8), backup (9), security (10)
 
 ## Gaps to close (highest value first)
 1. Finish the near-done partials — Sales/Return toggle, click-to-open/edit, vendor-invoice-on-receipt, commission->P&L link.

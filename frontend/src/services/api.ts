@@ -1024,6 +1024,13 @@ class ApiClient {
     return response.data;
   }
 
+  // Mark an approved commission calculation PAID -> posts Dr Commission Expense /
+  // Cr Cash to the ledger so it reaches P&L.
+  async payCommission(commissionId: number) {
+    const response = await this.client.post(`/commission/${commissionId}/pay`, {});
+    return response.data;
+  }
+
   async updateCommissionAssignment(id: number, data: any) {
     const response = await this.client.patch(`/commission/assignments/${id}`, data);
     return response.data;

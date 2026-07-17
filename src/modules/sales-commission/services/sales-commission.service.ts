@@ -1,5 +1,8 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
+import { TransactionService } from '@common/services/transaction.service';
+import { TransactionSequenceService } from '@common/services/transaction-sequence.service';
+import { GLPostingService } from '../../journal-entries/services/gl-posting.service';
 import {
   CreateCommissionRuleDto,
   CalculateCommissionDto,
@@ -8,7 +11,12 @@ import {
 
 @Injectable()
 export class SalesCommissionService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private transactionService: TransactionService,
+    private transactionSequenceService: TransactionSequenceService,
+    private glPostingService: GLPostingService,
+  ) {}
 
   async createCommissionRule(organizationId: number, createDto: CreateCommissionRuleDto) {
     const existing = await this.prisma.commissionRule.findFirst({
@@ -163,6 +171,111 @@ export class SalesCommissionService {
       include: {
         rule: true,
         salesperson: true,
+      },
+    });
+  }
+
+  // Mark an approved commission PAID and post it to the general ledger so it
+  // lands in P&L: Dr Sales Commission Expense / Cr Cash. Atomic - the ledger
+  // entry, its GL postings, and the PAID flag all commit together. Amounts are
+  // already in the smallest unit (paisa) on both sides, so no conversion.
+  async markAsPaid(organizationId: number, userId: number, commissionId: number) {
+    const commission = await this.prisma.commissionCalculation.findFirst({
+      where: { id: commissionId, organizationId },
+      include: { salesperson: { select: { firstName: true, lastName: true } } },
+    });
+    if (!commission) throw new NotFoundException('Commission calculation not found');
+    if (commission.status !== 'APPROVED') {
+      throw new BadRequestException(
+        `Only APPROVED commissions can be paid (this one is ${commission.status}).`,
+      );
+    }
+    if (commission.commissionAmount <= 0) {
+      throw new BadRequestException('Commission amount is zero - nothing to post.');
+    }
+
+    const expenseAccount = await this.findOrCreateCommissionExpenseAccount(organizationId);
+    const cashAccount = await this.prisma.chartOfAccount.findFirst({
+      where: {
+        organizationId,
+        isActive: true,
+        OR: [{ isCashAccount: true }, { accountCode: '1000' }],
+      },
+      orderBy: { isCashAccount: 'desc' },
+    });
+    if (!cashAccount) {
+      throw new BadRequestException(
+        'No cash account exists in the chart of accounts to pay commission from - add one first.',
+      );
+    }
+
+    const entryNumber = await this.transactionSequenceService.getNext(
+      organizationId,
+      'JOURNAL_ENTRY',
+      'JE',
+    );
+    const salesman = `${commission.salesperson?.firstName ?? ''} ${commission.salesperson?.lastName ?? ''}`.trim();
+
+    await this.transactionService.run(async tx => {
+      const entry = await tx.journalEntry.create({
+        data: {
+          organizationId,
+          entryNumber,
+          entryDate: new Date(),
+          reference: `COMM-${commission.id}`,
+          description: `Sales commission paid${salesman ? ' to ' + salesman : ''}`,
+          status: 'DRAFT',
+          createdBy: userId,
+          lines: {
+            createMany: {
+              data: [
+                { accountId: expenseAccount.id, description: 'Commission expense', debitAmount: commission.commissionAmount, creditAmount: 0, lineNumber: 1 },
+                { accountId: cashAccount.id, description: 'Commission paid in cash', debitAmount: 0, creditAmount: commission.commissionAmount, lineNumber: 2 },
+              ],
+            },
+          },
+        },
+      });
+
+      // Reuse the tested poster: validates the entry balances, writes GLPostings,
+      // and flips it to POSTED.
+      await this.glPostingService.postEntry(tx, organizationId, entry.id);
+
+      await tx.commissionCalculation.update({
+        where: { id: commission.id },
+        data: { status: 'PAID' },
+      });
+    });
+
+    return this.prisma.commissionCalculation.findFirst({
+      where: { id: commissionId },
+      include: { rule: true, salesperson: true },
+    });
+  }
+
+  // The expense account commission payouts are booked to. Created once per org
+  // if it has never had one (5000 is usually COGS, so start at 5100).
+  private async findOrCreateCommissionExpenseAccount(organizationId: number) {
+    const existing = await this.prisma.chartOfAccount.findFirst({
+      where: {
+        organizationId,
+        accountType: 'EXPENSE',
+        accountName: { equals: 'Sales Commission Expense', mode: 'insensitive' },
+      },
+    });
+    if (existing) return existing;
+
+    let code = '5100';
+    for (let n = 1; await this.prisma.chartOfAccount.findFirst({ where: { organizationId, accountCode: code }, select: { id: true } }); n++) {
+      code = `51${String(n).padStart(2, '0')}`;
+    }
+    return this.prisma.chartOfAccount.create({
+      data: {
+        organizationId,
+        accountCode: code,
+        accountName: 'Sales Commission Expense',
+        accountType: 'EXPENSE',
+        description: 'Auto-created for commission payouts',
       },
     });
   }

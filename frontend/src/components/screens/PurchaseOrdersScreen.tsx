@@ -24,6 +24,17 @@ export function PurchaseOrdersScreen() {
   const [primaryFilter, setPrimaryFilter] = useState<FilterOperatorDto | undefined>();
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
+  // Click a PO row to open its detail (click-to-open, per the founding vision).
+  const [poDetail, setPoDetail] = useState<any | null>(null);
+  const [poLoading, setPoLoading] = useState(false);
+
+  async function openPo(id: number) {
+    setPoDetail({ loading: true });
+    setPoLoading(true);
+    try { setPoDetail(await apiClient.getPurchaseOrderById(id)); }
+    catch { setPoDetail(null); }
+    finally { setPoLoading(false); }
+  }
 
   const columns = [
     { name: 'po_number', label: 'PO #', dataType: DataType.TEXT },
@@ -125,7 +136,7 @@ export function PurchaseOrdersScreen() {
               </thead>
               <tbody>
                 {orders.map((o) => (
-                  <tr key={o.id}>
+                  <tr key={o.id} style={{ cursor: 'pointer' }} onClick={() => openPo(o.id)} title="Click to open">
                     <td style={styles.td}>{o.po_number}</td>
                     <td style={styles.td}>{o.vendor_name}</td>
                     <td style={styles.td}><span style={getStatusStyle(o.status)}>{o.status}</span></td>
@@ -146,6 +157,40 @@ export function PurchaseOrdersScreen() {
           </div>
         </>
       )}
+
+      {poDetail && (
+        <div style={styles.overlay} onClick={() => setPoDetail(null)}>
+          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+            {poLoading || poDetail.loading ? (
+              <p style={styles.loading}>Loading…</p>
+            ) : (
+              <>
+                <div style={styles.modalHeader}>
+                  <h3 style={{ margin: 0 }}>PO {poDetail.po_number ?? poDetail.poNumber ?? poDetail.id}</h3>
+                  <button style={styles.closeBtn} onClick={() => setPoDetail(null)}>✕</button>
+                </div>
+                <div style={styles.kv}><strong>Vendor:</strong> {poDetail.vendor?.name ?? poDetail.vendor_name ?? '—'}</div>
+                <div style={styles.kv}><strong>Status:</strong> {poDetail.status}</div>
+                <div style={styles.kv}><strong>Amount:</strong> Rs {Number(poDetail.po_amount ?? poDetail.amount ?? 0).toLocaleString()}</div>
+                {Array.isArray(poDetail.PurchaseOrderItem ?? poDetail.items) && (
+                  <table style={styles.table}>
+                    <thead><tr><th style={styles.th}>Product</th><th style={styles.th}>Ordered</th><th style={styles.th}>Received</th></tr></thead>
+                    <tbody>
+                      {(poDetail.PurchaseOrderItem ?? poDetail.items).map((it: any, i: number) => (
+                        <tr key={i}>
+                          <td style={styles.td}>{it.product?.name ?? it.productName ?? it.productId}</td>
+                          <td style={styles.td}>{it.quantity_ordered ?? it.quantityOrdered}</td>
+                          <td style={styles.td}>{it.quantity_received ?? it.quantityReceived ?? 0}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -160,6 +205,11 @@ function getStatusStyle(status: string): React.CSSProperties {
 
 const styles: Record<string, React.CSSProperties> = {
   container: { padding: '20px' },
+  overlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100 },
+  modal: { background: 'white', borderRadius: '8px', padding: '20px', width: 'min(640px, 92vw)', maxHeight: '85vh', overflowY: 'auto', boxShadow: '0 10px 30px rgba(0,0,0,0.2)' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
+  closeBtn: { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' },
+  kv: { fontSize: '13px', padding: '3px 0' },
   loading: { textAlign: 'center', padding: '40px', color: '#666' },
   noResults: { textAlign: 'center', padding: '40px', color: '#999' },
   tableWrapper: { overflowX: 'auto', marginBottom: '20px', border: '1px solid #ddd', borderRadius: '4px' },
