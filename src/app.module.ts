@@ -37,6 +37,7 @@ import { WebSocketModule } from './modules/websocket/websocket.module';
 import { SearchModule } from './modules/search/search.module';
 import { SalesOrdersModule } from './modules/sales-orders/sales-orders.module';
 import { SalesAnalysisModule } from './modules/sales-analysis/sales-analysis.module';
+import { ProductCostModule } from './modules/product-cost/product-cost.module';
 import { PurchaseAnalysisModule } from './modules/purchase-analysis/purchase-analysis.module';
 import { AssemblyFormulasModule } from './modules/assembly-formulas/assembly-formulas.module';
 import { BomsModule } from './modules/boms/boms.module';
@@ -99,6 +100,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     SearchModule,
     SalesOrdersModule,
     SalesAnalysisModule,
+    ProductCostModule,
     PurchaseAnalysisModule,
     AssemblyFormulasModule,
     BomsModule,

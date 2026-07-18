@@ -45,13 +45,14 @@ import { AssembledCostsScreen } from './screens/AssembledCostsScreen';
 import { ProfitDashboardScreen } from './screens/ProfitDashboardScreen';
 import { PnLStatementScreen } from './screens/PnLStatementScreen';
 import { AssemblyFormulasScreen } from './screens/AssemblyFormulasScreen';
+import { CostHistoryScreen } from './screens/CostHistoryScreen';
 import { RecipesScreen } from './screens/RecipesScreen';
 import { ManufacturingOrdersScreen } from './screens/ManufacturingOrdersScreen';
 import { SalesDashboardScreen } from './screens/SalesDashboardScreen';
 import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'cost-history' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders';
 
 interface NotificationItem {
   id: number;
@@ -164,6 +165,7 @@ const navItems: NavItem[] = [
   { id: 'pnl-statement', label: 'P&L (Gross Profit)', icon: '🧮', group: 'Reports' },
   { id: 'assembly-formulas', label: 'Assembly Costs (BOM)', icon: '🔧', group: 'Reports' },
   { id: 'recipes', label: 'Recipes (BOM)', icon: '🧪', group: 'Reports' },
+  { id: 'cost-history', label: 'Cost History', icon: '⏱️', group: 'Reports' },
 ];
 
 // Sidebar display order + icon per group header.
@@ -446,6 +448,8 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <AssemblyFormulasScreen />;
       case 'recipes':
         return <RecipesScreen />;
+      case 'cost-history':
+        return <CostHistoryScreen />;
       case 'manufacturing-orders':
         return <ManufacturingOrdersScreen />;
       case 'invoice':

@@ -1199,6 +1199,32 @@ class ApiClient {
   }
 
   // Rename a model, or note what it is.
+  // ---- Component cost history (effective-dated part prices) ----
+  async getCostComponents(search?: string) {
+    const response = await this.client.get('/product-cost/components', { params: { search } });
+    return response.data as { components: Array<{ id: number; name: string; code: string; productType: string; currentCost: number; changeCount: number }> };
+  }
+
+  async getProductCostHistory(productId: number) {
+    const response = await this.client.get(`/product-cost/products/${productId}/history`);
+    return response.data as { history: Array<{ id: number; costPrice: number; effectiveFrom: string; note: string | null; changedBy: string | null; isCurrent: boolean; createdAt: string }> };
+  }
+
+  async changeProductCost(productId: number, dto: { costPrice: number; effectiveFrom: string; note?: string }) {
+    const response = await this.client.post(`/product-cost/products/${productId}/change`, dto);
+    return response.data;
+  }
+
+  async correctProductCost(productId: number, dto: { costPrice: number; note?: string }) {
+    const response = await this.client.post(`/product-cost/products/${productId}/correct`, dto);
+    return response.data;
+  }
+
+  async deleteProductCostEntry(productId: number, entryId: number) {
+    const response = await this.client.delete(`/product-cost/products/${productId}/history/${entryId}`);
+    return response.data;
+  }
+
   async updateAssemblyFormula(id: number | string, dto: { label?: string; description?: string }) {
     const response = await this.client.patch(`/assembly-formulas/${id}`, dto);
     return response.data;
