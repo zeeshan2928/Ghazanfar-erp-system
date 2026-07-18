@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '@database/prisma.service';
 import { CreateCustomerDto } from '../dto/create-customer.dto';
+import { UpdateCustomerDto } from '../dto/update-customer.dto';
 
 @Injectable()
 export class CustomersService {
@@ -23,6 +24,51 @@ export class CustomersService {
         creditLimit: data.creditLimit ?? 0,
         isActive: true,
       },
+    });
+  }
+
+  async update(organizationId: number, customerId: number, data: UpdateCustomerDto) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, organizationId },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    // Same empty-string-vs-null distinction as createCustomer: an empty
+    // string would collide with the @@unique([organizationId, email])
+    // constraint the moment a second customer clears their email. undefined
+    // (field not sent) leaves the column untouched.
+    const email = data.email === '' ? null : data.email;
+
+    return this.prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        name: data.name,
+        phone: data.phone,
+        email,
+        address: data.address,
+        city: data.city,
+        customerType: data.customerType,
+        creditLimit: data.creditLimit,
+      },
+    });
+  }
+
+  // Soft-delete, same convention as Vendor.deactivate() - deactivated
+  // customers stop appearing in search (customers-search.service.ts already
+  // filters isActive: true) but the record and its bill history stay intact.
+  async deactivate(organizationId: number, customerId: number) {
+    const customer = await this.prisma.customer.findFirst({
+      where: { id: customerId, organizationId },
+    });
+    if (!customer) {
+      throw new NotFoundException('Customer not found');
+    }
+
+    return this.prisma.customer.update({
+      where: { id: customerId },
+      data: { isActive: false },
     });
   }
 

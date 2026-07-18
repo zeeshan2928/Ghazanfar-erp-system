@@ -28,14 +28,68 @@ export function CustomersScreen() {
   // Click a customer row to open their detail + recent sale history.
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [custHistory, setCustHistory] = useState<any[] | null>(null);
+  const [editingCustomer, setEditingCustomer] = useState(false);
+  const [editFormData, setEditFormData] = useState({ name: '', phone: '', email: '', creditLimit: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   async function openCustomer(c: Customer) {
     setSelectedCustomer(c);
     setCustHistory(null);
+    setEditingCustomer(false);
     try {
       const h = await apiClient.getCustomerSaleHistory(c.id);
       setCustHistory(Array.isArray(h) ? h : (h?.data ?? h?.transactions ?? []));
     } catch { setCustHistory([]); }
+  }
+
+  // The search endpoint fills missing phone/email with the literal display
+  // placeholder "N/A" (customers-search.service.ts) rather than leaving them
+  // null - fine for a read-only table cell, but if echoed straight back into
+  // an editable field it gets sent to the server as if it were real data,
+  // and "N/A" then correctly fails email validation. Treat it as blank here.
+  const realValue = (v: string) => (v && v !== 'N/A' ? v : '');
+
+  function startEditCustomer() {
+    if (!selectedCustomer) return;
+    setEditFormData({
+      name: selectedCustomer.name,
+      phone: realValue(selectedCustomer.phone),
+      email: realValue(selectedCustomer.email),
+      creditLimit: String(selectedCustomer.creditLimit ?? 0),
+    });
+    setEditingCustomer(true);
+  }
+
+  async function handleSaveEdit() {
+    if (!selectedCustomer) return;
+    setSavingEdit(true);
+    try {
+      const updated = await apiClient.updateCustomer(selectedCustomer.id, {
+        name: editFormData.name,
+        phone: editFormData.phone,
+        email: editFormData.email,
+        creditLimit: parseInt(editFormData.creditLimit) || 0,
+      });
+      setSelectedCustomer(updated);
+      setEditingCustomer(false);
+      await fetchCustomers();
+    } catch (err: any) {
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function handleDeactivateCustomer() {
+    if (!selectedCustomer) return;
+    if (!window.confirm(`Deactivate ${selectedCustomer.name}? They will no longer appear in customer lists, but their sale history is kept.`)) return;
+    try {
+      await apiClient.deactivateCustomer(selectedCustomer.id);
+      setSelectedCustomer(null);
+      await fetchCustomers();
+    } catch (err: any) {
+      alert('❌ Error: ' + (err.response?.data?.message || err.message));
+    }
   }
 
   const columns = [
@@ -196,10 +250,31 @@ export function CustomersScreen() {
               <h3 style={{ margin: 0 }}>{selectedCustomer.name}</h3>
               <button style={styles.closeBtn} onClick={() => setSelectedCustomer(null)}>✕</button>
             </div>
-            <div style={styles.kv}><strong>Type:</strong> {selectedCustomer.customerType}</div>
-            <div style={styles.kv}><strong>Phone:</strong> {selectedCustomer.phone || '—'}</div>
-            <div style={styles.kv}><strong>Email:</strong> {selectedCustomer.email || '—'}</div>
-            <div style={styles.kv}><strong>Credit limit:</strong> Rs {Number(selectedCustomer.creditLimit || 0).toLocaleString()}</div>
+
+            {editingCustomer ? (
+              <div style={styles.editForm}>
+                <input type="text" placeholder="Customer Name" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} style={styles.input} />
+                <input type="tel" placeholder="Phone" value={editFormData.phone} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} style={styles.input} />
+                <input type="email" placeholder="Email" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} style={styles.input} />
+                <input type="number" placeholder="Credit Limit" value={editFormData.creditLimit} onChange={(e) => setEditFormData({ ...editFormData, creditLimit: e.target.value })} style={styles.input} />
+                <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
+                  <button onClick={handleSaveEdit} disabled={savingEdit} style={styles.submitBtn}>{savingEdit ? 'Saving…' : 'Save'}</button>
+                  <button onClick={() => setEditingCustomer(false)} style={styles.btn}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={styles.kv}><strong>Type:</strong> {selectedCustomer.customerType}</div>
+                <div style={styles.kv}><strong>Phone:</strong> {selectedCustomer.phone || '—'}</div>
+                <div style={styles.kv}><strong>Email:</strong> {selectedCustomer.email || '—'}</div>
+                <div style={styles.kv}><strong>Credit limit:</strong> Rs {Number(selectedCustomer.creditLimit || 0).toLocaleString()}</div>
+                <div style={{ display: 'flex', gap: '8px', marginTop: '10px' }}>
+                  <button onClick={startEditCustomer} style={styles.btn}>✏️ Edit</button>
+                  <button onClick={handleDeactivateCustomer} style={styles.dangerBtn}>🚫 Deactivate</button>
+                </div>
+              </>
+            )}
+
             <h4 style={{ margin: '14px 0 6px' }}>Recent sales</h4>
             {custHistory === null ? (
               <p style={styles.info}>Loading…</p>
@@ -255,5 +330,7 @@ const styles: Record<string, React.CSSProperties> = {
   info: { fontSize: '12px', color: '#666' },
   buttons: { display: 'flex', gap: '8px' },
   btn: { padding: '8px 16px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px' },
+  dangerBtn: { padding: '8px 16px', backgroundColor: '#f8d7da', color: '#721c24', border: 'none', borderRadius: '4px', cursor: 'pointer', fontSize: '12px', fontWeight: 600 },
   disabled: { backgroundColor: '#ccc', cursor: 'not-allowed' },
+  editForm: { display: 'flex', flexDirection: 'column', gap: '8px', marginBottom: '10px' },
 };

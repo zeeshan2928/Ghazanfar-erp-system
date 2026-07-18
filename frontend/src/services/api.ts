@@ -306,6 +306,16 @@ class ApiClient {
     return response.data;
   }
 
+  async updateCustomer(id: number, data: any) {
+    const response = await this.client.put(`/customers/${id}`, data);
+    return response.data;
+  }
+
+  async deactivateCustomer(id: number) {
+    const response = await this.client.delete(`/customers/${id}`);
+    return response.data;
+  }
+
   async searchCustomers(request: SearchRequestDto) {
     const response = await this.client.post<FilterResponseDto<any>>(
       '/customers/search',

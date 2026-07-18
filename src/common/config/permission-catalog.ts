@@ -89,6 +89,8 @@ export const PERMISSION_CATALOG: PermissionCatalogModule[] = [
     permissions: [
       { key: 'customers.view', label: 'View customers' },
       { key: 'customers.create', label: 'Create customers' },
+      { key: 'customers.edit', label: 'Edit customers' },
+      { key: 'customers.deactivate', label: 'Deactivate customers' },
     ],
   },
   {

@@ -1,11 +1,15 @@
-import { IsString, IsEmail, IsOptional, IsNumber, IsArray } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsNumber, IsArray, ValidateIf } from 'class-validator';
 
 export class CreateVendorDto {
   @IsString()
   name: string;
 
+  // @IsOptional() only skips validation for null/undefined, not '' - a
+  // blank email field submits '', which @IsEmail() then rejected, silently
+  // breaking vendor creation whenever email was left empty (same bug fixed
+  // on CreateCustomerDto). ValidateIf treats '' the same as "not provided".
+  @ValidateIf((o) => o.email !== undefined && o.email !== null && o.email !== '')
   @IsEmail()
-  @IsOptional()
   email?: string;
 
   @IsOptional()
@@ -43,7 +47,9 @@ export class UpdateVendorDto {
   @IsString()
   name?: string;
 
-  @IsOptional()
+  // Same empty-string-vs-undefined fix as CreateVendorDto - see the comment
+  // there.
+  @ValidateIf((o) => o.email !== undefined && o.email !== null && o.email !== '')
   @IsEmail()
   email?: string;
 

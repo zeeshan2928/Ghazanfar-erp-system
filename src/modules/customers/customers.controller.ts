@@ -1,8 +1,9 @@
-import { Controller, Get, Post, Param, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Param, Body, ParseIntPipe, UseGuards } from '@nestjs/common';
 import { CustomersService } from './services/customers.service';
 import { CustomersSearchService } from './services/customers-search.service';
 import { SearchRequestDto } from '@common/dto/filter.dto';
 import { CreateCustomerDto } from './dto/create-customer.dto';
+import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
 import { RequireAction } from '@common/decorators/require-action.decorator';
@@ -21,6 +22,24 @@ export class CustomersController {
   @RequireAction('customers.create')
   async createCustomer(@Body() data: CreateCustomerDto, @OrgContext() orgContext: any) {
     return this.customersService.createCustomer(orgContext.organizationId, data);
+  }
+
+  @Put(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('customers.edit')
+  async updateCustomer(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() data: UpdateCustomerDto,
+    @OrgContext() orgContext: any,
+  ) {
+    return this.customersService.update(orgContext.organizationId, id, data);
+  }
+
+  @Delete(':id')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('customers.deactivate')
+  async deactivateCustomer(@Param('id', ParseIntPipe) id: number, @OrgContext() orgContext: any) {
+    return this.customersService.deactivate(orgContext.organizationId, id);
   }
 
   @Get(':customerId/ledger')
