@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { io, Socket } from 'socket.io-client';
 import { GatePass, GatePassListFilter } from '../types/gate-pass';
 import { apiClient } from '../services/api';
 
@@ -25,6 +26,8 @@ interface GatePassStoreState {
   reportShortage: (gatePassId: number, data: any) => Promise<void>;
   confirmGatePass: (gatePassId: number, items: any[]) => Promise<void>;
   clearError: () => void;
+  initializeSocket: (warehouseId: number) => void;
+  disconnectSocket: () => void;
   reset: () => void;
 }
 
@@ -35,6 +38,8 @@ const initialFilters: GatePassListFilter = {
   sortBy: 'date',
   sortOrder: 'desc',
 };
+
+let socketInstance: Socket | null = null;
 
 export const useGatePassStore = create<GatePassStoreState>((set, get) => ({
   // Initial State
@@ -190,17 +195,61 @@ export const useGatePassStore = create<GatePassStoreState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
-  reset: () => set({
-    gatePasses: [],
-    selectedGatePass: null,
-    loading: false,
-    error: null,
-    filters: initialFilters,
-    pagination: {
-      total: 0,
-      page: 1,
-      pageSize: 10,
-      hasMore: false,
-    },
-  }),
+
+  initializeSocket: (warehouseId: number) => {
+    if (socketInstance) return;
+    
+    // Connect to the backend WebSocket
+    // Adjust URL if needed (currently assumes same host or proxy)
+    socketInstance = io(import.meta.env.VITE_API_URL || 'http://localhost:3000', {
+      transports: ['websocket'],
+    });
+
+    socketInstance.on('connect', () => {
+      console.log('Connected to real-time updates');
+      socketInstance?.emit('joinWarehouse', { warehouseId });
+    });
+
+    socketInstance.on('gatePassCreated', (data: any) => {
+      // Refresh list when a new gate pass is created
+      const state = get();
+      if (state.filters.status === 'PENDING') {
+        get().fetchGatePasses(warehouseId);
+      }
+    });
+
+    socketInstance.on('gatePassUpdated', (data: any) => {
+      // Refresh list or detail if relevant
+      const state = get();
+      if (state.selectedGatePass?.id === data.gatePassId) {
+        get().fetchGatePassDetail(data.gatePassId);
+      } else {
+        get().fetchGatePasses(warehouseId);
+      }
+    });
+  },
+
+  disconnectSocket: () => {
+    if (socketInstance) {
+      socketInstance.disconnect();
+      socketInstance = null;
+    }
+  },
+
+  reset: () => {
+    get().disconnectSocket();
+    set({
+      gatePasses: [],
+      selectedGatePass: null,
+      loading: false,
+      error: null,
+      filters: initialFilters,
+      pagination: {
+        total: 0,
+        page: 1,
+        pageSize: 10,
+        hasMore: false,
+      },
+    });
+  },
 }));

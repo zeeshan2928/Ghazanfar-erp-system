@@ -3,6 +3,8 @@ import { GatePassList } from '../components/gate-pass/GatePassList';
 import { PickingInterface } from '../components/gate-pass/PickingInterface';
 import { QRScanner } from '../components/gate-pass/QRScanner';
 import { PrintLabel } from '../components/gate-pass/PrintLabel';
+import { PrintReceipt } from '../components/gate-pass/PrintReceipt';
+import { MovementHistoryList } from '../components/gate-pass/MovementHistoryList';
 import { BottomNavigation } from '../components/navigation/BottomNavigation';
 import { useGatePassStore } from '../stores/gatePassStore';
 import { GatePass } from '../types/gate-pass';
@@ -23,8 +25,19 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
   const [currentScreen, setCurrentScreen] = useState<ScreenMode>('list');
   const [showScanner, setShowScanner] = useState(false);
   const [showPrintLabel, setShowPrintLabel] = useState(false);
+  const [showPrintReceipt, setShowPrintReceipt] = useState(false);
   const [gatePassForPrint, setGatePassForPrint] = useState<GatePass | null>(null);
   const [pendingCount, setPendingCount] = useState(0);
+
+  // Initialize WebSockets
+  useEffect(() => {
+    const store = useGatePassStore.getState();
+    store.initializeSocket(warehouseId);
+
+    return () => {
+      store.disconnectSocket();
+    };
+  }, [warehouseId]);
 
   // Simulate getting pending count
   useEffect(() => {
@@ -48,6 +61,13 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
     if (selectedGatePass) {
       setGatePassForPrint(selectedGatePass);
       setShowPrintLabel(true);
+    }
+  };
+
+  const handlePrintReceipt = () => {
+    if (selectedGatePass) {
+      setGatePassForPrint(selectedGatePass);
+      setShowPrintReceipt(true);
     }
   };
 
@@ -87,9 +107,16 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
               <button
                 className="quick-action-btn"
                 onClick={handlePrintLabel}
-                title="Print gate pass label"
+                title="Print gate pass label (4x6)"
               >
-                🖨️ Print
+                🖨️ Label
+              </button>
+              <button
+                className="quick-action-btn"
+                onClick={handlePrintReceipt}
+                title="Print receipt (80mm)"
+              >
+                🧾 Receipt
               </button>
               <button
                 className="quick-action-btn"
@@ -116,12 +143,7 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
             <p className="coming-soon">(Available in next phase)</p>
           </div>
         ) : currentScreen === 'history' ? (
-          <div className="placeholder-screen">
-            <div className="placeholder-icon">📋</div>
-            <h2>Activity History</h2>
-            <p>View your picking history and completed tasks</p>
-            <p className="coming-soon">(Available in next phase)</p>
-          </div>
+          <MovementHistoryList warehouseId={warehouseId} />
         ) : currentScreen === 'settings' ? (
           <div className="placeholder-screen">
             <div className="placeholder-icon">⚙️</div>
@@ -149,6 +171,21 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
               gatePass={gatePassForPrint}
               onClose={() => {
                 setShowPrintLabel(false);
+                setGatePassForPrint(null);
+              }}
+            />
+          </div>
+        </div>
+      )}
+
+      {/* Print Receipt Modal */}
+      {showPrintReceipt && gatePassForPrint && (
+        <div className="modal-overlay">
+          <div className="modal-content">
+            <PrintReceipt
+              gatePass={gatePassForPrint}
+              onClose={() => {
+                setShowPrintReceipt(false);
                 setGatePassForPrint(null);
               }}
             />
