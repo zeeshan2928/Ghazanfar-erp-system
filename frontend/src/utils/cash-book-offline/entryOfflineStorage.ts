@@ -1,4 +1,4 @@
-﻿import { CashBookEntry } from '../../stores/cash-book/entryStore'
+import { CashBookEntry } from '../../stores/cash-book/entryStore'
 
 interface CachedEntry {
   data: CashBookEntry[]

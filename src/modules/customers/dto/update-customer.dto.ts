@@ -1,5 +1,5 @@
-import { IsString, IsOptional, IsEmail, IsNumber, Min, IsEnum, ValidateIf } from 'class-validator';
-import { CustomerType } from '@prisma/client';
+import { IsString, IsOptional, IsEmail, IsInt, IsNumber, Min, IsEnum, ValidateIf } from 'class-validator';
+import { CustomerType, CustomerAccountType } from '@prisma/client';
 
 export class UpdateCustomerDto {
   @IsOptional()
@@ -21,8 +21,12 @@ export class UpdateCustomerDto {
   address?: string;
 
   @IsOptional()
-  @IsString()
-  city?: string;
+  @IsInt()
+  cityId?: number;
+
+  @IsOptional()
+  @IsEnum(CustomerAccountType)
+  accountType?: CustomerAccountType;
 
   @IsOptional()
   @IsEnum(CustomerType)

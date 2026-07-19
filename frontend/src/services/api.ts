@@ -27,7 +27,17 @@ class ApiClient {
 
   // Authentication
   async login(credentials: { email: string; password: string }) {
-    const response = await this.client.post<any>(
+    const response = await this.client.post<{
+      access_token: string;
+      user: {
+        id: number;
+        email: string;
+        firstName: string;
+        lastName: string;
+        role: string;
+        warehouseId: number | null;
+      };
+    }>(
       '/users/login',
       credentials
     );
@@ -62,7 +72,7 @@ class ApiClient {
   }
 
   async recordGatePassPrint(id: number) {
-    const response = await this.client.post(`/api/v1/gate-passes/${id}/record-print`);
+    const response = await this.client.post(`/gate-passes/${id}/record-print`);
     return response.data as { isDuplicate: boolean; printCount: number; printedAt: string };
   }
 
@@ -328,6 +338,42 @@ class ApiClient {
     const response = await this.client.get<any[]>(
       `/customers/filters/columns/${columnName}`
     );
+    return response.data;
+  }
+
+  // Locations (governed city/province reference data)
+  async listProvinces() {
+    const response = await this.client.get('/locations/provinces');
+    return response.data;
+  }
+
+  async searchCities(params: { search?: string; provinceId?: number }) {
+    const response = await this.client.get('/locations/cities', { params });
+    return response.data;
+  }
+
+  async createCityDirect(data: { name: string; provinceId: number }) {
+    const response = await this.client.post('/locations/cities', data);
+    return response.data;
+  }
+
+  async requestCity(data: { name: string; provinceId: number }) {
+    const response = await this.client.post('/locations/cities/request', data);
+    return response.data;
+  }
+
+  async listPendingCities() {
+    const response = await this.client.get('/locations/cities/pending');
+    return response.data;
+  }
+
+  async approveCity(id: number) {
+    const response = await this.client.post(`/locations/cities/${id}/approve`);
+    return response.data;
+  }
+
+  async updateCity(id: number, data: { name?: string; provinceId?: number }) {
+    const response = await this.client.patch(`/locations/cities/${id}`, data);
     return response.data;
   }
 

@@ -39,10 +39,10 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId })
 
   const filteredMovements = movements.filter((movement) => {
     const typeMatch =
-      filterType === 'ALL' || movement.movement_type === filterType;
+      filterType === 'ALL' || movement.movementType === filterType;
     const productMatch =
       !searchProduct ||
-      (movement.reference_id?.toLowerCase().includes(searchProduct.toLowerCase()));
+      (movement.referenceId?.toLowerCase().includes(searchProduct.toLowerCase()));
     return typeMatch && productMatch;
   });
 
@@ -171,13 +171,13 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId })
         <div className="stat-box">
           <span className="stat-label">Stock In</span>
           <span className="stat-value positive">
-            {filteredMovements.filter((m) => m.movement_type === 'IN').length}
+            {filteredMovements.filter((m) => m.movementType === 'IN').length}
           </span>
         </div>
         <div className="stat-box">
           <span className="stat-label">Stock Out</span>
           <span className="stat-value negative">
-            {filteredMovements.filter((m) => m.movement_type === 'OUT').length}
+            {filteredMovements.filter((m) => m.movementType === 'OUT').length}
           </span>
         </div>
       </div>
@@ -206,17 +206,17 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId })
             <CardBody>
               <div className="movement-header">
                 <div className="movement-icon">
-                  {getMovementIcon(movement.movement_type as MovementType)}
+                  {getMovementIcon(movement.movementType as MovementType)}
                 </div>
                 <div className="movement-info">
                   <h4 className="movement-type">
-                    {movement.movement_type === 'IN'
+                    {movement.movementType === 'IN'
                       ? 'Stock In'
-                      : movement.movement_type === 'OUT'
+                      : movement.movementType === 'OUT'
                       ? 'Stock Out'
-                      : movement.movement_type === 'ADJUSTMENT'
+                      : movement.movementType === 'ADJUSTMENT'
                       ? 'Adjustment'
-                      : movement.movement_type === 'TRANSFER'
+                      : movement.movementType === 'TRANSFER'
                       ? 'Transfer'
                       : 'Return'}
                   </h4>
@@ -224,8 +224,8 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId })
                     {new Date(movement.createdAt).toLocaleString()}
                   </p>
                 </div>
-                <div className={`movement-qty ${getMovementColor(movement.movement_type as MovementType)}`}>
-                  {movement.movement_type === 'IN' || movement.movement_type === 'RETURN'
+                <div className={`movement-qty ${getMovementColor(movement.movementType as MovementType)}`}>
+                  {movement.movementType === 'IN' || movement.movementType === 'RETURN'
                     ? '+'
                     : '−'}
                   {Math.abs(movement.quantity).toLocaleString()}
@@ -235,22 +235,22 @@ export const MovementHistory: React.FC<MovementHistoryProps> = ({ warehouseId })
               <div className="movement-details">
                 <div className="detail-row">
                   <span className="detail-label">Reference:</span>
-                  <span className="detail-value">{movement.reference_id}</span>
+                  <span className="detail-value">{movement.referenceId}</span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Type:</span>
-                  <span className="detail-value">{movement.reference_type}</span>
+                  <span className="detail-value">{movement.referenceType}</span>
                 </div>
                 <div className="detail-row">
                   <span className="detail-label">Reason:</span>
                   <span className="detail-value">{movement.reason}</span>
                 </div>
-                {movement.created_by_user && (
+                {movement.createdByUser && (
                   <div className="detail-row">
                     <span className="detail-label">By:</span>
                     <span className="detail-value">
-                      {movement.created_by_user.firstName}{' '}
-                      {movement.created_by_user.lastName}
+                      {movement.createdByUser.firstName}{' '}
+                      {movement.createdByUser.lastName}
                     </span>
                   </div>
                 )}

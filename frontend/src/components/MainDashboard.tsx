@@ -51,8 +51,9 @@ import { ManufacturingOrdersScreen } from './screens/ManufacturingOrdersScreen';
 import { SalesDashboardScreen } from './screens/SalesDashboardScreen';
 import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
+import { LocationsScreen } from './screens/LocationsScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'cost-history' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'cost-history' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders' | 'locations';
 
 interface NotificationItem {
   id: number;
@@ -150,6 +151,7 @@ const navItems: NavItem[] = [
 
   // ==================== ADMINISTRATION ====================
   { id: 'administration-dashboard', label: 'Admin Dashboard', icon: '📊', group: 'Administration' },
+  { id: 'locations', label: 'Cities & Provinces', icon: '🗺️', group: 'Administration' },
   { id: 'users', label: 'Users', icon: '👤', group: 'Administration' },
   { id: 'settings', label: 'Settings', icon: '⚙️', group: 'Administration' },
   { id: 'export-import', label: 'Import/Export', icon: '📤', group: 'Administration' },
@@ -430,6 +432,8 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <PurchasingDashboardScreen />;
       case 'administration-dashboard':
         return <AdministrationDashboardScreen />;
+      case 'locations':
+        return <LocationsScreen />;
       case 'salesman-performance':
         return <SalesmanPerformanceScreen />;
       case 'sales-analysis':

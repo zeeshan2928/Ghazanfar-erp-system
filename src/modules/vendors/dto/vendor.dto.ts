@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, IsNumber, IsArray, ValidateIf } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsNumber, IsInt, IsArray, ValidateIf } from 'class-validator';
 
 export class CreateVendorDto {
   @IsString()
@@ -23,6 +23,12 @@ export class CreateVendorDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  // Governed reference data (src/modules/locations) - a real City row, not
+  // free text. Same field shape as Customer.cityId.
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
 
   @IsOptional()
   @IsString()
@@ -64,6 +70,12 @@ export class UpdateVendorDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  // Governed reference data (src/modules/locations) - a real City row, not
+  // free text. Same field shape as Customer.cityId.
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
 
   @IsOptional()
   @IsString()

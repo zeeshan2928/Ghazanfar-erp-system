@@ -1,8 +1,8 @@
 export interface InventoryItem {
   id: number;
-  organization_id: number;
-  product_id: number;
-  warehouse_id: number;
+  organizationId: number;
+  productId: number;
+  warehouseId: number;
   physical_on_hand: number;
   reserved: number;
   available: number;
@@ -26,15 +26,15 @@ export interface InventoryItem {
 
 export interface InventoryMovement {
   id: number;
-  inventory_id: number;
-  movement_type: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | 'RETURN';
+  inventoryId: number;
+  movementType: 'IN' | 'OUT' | 'ADJUSTMENT' | 'TRANSFER' | 'RETURN';
   quantity: number;
-  reference_type: 'PURCHASE_ORDER' | 'GATE_PASS' | 'TRANSFER' | 'ADJUSTMENT' | 'RETURN';
-  reference_id: string;
+  referenceType: 'PURCHASE_ORDER' | 'GATE_PASS' | 'TRANSFER' | 'ADJUSTMENT' | 'RETURN';
+  referenceId: string;
   reason: string;
   notes?: string;
-  created_by: number;
-  created_by_user?: {
+  createdBy: number;
+  createdByUser?: {
     id: number;
     firstName: string;
     lastName: string;
@@ -43,9 +43,9 @@ export interface InventoryMovement {
 }
 
 export interface StockAdjustment {
-  warehouse_id: number;
-  product_id: number;
-  adjustment_type: 'ADD' | 'REMOVE' | 'CORRECT';
+  warehouseId: number;
+  productId: number;
+  adjustmentType: 'ADD' | 'REMOVE' | 'CORRECT';
   quantity: number;
   reason: 'PURCHASE' | 'DAMAGE' | 'THEFT' | 'AUDIT' | 'CORRECTION' | 'RETURN' | 'OTHER';
   reference?: string;
@@ -60,8 +60,8 @@ export interface InventoryDashboard {
   on_order_items: number;
   recent_movements: InventoryMovement[];
   by_warehouse: {
-    warehouse_id: number;
-    warehouse_name: string;
+    warehouseId: number;
+    warehouseName: string;
     total: number;
     available: number;
     reserved: number;
@@ -87,10 +87,10 @@ export interface InventoryListResponse {
 }
 
 export interface StockThreshold {
-  product_id: number;
-  warehouse_id: number;
-  threshold_level: number;
-  reorder_quantity: number;
+  productId: number;
+  warehouseId: number;
+  thresholdLevel: number;
+  reorderQuantity: number;
 }
 
 export interface MovementFilter {

@@ -102,10 +102,16 @@ export const SCREEN_FILTER_CONFIGS: ScreenFilterConfig = {
       FilterOperator.CONTAINS,
       FilterOperator.BEGINS_WITH,
     ],
-    customer_type: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    // The Customer model is genuinely camelCase (no @map in schema.prisma),
+    // and CustomersScreen.tsx sends filter fields as the real field names -
+    // so these keys must be camelCase, not the snake_case used by legacy
+    // (Bill/PO-era) screens. customer_type/credit_limit as snake_case here
+    // silently 400'd every Type/Credit column filter before this fix.
+    customerType: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
+    accountType: [FilterOperator.IN, FilterOperator.NOT_IN, FilterOperator.EQUALS],
     phone: [FilterOperator.EQUALS, FilterOperator.CONTAINS, FilterOperator.BEGINS_WITH],
     email: [FilterOperator.EQUALS, FilterOperator.CONTAINS, FilterOperator.IS_LIKE],
-    credit_limit: [
+    creditLimit: [
       FilterOperator.GT,
       FilterOperator.GTE,
       FilterOperator.LT,

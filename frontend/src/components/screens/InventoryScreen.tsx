@@ -25,10 +25,10 @@ export function InventoryScreen() {
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
 
   const columns = [
-    { name: 'product_name', label: 'Product', dataType: DataType.TEXT },
+    { name: 'productName', label: 'Product', dataType: DataType.TEXT },
     { name: 'warehouse', label: 'Warehouse', dataType: DataType.ENUM },
     { name: 'quantity', label: 'Quantity', dataType: DataType.NUMERIC },
-    { name: 'date_received', label: 'Date', dataType: DataType.DATE },
+    { name: 'dateReceived', label: 'Date', dataType: DataType.DATE },
   ];
 
   useEffect(() => {
@@ -122,11 +122,11 @@ export function InventoryScreen() {
               <tbody>
                 {items.map((item) => (
                   <tr key={item.id}>
-                    <td style={styles.td}>{item.stock_id}</td>
-                    <td style={styles.td}>{item.product_name}</td>
-                    <td style={styles.td}>{item.warehouse_name}</td>
+                    <td style={styles.td}>{item.stockId || item.stock_id}</td>
+                    <td style={styles.td}>{item.productName || item.product_name}</td>
+                    <td style={styles.td}>{item.warehouseName || item.warehouse_name}</td>
                     <td style={styles.td}>{item.quantity}</td>
-                    <td style={styles.td}>{new Date(item.date_received).toLocaleDateString()}</td>
+                    <td style={styles.td}>{new Date(item.dateReceived || item.date_received).toLocaleDateString()}</td>
                   </tr>
                 ))}
               </tbody>

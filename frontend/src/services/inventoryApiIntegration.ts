@@ -65,9 +65,9 @@ export const inventoryApiIntegration = {
   ): Promise<InventoryItem> {
     try {
       const response = await apiClient.adjustStock({
-        warehouse_id: warehouseId,
-        product_id: productId,
-        adjustment_type: adjustmentType,
+        warehouseId,
+        productId,
+        adjustmentType,
         quantity,
         reason,
         reference,

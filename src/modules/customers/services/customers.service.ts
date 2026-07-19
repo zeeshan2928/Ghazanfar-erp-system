@@ -19,11 +19,13 @@ export class CustomersService {
         // since SQL treats every NULL as distinct for uniqueness purposes.
         email: data.email || null,
         address: data.address || null,
-        city: data.city || null,
+        cityId: data.cityId ?? null,
+        accountType: data.accountType || 'WALK_IN',
         customerType: data.customerType || 'RETAIL',
         creditLimit: data.creditLimit ?? 0,
         isActive: true,
       },
+      include: { city: { include: { province: true } } },
     });
   }
 
@@ -48,10 +50,12 @@ export class CustomersService {
         phone: data.phone,
         email,
         address: data.address,
-        city: data.city,
+        cityId: data.cityId,
+        accountType: data.accountType,
         customerType: data.customerType,
         creditLimit: data.creditLimit,
       },
+      include: { city: { include: { province: true } } },
     });
   }
 

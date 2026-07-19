@@ -16,7 +16,7 @@ import { ActionPermissionGuard } from '../../../common/guards/action-permission.
 import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryOperationsService } from '../services/inventory-operations.service';
 
-@Controller('api/v1/inventory/operations')
+@Controller('inventory/operations')
 @UseGuards(JwtGuard)
 export class InventoryOperationsController {
   constructor(private inventoryOperationsService: InventoryOperationsService) {}

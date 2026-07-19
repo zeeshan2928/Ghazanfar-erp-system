@@ -4,14 +4,17 @@ import { FilterPanel } from '../filters/FilterPanel';
 import { FilterSummary } from '../filters/FilterSummary';
 import { FilterOperator, DataType, FilterOperatorDto, SearchRequestDto, ColumnValueDto } from '../../types/filters';
 import { apiClient } from '../../services/api';
+import { LocationPicker } from '../LocationPicker';
 
 interface Customer {
   id: number;
   name: string;
   customerType: string;
+  accountType: string;
   phone: string;
   email: string;
   creditLimit: number;
+  city: { id: number; name: string; province: { id: number; name: string } } | null;
 }
 
 export function CustomersScreen() {
@@ -24,12 +27,12 @@ export function CustomersScreen() {
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
   // Click a customer row to open their detail + recent sale history.
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [custHistory, setCustHistory] = useState<any[] | null>(null);
   const [editingCustomer, setEditingCustomer] = useState(false);
-  const [editFormData, setEditFormData] = useState({ name: '', phone: '', email: '', creditLimit: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
   const [savingEdit, setSavingEdit] = useState(false);
 
   async function openCustomer(c: Customer) {
@@ -56,6 +59,9 @@ export function CustomersScreen() {
       phone: realValue(selectedCustomer.phone),
       email: realValue(selectedCustomer.email),
       creditLimit: String(selectedCustomer.creditLimit ?? 0),
+      accountType: selectedCustomer.accountType || 'WALK_IN',
+      cityId: selectedCustomer.city?.id ?? null,
+      cityLabel: selectedCustomer.city?.name ?? '',
     });
     setEditingCustomer(true);
   }
@@ -69,6 +75,8 @@ export function CustomersScreen() {
         phone: editFormData.phone,
         email: editFormData.email,
         creditLimit: parseInt(editFormData.creditLimit) || 0,
+        accountType: editFormData.accountType,
+        cityId: editFormData.cityId,
       });
       setSelectedCustomer(updated);
       setEditingCustomer(false);
@@ -95,6 +103,7 @@ export function CustomersScreen() {
   const columns = [
     { name: 'name', label: 'Name', dataType: DataType.TEXT },
     { name: 'customerType', label: 'Type', dataType: DataType.ENUM },
+    { name: 'accountType', label: 'Account', dataType: DataType.ENUM },
     { name: 'phone', label: 'Phone', dataType: DataType.TEXT },
     { name: 'email', label: 'Email', dataType: DataType.TEXT },
     { name: 'creditLimit', label: 'Credit', dataType: DataType.NUMERIC },
@@ -111,10 +120,11 @@ export function CustomersScreen() {
 
   async function preloadColumnValues() {
     try {
-      const [typeVals] = await Promise.all([
+      const [typeVals, accountVals] = await Promise.all([
         apiClient.getCustomerColumnValues('customerType'),
+        apiClient.getCustomerColumnValues('accountType'),
       ]);
-      setColumnValues((prev) => ({ ...prev, customerType: typeVals || [] }));
+      setColumnValues((prev) => ({ ...prev, customerType: typeVals || [], accountType: accountVals || [] }));
     } catch (error) {
       console.error('Failed to load values:', error);
     }
@@ -166,8 +176,10 @@ export function CustomersScreen() {
         phone: formData.phone,
         email: formData.email,
         creditLimit: parseInt(formData.creditLimit) || 0,
+        accountType: formData.accountType,
+        cityId: formData.cityId,
       });
-      setFormData({ name: '', phone: '', email: '', creditLimit: '' });
+      setFormData({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null, cityLabel: '' });
       setShowAddForm(false);
       await fetchCustomers();
       alert('✅ Customer created successfully!');
@@ -190,7 +202,16 @@ export function CustomersScreen() {
           <input type="text" placeholder="Customer Name" value={formData.name} onChange={(e) => setFormData({...formData, name: e.target.value})} style={styles.input} />
           <input type="tel" placeholder="Phone" value={formData.phone} onChange={(e) => setFormData({...formData, phone: e.target.value})} style={styles.input} />
           <input type="email" placeholder="Email" value={formData.email} onChange={(e) => setFormData({...formData, email: e.target.value})} style={styles.input} />
+          <select value={formData.accountType} onChange={(e) => setFormData({...formData, accountType: e.target.value})} style={styles.input}>
+            <option value="WALK_IN">Walk-in (no credit)</option>
+            <option value="KHATA">Khata (credit)</option>
+          </select>
           <input type="number" placeholder="Credit Limit" value={formData.creditLimit} onChange={(e) => setFormData({...formData, creditLimit: e.target.value})} style={styles.input} />
+          <LocationPicker
+            cityId={formData.cityId}
+            valueLabel={formData.cityLabel}
+            onChange={(city) => setFormData({...formData, cityId: city?.id ?? null, cityLabel: city?.name ?? ''})}
+          />
           <button onClick={handleAddCustomer} style={styles.submitBtn}>Save</button>
         </div>
       )}
@@ -215,6 +236,8 @@ export function CustomersScreen() {
                 <tr>
                   <th style={styles.th}>Name</th>
                   <th style={styles.th}>Type</th>
+                  <th style={styles.th}>Account</th>
+                  <th style={styles.th}>City</th>
                   <th style={styles.th}>Phone</th>
                   <th style={styles.th}>Email</th>
                   <th style={styles.th}>Credit Limit</th>
@@ -225,6 +248,8 @@ export function CustomersScreen() {
                   <tr key={c.id} style={{ cursor: 'pointer' }} onClick={() => openCustomer(c)} title="Click to open">
                     <td style={styles.td}>{c.name}</td>
                     <td style={styles.td}><span style={getTypeStyle(c.customerType)}>{c.customerType}</span></td>
+                    <td style={styles.td}><span style={getAccountTypeStyle(c.accountType)}>{c.accountType === 'KHATA' ? 'Khata' : 'Walk-in'}</span></td>
+                    <td style={styles.td}>{c.city?.name ?? '—'}</td>
                     <td style={styles.td}>{c.phone}</td>
                     <td style={styles.td}>{c.email}</td>
                     <td style={styles.td}>Rs {c.creditLimit.toLocaleString()}</td>
@@ -256,7 +281,16 @@ export function CustomersScreen() {
                 <input type="text" placeholder="Customer Name" value={editFormData.name} onChange={(e) => setEditFormData({ ...editFormData, name: e.target.value })} style={styles.input} />
                 <input type="tel" placeholder="Phone" value={editFormData.phone} onChange={(e) => setEditFormData({ ...editFormData, phone: e.target.value })} style={styles.input} />
                 <input type="email" placeholder="Email" value={editFormData.email} onChange={(e) => setEditFormData({ ...editFormData, email: e.target.value })} style={styles.input} />
+                <select value={editFormData.accountType} onChange={(e) => setEditFormData({ ...editFormData, accountType: e.target.value })} style={styles.input}>
+                  <option value="WALK_IN">Walk-in (no credit)</option>
+                  <option value="KHATA">Khata (credit)</option>
+                </select>
                 <input type="number" placeholder="Credit Limit" value={editFormData.creditLimit} onChange={(e) => setEditFormData({ ...editFormData, creditLimit: e.target.value })} style={styles.input} />
+                <LocationPicker
+                  cityId={editFormData.cityId}
+                  valueLabel={editFormData.cityLabel}
+                  onChange={(city) => setEditFormData({ ...editFormData, cityId: city?.id ?? null, cityLabel: city?.name ?? '' })}
+                />
                 <div style={{ display: 'flex', gap: '8px', marginTop: '8px' }}>
                   <button onClick={handleSaveEdit} disabled={savingEdit} style={styles.submitBtn}>{savingEdit ? 'Saving…' : 'Save'}</button>
                   <button onClick={() => setEditingCustomer(false)} style={styles.btn}>Cancel</button>
@@ -265,6 +299,8 @@ export function CustomersScreen() {
             ) : (
               <>
                 <div style={styles.kv}><strong>Type:</strong> {selectedCustomer.customerType}</div>
+                <div style={styles.kv}><strong>Account:</strong> {selectedCustomer.accountType === 'KHATA' ? 'Khata (credit)' : 'Walk-in (no credit)'}</div>
+                <div style={styles.kv}><strong>City:</strong> {selectedCustomer.city ? `${selectedCustomer.city.name}, ${selectedCustomer.city.province.name}` : '—'}</div>
                 <div style={styles.kv}><strong>Phone:</strong> {selectedCustomer.phone || '—'}</div>
                 <div style={styles.kv}><strong>Email:</strong> {selectedCustomer.email || '—'}</div>
                 <div style={styles.kv}><strong>Credit limit:</strong> Rs {Number(selectedCustomer.creditLimit || 0).toLocaleString()}</div>
@@ -299,6 +335,12 @@ export function CustomersScreen() {
       )}
     </div>
   );
+}
+
+function getAccountTypeStyle(accountType: string): React.CSSProperties {
+  const base: React.CSSProperties = { padding: '4px 8px', borderRadius: '3px', fontSize: '11px', fontWeight: '500' };
+  if (accountType === 'KHATA') return { ...base, backgroundColor: '#fff3cd', color: '#856404' };
+  return { ...base, backgroundColor: '#e2e3e5', color: '#383d41' };
 }
 
 function getTypeStyle(type: string): React.CSSProperties {

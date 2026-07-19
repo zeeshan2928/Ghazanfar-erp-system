@@ -1,5 +1,5 @@
-import { IsString, IsNotEmpty, IsOptional, IsEmail, IsNumber, Min, IsEnum, ValidateIf } from 'class-validator';
-import { CustomerType } from '@prisma/client';
+import { IsString, IsNotEmpty, IsOptional, IsEmail, IsInt, IsNumber, Min, IsEnum, ValidateIf } from 'class-validator';
+import { CustomerType, CustomerAccountType } from '@prisma/client';
 
 export class CreateCustomerDto {
   @IsString()
@@ -23,9 +23,18 @@ export class CreateCustomerDto {
   @IsString()
   address?: string;
 
+  // Governed reference data (src/modules/locations) - a real City row, not
+  // free text. null/omitted means "not set yet", searchable/editable later.
   @IsOptional()
-  @IsString()
-  city?: string;
+  @IsInt()
+  cityId?: number;
+
+  // The credit-relationship axis (KHATA vs WALK_IN) - separate from
+  // customerType below (the business-tier axis). See the Customer model
+  // comment in schema.prisma for why these are two different fields.
+  @IsOptional()
+  @IsEnum(CustomerAccountType)
+  accountType?: CustomerAccountType;
 
   @IsOptional()
   @IsEnum(CustomerType)

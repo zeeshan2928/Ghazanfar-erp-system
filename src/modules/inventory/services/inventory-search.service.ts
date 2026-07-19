@@ -77,6 +77,7 @@ export class InventorySearchService {
         where,
         include: {
           warehouse: { select: { name: true } },
+          Product: { select: { name: true } },
         },
         skip,
         take,
@@ -89,7 +90,7 @@ export class InventorySearchService {
     const data: InventorySearchResult[] = inventories.map((inv: any) => ({
       id: inv.id,
       stockId: `INV-${inv.id}`,
-      productName: 'N/A',
+      productName: inv.Product?.name || 'N/A',
       warehouseName: inv.warehouse?.name || 'N/A',
       quantity: inv.available,
       dateReceived: inv.updatedAt.toISOString().split('T')[0],
@@ -173,8 +174,12 @@ export class InventorySearchService {
     for (const filter of filters) {
       switch (filter.field) {
         case 'productName':
-          // Skip productName as product relationship is not available in Inventory
-          continue;
+        case 'product_name':
+          const productCondition = this.buildCondition(filter);
+          if (productCondition) {
+            where.Product = { is: { name: productCondition } };
+          }
+          break;
 
         case 'warehouse':
           // Filter by warehouse relationship

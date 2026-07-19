@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { apiClient } from '../services/api';
 
 interface LoginScreenProps {
-  onLoginSuccess: (token: string) => void;
+  onLoginSuccess: (token: string, user: any) => void;
 }
 
 const EyeIcon = (
@@ -34,7 +34,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
     try {
       const response = await apiClient.login({ email, password });
       localStorage.setItem('auth_token', response.access_token);
-      onLoginSuccess(response.access_token);
+      onLoginSuccess(response.access_token, response.user);
     } catch (err: any) {
       setError(err.response?.data?.message || 'Login failed. Please check your credentials.');
     } finally {

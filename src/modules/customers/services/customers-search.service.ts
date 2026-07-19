@@ -14,15 +14,17 @@ export interface CustomerSearchResult {
   id: number;
   name: string;
   customerType: string;
+  accountType: string;
   phone: string;
   email: string;
   creditLimit: number;
+  city: { id: number; name: string; province: { id: number; name: string } } | null;
 }
 
 // The fields a free-text search bar sweeps for this entity. Any word of the
 // query may match any of them, which is what lets a code and a name be typed
 // together in either order.
-const FREE_TEXT_FIELDS = ['name', 'phone', 'email', 'address', 'city'];
+const FREE_TEXT_FIELDS = ['name', 'phone', 'email', 'address', 'city.name'];
 
 @Injectable()
 export class CustomersSearchService {
@@ -97,9 +99,11 @@ export class CustomersSearchService {
           id: true,
           name: true,
           customerType: true,
+          accountType: true,
           phone: true,
           email: true,
           creditLimit: true,
+          city: { select: { id: true, name: true, province: { select: { id: true, name: true } } } },
         },
         skip,
         take,
@@ -113,9 +117,11 @@ export class CustomersSearchService {
       id: customer.id,
       name: customer.name,
       customerType: customer.customerType || 'N/A',
+      accountType: customer.accountType || 'N/A',
       phone: customer.phone || 'N/A',
       email: customer.email || 'N/A',
       creditLimit: customer.creditLimit || 0,
+      city: customer.city ?? null,
     }));
 
     return this.filterService.buildPaginatedResponse(data, total, skip, take);
@@ -132,6 +138,8 @@ export class CustomersSearchService {
         return this.getCustomerNames(organizationId);
       case 'customerType':
         return this.getCustomerTypes(organizationId);
+      case 'accountType':
+        return this.getAccountTypes(organizationId);
       default:
         return [];
     }
@@ -168,6 +176,22 @@ export class CustomersSearchService {
       }));
   }
 
+  private async getAccountTypes(organizationId: number): Promise<ColumnValueDto[]> {
+    const results = await this.prisma.customer.findMany({
+      where: { organizationId, isActive: true },
+      select: { accountType: true },
+      distinct: ['accountType'],
+      orderBy: { accountType: 'asc' },
+    });
+
+    return results
+      .filter((r: any) => r.accountType)
+      .map((r: any) => ({
+        value: r.accountType,
+        label: r.accountType === 'KHATA' ? 'Khata (Credit)' : 'Walk-in',
+      }));
+  }
+
   /**
    * Build where clauses with field name mapping
    */
@@ -185,6 +209,9 @@ export class CustomersSearchService {
       switch (filter.field) {
         case 'customer_type':
           mappedFilter.field = 'customerType';
+          break;
+        case 'account_type':
+          mappedFilter.field = 'accountType';
           break;
         case 'credit_limit':
           mappedFilter.field = 'creditLimit';

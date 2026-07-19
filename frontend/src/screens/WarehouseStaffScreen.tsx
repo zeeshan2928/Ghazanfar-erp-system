@@ -10,16 +10,16 @@ import { useGatePassStore } from '../stores/gatePassStore';
 import { GatePass } from '../types/gate-pass';
 import './warehouse-staff-screen.css';
 
-type ScreenMode = 'list' | 'picking' | 'scanner' | 'print' | 'inventory' | 'history';
+type ScreenMode = 'list' | 'picking' | 'scanner' | 'print' | 'inventory' | 'history' | 'settings';
 
 interface WarehouseStaffScreenProps {
   warehouseId?: number;
-  userId?: number;
+  onLogout: () => void;
 }
 
 export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
   warehouseId = 1,
-  userId = 1,
+  onLogout,
 }) => {
   const { selectedGatePass, selectGatePass } = useGatePassStore();
   const [currentScreen, setCurrentScreen] = useState<ScreenMode>('list');
@@ -148,8 +148,11 @@ export const WarehouseStaffScreen: React.FC<WarehouseStaffScreenProps> = ({
           <div className="placeholder-screen">
             <div className="placeholder-icon">⚙️</div>
             <h2>Settings</h2>
-            <p>Preferences and user settings</p>
+            <p>Configure scanner and preferences</p>
             <p className="coming-soon">(Available in next phase)</p>
+            <button className="logout-btn" onClick={onLogout} style={{ marginTop: '20px', padding: '10px 20px', backgroundColor: '#e74c3c', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer' }}>
+              Logout
+            </button>
           </div>
         ) : null}
       </div>

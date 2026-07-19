@@ -42,10 +42,13 @@ export const PickingInterface: React.FC<PickingInterfaceProps> = ({
   };
 
   const handleConfirm = async () => {
-    const pickedItemsData = Array.from(items.entries()).map(([itemId, quantity]) => ({
-      itemId,
-      pickedQuantity: quantity,
-    }));
+    const pickedItemsData = Array.from(items.entries()).map(([itemId, quantity]) => {
+      const gatePassItem = gatePass.items.find((i) => i.id === itemId);
+      return {
+        billLineId: gatePassItem?.billLineId || 0,
+        pickedQuantity: quantity,
+      };
+    });
 
     await confirmGatePass(gatePass.id, pickedItemsData);
     onConfirm();

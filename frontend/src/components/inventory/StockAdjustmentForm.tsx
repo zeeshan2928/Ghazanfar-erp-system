@@ -38,8 +38,8 @@ export const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
   const { adjustStock, loading, error, clearError } = useInventoryStore();
 
   const [formData, setFormData] = useState({
-    product_id: '',
-    adjustment_type: 'ADD' as AdjustmentType,
+    productId: '',
+    adjustmentType: 'ADD' as AdjustmentType,
     quantity: '',
     reason: 'PURCHASE' as ReasonType,
     reference: '',
@@ -52,8 +52,8 @@ export const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.product_id) {
-      newErrors.product_id = 'Product is required';
+    if (!formData.productId) {
+      newErrors.productId = 'Product is required';
     }
     if (!formData.quantity || parseInt(formData.quantity) <= 0) {
       newErrors.quantity = 'Quantity must be greater than 0';
@@ -91,9 +91,9 @@ export const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
     setSubmitting(true);
     try {
       await adjustStock({
-        warehouse_id: warehouseId,
-        product_id: parseInt(formData.product_id),
-        adjustment_type: formData.adjustment_type,
+        warehouseId: warehouseId,
+        productId: parseInt(formData.productId),
+        adjustmentType: formData.adjustmentType,
         quantity: parseInt(formData.quantity),
         reason: formData.reason,
         reference: formData.reference || undefined,
@@ -135,23 +135,23 @@ export const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
               <div className="type-buttons">
                 <button
                   type="button"
-                  className={`type-btn ${formData.adjustment_type === 'ADD' ? 'active' : ''}`}
-                  onClick={() => setFormData((prev) => ({ ...prev, adjustment_type: 'ADD' }))}
+                  className={`type-btn ${formData.adjustmentType === 'ADD' ? 'active' : ''}`}
+                  onClick={() => setFormData((prev) => ({ ...prev, adjustmentType: 'ADD' }))}
                 >
                   📥 Add Stock
                 </button>
                 <button
                   type="button"
-                  className={`type-btn ${formData.adjustment_type === 'REMOVE' ? 'active' : ''}`}
-                  onClick={() => setFormData((prev) => ({ ...prev, adjustment_type: 'REMOVE' }))}
+                  className={`type-btn ${formData.adjustmentType === 'REMOVE' ? 'active' : ''}`}
+                  onClick={() => setFormData((prev) => ({ ...prev, adjustmentType: 'REMOVE' }))}
                 >
                   📤 Remove Stock
                 </button>
                 <button
                   type="button"
-                  className={`type-btn ${formData.adjustment_type === 'CORRECT' ? 'active' : ''}`}
+                  className={`type-btn ${formData.adjustmentType === 'CORRECT' ? 'active' : ''}`}
                   onClick={() =>
-                    setFormData((prev) => ({ ...prev, adjustment_type: 'CORRECT' }))
+                    setFormData((prev) => ({ ...prev, adjustmentType: 'CORRECT' }))
                   }
                 >
                   🔄 Correction
@@ -161,23 +161,23 @@ export const StockAdjustmentForm: React.FC<StockAdjustmentFormProps> = ({
 
             {/* Product Selection */}
             <div className="form-group">
-              <label className="form-label" htmlFor="product_id">
+              <label className="form-label" htmlFor="productId">
                 Product *
               </label>
               <select
-                id="product_id"
-                name="product_id"
-                value={formData.product_id}
+                id="productId"
+                name="productId"
+                value={formData.productId}
                 onChange={handleInputChange}
-                className={`form-input ${errors.product_id ? 'error' : ''}`}
+                className={`form-input ${errors.productId ? 'error' : ''}`}
               >
                 <option value="">Select a product...</option>
                 <option value="1">Product A (SKU-001)</option>
                 <option value="2">Product B (SKU-002)</option>
                 <option value="3">Product C (SKU-003)</option>
               </select>
-              {errors.product_id && (
-                <span className="error-message">{errors.product_id}</span>
+              {errors.productId && (
+                <span className="error-message">{errors.productId}</span>
               )}
             </div>
 

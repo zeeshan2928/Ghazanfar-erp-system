@@ -13,7 +13,7 @@ const http = require('http');
 // Configuration
 const API_BASE = 'http://localhost:3000';
 const ORG_ID = 1;
-const TEST_TOKEN = 'test-token'; // Replace with actual token
+let TEST_TOKEN = 'test-token'; // Will be replaced dynamically
 
 // Test utilities
 class TestRunner {
@@ -94,15 +94,33 @@ function request(method, path, data = null) {
   });
 }
 
+// Authentication
+async function authenticate() {
+  console.log('\n🔐 Authenticating as admin...');
+  const res = await request('POST', '/users/login', {
+    email: 'admin@ghazanfar.com',
+    password: 'Demo@12345',
+  });
+  
+  if (res.status === 200 || res.status === 201) {
+    TEST_TOKEN = res.body.access_token || res.body.token;
+    console.log('✅ Authentication successful');
+  } else {
+    throw new Error(`Authentication failed: ${res.status} ${JSON.stringify(res.body)}`);
+  }
+}
+
 // Test Cases
 async function setupTestData() {
   console.log('\n📦 Setting up test data...');
 
+  const uniqueId = Date.now();
+  
   // Create test customer
   const customerRes = await request('POST', '/customers', {
-    name: 'Test Customer',
+    name: `Test Customer ${uniqueId}`,
     phone: '1234567890',
-    email: 'test@example.com',
+    email: `test_${uniqueId}@example.com`,
     address: 'Test Address',
   });
 
@@ -115,9 +133,9 @@ async function setupTestData() {
 
   // Create test product
   const productRes = await request('POST', '/products', {
-    name: 'Test Product',
-    sku: 'TEST-SKU-001',
-    price: 50000, // 500 PKR in paisa
+    name: `Test Product ${uniqueId}`,
+    code: `TEST-SKU-${uniqueId}`,
+    costPrice: 50000, // 500 PKR in paisa
   });
 
   if (productRes.status !== 201 && productRes.status !== 200) {
@@ -132,6 +150,17 @@ async function setupTestData() {
   const warehouseId = whRes.body.data?.[0]?.id || whRes.body[0]?.id || 1;
   console.log(`✅ Warehouse found: ${warehouseId}`);
 
+  // Create initial inventory for all warehouses
+  const warehouses = whRes.body.data || whRes.body || [{ id: 1 }];
+  for (const wh of warehouses) {
+    await request('POST', '/inventory/operations/create', {
+      productId,
+      warehouseId: wh.id,
+      openingBalance: 100,
+    });
+    console.log(`✅ Inventory created for product ${productId} in warehouse ${wh.id}`);
+  }
+
   return { customerId, productId, warehouseId };
 }
 
@@ -139,6 +168,8 @@ async function testBillCreation(testRunner, data) {
   await testRunner.run('Create Bill - Single Warehouse', async () => {
     const response = await request('POST', '/bills', {
       customerId: data.customerId,
+      customerPhone: '1234567890',
+      salesmanId: 1, // Add standard salesmanId (usually admin is 1)
       channel: 'COUNTER',
       paymentMethod: 'CASH',
       lines: [
@@ -199,7 +230,7 @@ async function testBillUpdate(testRunner) {
 }
 
 async function testStatusTransition(testRunner) {
-  await testRunner.run('Bill Status - Change to FINALIZED', async () => {
+  await testRunner.run('Bill Status - Change to APPROVED', async () => {
     // Get a bill
     const listRes = await request('GET', '/bills?skip=0&take=1');
     const bills = listRes.body.data || listRes.body || [];
@@ -210,7 +241,7 @@ async function testStatusTransition(testRunner) {
 
     const billId = bills[0].id;
     const statusRes = await request('PATCH', `/bills/${billId}/status`, {
-      status: 'FINALIZED',
+      status: 'APPROVED',
     });
 
     if (statusRes.status !== 200 && statusRes.status !== 201) {
@@ -254,8 +285,15 @@ async function testGatePassConfirmation(testRunner) {
     }
 
     const gatePassId = gatePasses[0].id;
+    const items = gatePasses[0].items || [];
+    const pickedItems = items.map(item => ({
+      billLineId: item.billLineId,
+      pickedQuantity: item.quantity
+    }));
+
     const confirmRes = await request('POST', `/gate-passes/${gatePassId}/confirm`, {
       remarks: 'Test confirmation',
+      pickedItems,
     });
 
     if (confirmRes.status !== 200 && confirmRes.status !== 201) {
@@ -276,6 +314,8 @@ async function testMultiWarehouseBill(testRunner, data) {
 
     const response = await request('POST', '/bills', {
       customerId: data.customerId,
+      customerPhone: '1234567890',
+      salesmanId: 1,
       channel: 'COUNTER',
       paymentMethod: 'CASH',
       lines: [
@@ -302,16 +342,15 @@ async function testMultiWarehouseBill(testRunner, data) {
   });
 }
 
-async function testInventoryReservation(testRunner) {
+async function testInventoryReservation(testRunner, data) {
   await testRunner.run('Inventory - Reserved After Bill Creation', async () => {
     // Get inventory for a warehouse
-    const invRes = await request('GET', '/inventory?warehouseId=1&skip=0&take=10');
-    const inventory = invRes.body.data || invRes.body || [];
+    const invRes = await request('GET', `/inventory/${data.productId}/warehouse/${data.warehouseId}`);
+    const item = invRes.body;
 
-    if (inventory.length === 0) {
-      console.warn('⚠️  No inventory found');
+    if (!item || item.error) {
+      console.warn('⚠️  No inventory found or error returned');
     } else {
-      const item = inventory[0];
       if (item.reserved === undefined) {
         throw new Error('No reserved field in inventory response');
       }
@@ -336,8 +375,17 @@ async function main() {
     console.log(`📍 API Base: ${API_BASE}`);
     console.log(`🏢 Organization: ${ORG_ID}\n`);
 
+    // Authentication
+    try {
+      await authenticate();
+    } catch (error) {
+      console.error('❌ Authentication failed - cannot run tests');
+      console.error(`   Error: ${error.message}`);
+      process.exit(1);
+    }
+
     // Setup
-    console.log('📋 SETUP PHASE');
+    console.log('\n📋 SETUP PHASE');
     let testData;
     try {
       testData = await setupTestData();
@@ -366,7 +414,7 @@ async function main() {
 
     // Inventory Tests
     console.log('\n📋 INVENTORY TESTS');
-    await testInventoryReservation(testRunner);
+    await testInventoryReservation(testRunner, testData);
 
     // Report
     testRunner.report();

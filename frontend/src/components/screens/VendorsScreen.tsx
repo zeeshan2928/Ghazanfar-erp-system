@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { apiClient } from '../../services/api';
+import { LocationPicker } from '../LocationPicker';
 
 interface Vendor {
   id: number;
@@ -13,6 +14,7 @@ interface Vendor {
   taxNumber?: string;
   tags?: string[];
   isActive: boolean;
+  city?: { id: number; name: string; province: { id: number; name: string } } | null;
 }
 
 interface ProductVendorRow {
@@ -99,6 +101,7 @@ export function VendorsScreen() {
   const [formData, setFormData] = useState({
     name: '', email: '', phone: '', contactPerson: '', address: '',
     paymentTerms: '', creditLimit: '', taxNumber: '', tags: '',
+    cityId: null as number | null, cityLabel: '',
   });
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
@@ -159,7 +162,7 @@ export function VendorsScreen() {
   }
 
   function resetForm() {
-    setFormData({ name: '', email: '', phone: '', contactPerson: '', address: '', paymentTerms: '', creditLimit: '', taxNumber: '', tags: '' });
+    setFormData({ name: '', email: '', phone: '', contactPerson: '', address: '', paymentTerms: '', creditLimit: '', taxNumber: '', tags: '', cityId: null, cityLabel: '' });
   }
 
   async function submitVendor() {
@@ -175,6 +178,7 @@ export function VendorsScreen() {
         phone: formData.phone || undefined,
         contactPerson: formData.contactPerson || undefined,
         address: formData.address || undefined,
+        cityId: formData.cityId ?? undefined,
         paymentTerms: formData.paymentTerms || undefined,
         creditLimit: formData.creditLimit ? Number(formData.creditLimit) : undefined,
         taxNumber: formData.taxNumber || undefined,
@@ -310,6 +314,14 @@ export function VendorsScreen() {
               <input style={styles.input} value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} />
             </div>
             <div style={styles.field}>
+              <label style={styles.label}>City</label>
+              <LocationPicker
+                cityId={formData.cityId}
+                valueLabel={formData.cityLabel}
+                onChange={(city) => setFormData({ ...formData, cityId: city?.id ?? null, cityLabel: city?.name ?? '' })}
+              />
+            </div>
+            <div style={styles.field}>
               <label style={styles.label}>Payment Terms</label>
               <input style={styles.input} placeholder="e.g. Net 30" value={formData.paymentTerms} onChange={e => setFormData({ ...formData, paymentTerms: e.target.value })} />
             </div>
@@ -373,6 +385,7 @@ export function VendorsScreen() {
             <h3 style={styles.h3}>{vendorDetail.name}</h3>
             <div style={styles.vendorMeta}>
               <div>{vendorDetail.contact_person} · {vendorDetail.phone} · {vendorDetail.email}</div>
+              <div>{vendorDetail.city ? `${vendorDetail.city.name}, ${vendorDetail.city.province.name}` : 'No city set'}</div>
               <div>{vendorDetail.paymentTerms || 'No payment terms set'} · Credit limit Rs {(vendorDetail.creditLimit || 0).toLocaleString()}</div>
               <div>{vendorDetail.taxNumber ? `Tax #: ${vendorDetail.taxNumber}` : ''} {(vendorDetail.tags || []).length > 0 && `· ${(vendorDetail.tags || []).join(', ')}`}</div>
             </div>

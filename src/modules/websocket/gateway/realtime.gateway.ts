@@ -24,6 +24,7 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   private readonly logger = new Logger(RealtimeGateway.name);
   private userConnections = new Map<number, Set<string>>();
   private orgConnections = new Map<number, Set<string>>();
+  private warehouseConnections = new Map<number, Set<string>>();
 
   constructor(private jwtService: JwtService) {}
 
@@ -132,6 +133,49 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
   }
 
   /**
+   * Join warehouse
+   */
+  @SubscribeMessage('joinWarehouse')
+  handleJoinWarehouse(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { warehouseId: number },
+  ) {
+    const roomName = `warehouse:${data.warehouseId}`;
+    socket.join(roomName);
+
+    if (!this.warehouseConnections.has(data.warehouseId)) {
+      this.warehouseConnections.set(data.warehouseId, new Set());
+    }
+    this.warehouseConnections.get(data.warehouseId).add(socket.id);
+
+    this.logger.log(`User joined warehouse room: ${roomName}`);
+    return { success: true };
+  }
+
+  /**
+   * Leave warehouse
+   */
+  @SubscribeMessage('leaveWarehouse')
+  handleLeaveWarehouse(
+    @ConnectedSocket() socket: Socket,
+    @MessageBody() data: { warehouseId: number },
+  ) {
+    const roomName = `warehouse:${data.warehouseId}`;
+    socket.leave(roomName);
+
+    const warehouseSockets = this.warehouseConnections.get(data.warehouseId);
+    if (warehouseSockets) {
+      warehouseSockets.delete(socket.id);
+      if (warehouseSockets.size === 0) {
+        this.warehouseConnections.delete(data.warehouseId);
+      }
+    }
+
+    this.logger.log(`User left warehouse room: ${roomName}`);
+    return { success: true };
+  }
+
+  /**
    * Subscribe to KPI updates
    */
   @SubscribeMessage('subscribe:kpis')
@@ -166,6 +210,24 @@ export class RealtimeGateway implements OnGatewayConnection, OnGatewayDisconnect
     const roomName = `org:${organizationId}`;
     this.server.to(roomName).emit('bill:created', billData);
     this.logger.log(`Bill created notification sent to ${roomName}`);
+  }
+
+  /**
+   * Notify gate pass created
+   */
+  notifyGatePassCreated(warehouseId: number, gatePassData: any) {
+    const roomName = `warehouse:${warehouseId}`;
+    this.server.to(roomName).emit('gatePassCreated', gatePassData);
+    this.logger.log(`Gate pass created notification sent to ${roomName}`);
+  }
+
+  /**
+   * Notify gate pass updated
+   */
+  notifyGatePassUpdated(warehouseId: number, gatePassId: number, updateData: any) {
+    const roomName = `warehouse:${warehouseId}`;
+    this.server.to(roomName).emit('gatePassUpdated', { gatePassId, ...updateData });
+    this.logger.log(`Gate pass updated notification sent to ${roomName}`);
   }
 
   /**

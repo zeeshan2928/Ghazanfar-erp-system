@@ -17,7 +17,7 @@ import { ActionPermissionGuard } from '../../../common/guards/action-permission.
 import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { GatePassesService } from '../services/gate-passes.service';
 
-@Controller('api/v1/gate-passes')
+@Controller('gate-passes')
 @UseGuards(JwtGuard)
 export class GatePassesController {
   constructor(private gatePassesService: GatePassesService) {}

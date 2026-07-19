@@ -42,6 +42,7 @@ import { PurchaseAnalysisModule } from './modules/purchase-analysis/purchase-ana
 import { AssemblyFormulasModule } from './modules/assembly-formulas/assembly-formulas.module';
 import { BomsModule } from './modules/boms/boms.module';
 import { ManufacturingOrdersModule } from './modules/manufacturing-orders/manufacturing-orders.module';
+import { LocationsModule } from './modules/locations/locations.module';
 import { DatabaseModule } from './database/database.module';
 import { CommonModule } from './common/common.module';
 import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
@@ -105,6 +106,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     AssemblyFormulasModule,
     BomsModule,
     ManufacturingOrdersModule,
+    LocationsModule,
   ],
   controllers: [],
   providers: [

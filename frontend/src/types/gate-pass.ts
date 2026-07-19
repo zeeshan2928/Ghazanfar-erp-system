@@ -1,8 +1,8 @@
 export interface GatePassItem {
   id: number;
-  gate_pass_id: number;
-  bill_line_id: number;
-  product_id: number;
+  gatePassId: number;
+  billLineId: number;
+  productId: number;
   quantity: number;
   picked_quantity: number;
   billLine?: {
@@ -18,10 +18,10 @@ export interface GatePassItem {
 export interface GatePass {
   id: number;
   gate_pass_number: string;
-  bill_id: number;
-  warehouse_id: number;
+  billId: number;
+  warehouseId: number;
   status: 'PENDING' | 'IN_PROGRESS' | 'CONFIRMED' | 'SHORTAGE_REPORTED' | 'REJECTED';
-  gatePassDate: string; // ISO date
+  gate_pass_date: string; // ISO date
   createdAt: string;
   updatedAt: string;
   items: GatePassItem[];

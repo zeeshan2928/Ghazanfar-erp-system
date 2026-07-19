@@ -118,9 +118,9 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
               <CardBody>
                 <div className="warehouse-list">
                   {dashboard.by_warehouse.map((wh) => (
-                    <div key={wh.warehouse_id} className="warehouse-item">
+                    <div key={wh.warehouseId} className="warehouse-item">
                       <div className="warehouse-name">
-                        <h4>{wh.warehouse_name}</h4>
+                        <h4>{wh.warehouseName}</h4>
                         <p className="warehouse-total">
                           Total: {wh.total.toLocaleString()}
                         </p>
@@ -172,7 +172,7 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                   {dashboard.recent_movements.slice(0, 5).map((movement) => (
                     <div key={movement.id} className="movement-item">
                       <div className="movement-type">
-                        {movement.movement_type === 'IN' ? (
+                        {movement.movementType === 'IN' ? (
                           <span className="badge-in">📥 IN</span>
                         ) : (
                           <span className="badge-out">📤 OUT</span>
@@ -180,15 +180,15 @@ export const InventoryDashboard: React.FC<InventoryDashboardProps> = ({
                       </div>
                       <div className="movement-info">
                         <p className="movement-ref">
-                          {movement.reference_type}: {movement.reference_id}
+                          {movement.referenceType}: {movement.referenceId}
                         </p>
                         <p className="movement-time">
                           {new Date(movement.createdAt).toLocaleString()}
                         </p>
                       </div>
                       <div className="movement-qty">
-                        <span className={movement.movement_type === 'IN' ? 'positive' : 'negative'}>
-                          {movement.movement_type === 'IN' ? '+' : '−'}
+                        <span className={movement.movementType === 'IN' ? 'positive' : 'negative'}>
+                          {movement.movementType === 'IN' ? '+' : '−'}
                           {Math.abs(movement.quantity).toLocaleString()}
                         </span>
                       </div>

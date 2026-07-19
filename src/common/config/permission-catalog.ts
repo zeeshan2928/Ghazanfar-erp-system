@@ -254,6 +254,13 @@ export const PERMISSION_CATALOG: PermissionCatalogModule[] = [
     ],
   },
   {
+    module: 'locations',
+    label: 'Cities & Provinces',
+    permissions: [
+      { key: 'locations.view', label: 'View / search cities and provinces, request a missing city' },
+    ],
+  },
+  {
     module: 'manufacturing',
     label: 'Manufacturing Orders',
     permissions: [

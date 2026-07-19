@@ -151,7 +151,7 @@ export const StockLevelDisplay: React.FC<StockLevelDisplayProps> = ({
             <Card
               key={item.id}
               interactive
-              onClick={() => onSelectItem(item.product_id)}
+              onClick={() => onSelectItem(item.productId)}
               className={`stock-item ${isLow ? 'low-stock' : ''}`}
             >
               <CardBody>
@@ -217,7 +217,7 @@ export const StockLevelDisplay: React.FC<StockLevelDisplayProps> = ({
                     size="sm"
                     onClick={(e) => {
                       e.stopPropagation();
-                      onSelectItem(item.product_id);
+                      onSelectItem(item.productId);
                     }}
                   >
                     View Details

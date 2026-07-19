@@ -26,6 +26,7 @@ export class VendorsService {
         phone: createDto.phone,
         contact_person: createDto.contactPerson,
         address: createDto.address,
+        cityId: createDto.cityId ?? null,
         paymentTerms: createDto.paymentTerms,
         creditLimit: createDto.creditLimit ?? 0,
         taxNumber: createDto.taxNumber,
@@ -33,6 +34,7 @@ export class VendorsService {
       },
       include: {
         Product: true,
+        city: { include: { province: true } },
       },
     });
   }
@@ -45,6 +47,7 @@ export class VendorsService {
         take,
         include: {
           Product: true,
+          city: { include: { province: true } },
         },
         orderBy: { createdAt: 'desc' },
       }),
@@ -70,6 +73,7 @@ export class VendorsService {
           take: 10,
           orderBy: { createdAt: 'desc' },
         },
+        city: { include: { province: true } },
       },
     });
 
@@ -97,12 +101,13 @@ export class VendorsService {
         phone: updateDto.phone,
         contact_person: updateDto.contactPerson,
         address: updateDto.address,
+        cityId: updateDto.cityId,
         paymentTerms: updateDto.paymentTerms,
         creditLimit: updateDto.creditLimit,
         taxNumber: updateDto.taxNumber,
         tags: updateDto.tags,
       },
-      include: { ProductVendor: { include: { product: true } } },
+      include: { ProductVendor: { include: { product: true } }, city: { include: { province: true } } },
     });
   }
 

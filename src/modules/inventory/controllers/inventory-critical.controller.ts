@@ -15,7 +15,7 @@ import { ActionPermissionGuard } from '../../../common/guards/action-permission.
 import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryCriticalFeaturesService } from '../services/inventory-critical-features.service';
 
-@Controller('api/v1/inventory/critical')
+@Controller('inventory/critical')
 @UseGuards(JwtGuard)
 export class InventoryCriticalController {
   constructor(private criticalFeaturesService: InventoryCriticalFeaturesService) {}

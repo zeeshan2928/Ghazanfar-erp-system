@@ -16,13 +16,16 @@ import { ActionPermissionGuard } from '../../../common/guards/action-permission.
 import { RequireAction } from '../../../common/decorators/require-action.decorator';
 import { InventoryReservationService } from '../services/inventory-reservation.service';
 import { InventoryOperationsService } from '../services/inventory-operations.service';
+import { InventorySearchService } from '../services/inventory-search.service';
+import { SearchRequestDto } from '../../../common/dto/filter.dto';
 
-@Controller('api/v1/inventory')
+@Controller('inventory')
 @UseGuards(JwtGuard)
 export class InventoryController {
   constructor(
     private inventoryReservationService: InventoryReservationService,
     private inventoryOperationsService: InventoryOperationsService,
+    private inventorySearchService: InventorySearchService,
   ) {}
 
   /**
@@ -152,5 +155,27 @@ export class InventoryController {
       parseInt(reservationId),
       releaseType,
     );
+  }
+
+  /**
+   * POST - Search inventory
+   */
+  @Post('search')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
+  async search(@Request() req: any, @Body() query: SearchRequestDto) {
+    const organizationId = req.user.organizationId;
+    return this.inventorySearchService.search(organizationId, query);
+  }
+
+  /**
+   * GET - Get filter column values
+   */
+  @Get('filters/columns/:columnName')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('inventory.view')
+  async getColumnValues(@Request() req: any, @Param('columnName') columnName: string) {
+    const organizationId = req.user.organizationId;
+    return this.inventorySearchService.getColumnValues(organizationId, columnName);
   }
 }
