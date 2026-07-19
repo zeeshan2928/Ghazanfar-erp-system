@@ -444,6 +444,7 @@ model Customer {
 
   @@unique([organizationId, email])
   @@index([organizationId, name])
+  @@index([organizationId, isActive])
 }
 
 model Vendor {
@@ -557,6 +558,8 @@ model Product {
   @@index([organizationId, name])
   @@index([organizationId, productType])
   @@index([organizationId, needsClassificationReview])
+  @@index([organizationId, categoryId, isActive])
+  @@index([organizationId, brandId, isActive])
 }
 
 // A timeline of what a product COST (cost_price), so history stops rewriting
@@ -689,6 +692,8 @@ model Bill {
 
   @@unique([organizationId, bill_number])
   @@index([organizationId, customerId, bill_date])
+  @@index([organizationId, status, bill_date])
+  @@index([organizationId, payment_method])
   salesOrder                 SalesOrder?
 }
 
