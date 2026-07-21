@@ -8,6 +8,7 @@ import { ProductsScreen } from './screens/ProductsScreen';
 import { InventoryScreen } from './screens/InventoryScreen';
 import { WarehousesScreen } from './screens/WarehousesScreen';
 import { PurchaseOrdersScreen } from './screens/PurchaseOrdersScreen';
+import { PurchaseReturnsScreen } from './screens/PurchaseReturnsScreen';
 import { ReportsAnalytics } from './screens/ReportsAnalytics';
 import { UserManagement } from './screens/UserManagement';
 import { SettingsScreen } from './screens/SettingsScreen';
@@ -53,7 +54,7 @@ import { PurchasingDashboardScreen } from './screens/PurchasingDashboardScreen';
 import { AdministrationDashboardScreen } from './screens/AdministrationDashboardScreen';
 import { LocationsScreen } from './screens/LocationsScreen';
 
-type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'cost-history' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders' | 'locations';
+type Screen = 'dashboard' | 'sales-dashboard' | 'finance-dashboard' | 'inventory-dashboard' | 'purchasing-dashboard' | 'administration-dashboard' | 'salesman-performance' | 'sales-analysis' | 'purchase-analysis' | 'parts-review' | 'assembled-costs' | 'profit-dashboard' | 'pnl-statement' | 'assembly-formulas' | 'recipes' | 'cost-history' | 'invoice' | 'sales-orders' | 'bills' | 'customers' | 'products' | 'product-studio' | 'warehouses' | 'inventory' | 'purchase-orders' | 'purchase-returns' | 'reports' | 'users' | 'settings' | 'gate-passes' | 'cash-book-reports' | 'cash-book-entry' | 'operations-analytics' | 'bill-matching' | 'export-import' | 'chart-of-accounts' | 'journal-entries' | 'trial-balance' | 'balance-sheet' | 'income-statement' | 'budget' | 'ar-ap-aging' | 'product-categories' | 'brands' | 'sales-commission' | 'vendors' | 'warehouse-transfers' | 'reorder' | 'general-ledger' | 'cash-journals' | 'manufacturing-orders' | 'locations';
 
 interface NotificationItem {
   id: number;
@@ -147,6 +148,7 @@ const navItems: NavItem[] = [
   // ==================== PURCHASING ====================
   { id: 'purchasing-dashboard', label: 'Purchasing Dashboard', icon: '📊', group: 'Purchasing' },
   { id: 'purchase-orders', label: 'Purchase Orders', icon: '🛒', group: 'Purchasing' },
+  { id: 'purchase-returns', label: 'Purchase Returns', icon: '↩️', group: 'Purchasing' },
   { id: 'vendors', label: 'Vendors', icon: '🏢', group: 'Purchasing' },
 
   // ==================== ADMINISTRATION ====================
@@ -474,6 +476,8 @@ export function MainDashboard({ onLogout }: MainDashboardProps) {
         return <InventoryScreen />;
       case 'purchase-orders':
         return <PurchaseOrdersScreen />;
+      case 'purchase-returns':
+        return <PurchaseReturnsScreen />;
       case 'reports':
         return <ReportsAnalytics />;
       case 'users':

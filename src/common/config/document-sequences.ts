@@ -55,6 +55,15 @@ export const DOC_SEQUENCE = {
    * is its own batch). Brand-new, no legacy history to seed - always from 1.
    */
   receiptBatch: (year: number): string => `RECEIPT_BATCH:${year}`,
+
+  /**
+   * PR-000005 - purchase returns to a vendor, not period-scoped, one
+   * continuous series (same shape as purchaseOrder above). Historical
+   * imported returns use a distinct `PR-IMP-NNNNNN` prefix (see the
+   * one-off import script that created them) so they never collide with
+   * this counter and are excluded from its seed scan by DOC_PATTERN below.
+   */
+  purchaseReturn: (): string => 'PURCHASE_RETURN',
 } as const;
 
 /** Matchers for the one-time seed scan - see TransactionSequenceService.highestSequence. */
@@ -64,4 +73,6 @@ export const DOC_PATTERN = {
   websiteBill: (year: number): RegExp => new RegExp(`^BILL-${year}-(\\d+)$`),
   gatePassYearly: (year: number): RegExp => new RegExp(`^GP-${year}-(\\d+)$`),
   gatePassDaily: (yyyymmdd: string): RegExp => new RegExp(`^GP-${yyyymmdd}-(\\d+)$`),
+  // Matches only plain PR-000005, never PR-IMP-000005 (the imported rows).
+  purchaseReturn: /^PR-(\d+)$/,
 } as const;

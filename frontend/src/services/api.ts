@@ -567,6 +567,27 @@ class ApiClient {
     return response.data;
   }
 
+  // ==================== PURCHASE RETURNS ====================
+  async createPurchaseReturn(data: any) {
+    const response = await this.client.post('/purchase-returns', data);
+    return response.data;
+  }
+
+  async getPurchaseReturns(skip = 0, take = 20) {
+    const response = await this.client.get('/purchase-returns', { params: { skip, take } });
+    return response.data;
+  }
+
+  async getPurchaseReturnById(id: number) {
+    const response = await this.client.get(`/purchase-returns/${id}`);
+    return response.data;
+  }
+
+  async getPurchaseReturnsByVendor(vendorId: number) {
+    const response = await this.client.get(`/purchase-returns/vendor/${vendorId}`);
+    return response.data;
+  }
+
   // ==================== NOTIFICATIONS ====================
   async getNotifications(skip = 0, take = 10) {
     const response = await this.client.get('/notifications', { params: { skip, take } });

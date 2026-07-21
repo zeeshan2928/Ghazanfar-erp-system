@@ -55,6 +55,14 @@ export const PERMISSION_CATALOG: PermissionCatalogModule[] = [
     ],
   },
   {
+    module: 'purchase_returns',
+    label: 'Purchase Returns',
+    permissions: [
+      { key: 'purchase_returns.view', label: 'View purchase returns' },
+      { key: 'purchase_returns.create', label: 'Create purchase returns' },
+    ],
+  },
+  {
     module: 'journal_entries',
     label: 'Journal Entries',
     permissions: [

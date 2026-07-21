@@ -159,6 +159,7 @@ model Warehouse {
   warehouseTransfersFrom WarehouseTransfer[]  @relation("WarehouseTransfer_from")
   warehouseTransfersTo   WarehouseTransfer[]  @relation("WarehouseTransfer_to")
   manufacturingOrders    ManufacturingOrder[]
+  purchaseReturnItems    PurchaseReturnItem[]
 
   @@unique([organizationId, slug])
 }
@@ -1000,12 +1001,19 @@ model PurchaseReturnItem {
   id               Int            @id @default(autoincrement())
   returnId         Int
   productId        Int
+  // Which warehouse the returned stock is deducted from. Nullable because
+  // the 65 historically-imported return line items (from the one-year
+  // purchase report) predate this field and have no reliable warehouse
+  // to backfill; every new return created through the API must supply it.
+  warehouseId      Int?
   quantityReturned Int            @map("quantity_returned")
   unitCost         Int            @map("unit_cost") // Cost at time of return, in cents
   purchaseReturn   PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
   product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse        Warehouse?     @relation(fields: [warehouseId], references: [id])
 
   @@index([returnId, productId])
+  @@index([warehouseId])
 }
 
 model PurchaseOrderReceipt {

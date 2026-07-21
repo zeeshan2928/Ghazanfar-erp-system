@@ -31,6 +31,7 @@ import { MetricsModule } from './modules/metrics/metrics.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { PermissionsModule } from './modules/permissions/permissions.module';
 import { PurchaseOrdersModule } from './modules/purchase-orders/purchase-orders.module';
+import { PurchaseReturnsModule } from './modules/purchase-returns/purchase-returns.module';
 import { ReportingModule } from './modules/reporting/reporting.module';
 import { VendorsModule } from './modules/vendors/vendors.module';
 import { WebSocketModule } from './modules/websocket/websocket.module';
@@ -95,6 +96,7 @@ import { RequestIdMiddleware } from './common/middleware/request-id.middleware';
     NotificationsModule,
     PermissionsModule,
     PurchaseOrdersModule,
+    PurchaseReturnsModule,
     ReportingModule,
     VendorsModule,
     WebSocketModule,
