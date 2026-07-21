@@ -377,6 +377,26 @@ class ApiClient {
     return response.data;
   }
 
+  async searchTehsils(params: { search?: string; cityId?: number }) {
+    const response = await this.client.get('/locations/tehsils', { params });
+    return response.data;
+  }
+
+  async createTehsil(data: { name: string; cityId: number }) {
+    const response = await this.client.post('/locations/tehsils', data);
+    return response.data;
+  }
+
+  async updateTehsil(id: number, data: { name?: string; cityId?: number }) {
+    const response = await this.client.patch(`/locations/tehsils/${id}`, data);
+    return response.data;
+  }
+
+  async deactivateTehsil(id: number) {
+    const response = await this.client.post(`/locations/tehsils/${id}/deactivate`);
+    return response.data;
+  }
+
   async getCustomerSaleHistory(customerId: number) {
     const response = await this.client.get(`/customers/${customerId}/sale-history`);
     return response.data;

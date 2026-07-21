@@ -4,7 +4,14 @@ import * as path from 'path';
 import { PrismaService } from '@database/prisma.service';
 import { NotificationsService } from '../../notifications/services/notifications.service';
 import { NotificationType } from '../../notifications/types/notification-type.enum';
-import { CreateCityDto, SearchCitiesDto, UpdateCityDto } from '../dto/location.dto';
+import {
+  CreateCityDto,
+  SearchCitiesDto,
+  UpdateCityDto,
+  CreateTehsilDto,
+  SearchTehsilsDto,
+  UpdateTehsilDto,
+} from '../dto/location.dto';
 
 @Injectable()
 export class LocationsService implements OnModuleInit {
@@ -126,5 +133,50 @@ export class LocationsService implements OnModuleInit {
   private async assertProvinceExists(provinceId: number) {
     const exists = await this.prisma.province.findUnique({ where: { id: provinceId }, select: { id: true } });
     if (!exists) throw new BadRequestException(`Province ${provinceId} does not exist`);
+  }
+
+  // ---- Tehsil - admin-only, no PENDING/approval workflow (unlike City) ----
+
+  async searchTehsils(dto: SearchTehsilsDto) {
+    return this.prisma.tehsil.findMany({
+      where: {
+        isActive: true,
+        ...(dto.cityId ? { cityId: dto.cityId } : {}),
+        ...(dto.search ? { name: { contains: dto.search, mode: 'insensitive' } } : {}),
+      },
+      include: { city: { select: { id: true, name: true, province: { select: { id: true, name: true } } } } },
+      orderBy: { name: 'asc' },
+      take: 50,
+    });
+  }
+
+  async createTehsil(dto: CreateTehsilDto) {
+    await this.assertCityExists(dto.cityId);
+    const existing = await this.prisma.tehsil.findFirst({
+      where: { name: { equals: dto.name, mode: 'insensitive' }, cityId: dto.cityId },
+    });
+    if (existing) return existing;
+    return this.prisma.tehsil.create({ data: { name: dto.name, cityId: dto.cityId } });
+  }
+
+  async updateTehsil(tehsilId: number, dto: UpdateTehsilDto) {
+    const tehsil = await this.prisma.tehsil.findUnique({ where: { id: tehsilId } });
+    if (!tehsil) throw new NotFoundException('Tehsil not found');
+    if (dto.cityId) await this.assertCityExists(dto.cityId);
+    return this.prisma.tehsil.update({
+      where: { id: tehsilId },
+      data: { name: dto.name, cityId: dto.cityId },
+    });
+  }
+
+  async deactivateTehsil(tehsilId: number) {
+    const tehsil = await this.prisma.tehsil.findUnique({ where: { id: tehsilId } });
+    if (!tehsil) throw new NotFoundException('Tehsil not found');
+    return this.prisma.tehsil.update({ where: { id: tehsilId }, data: { isActive: false } });
+  }
+
+  private async assertCityExists(cityId: number) {
+    const exists = await this.prisma.city.findUnique({ where: { id: cityId }, select: { id: true } });
+    if (!exists) throw new BadRequestException(`City ${cityId} does not exist`);
   }
 }

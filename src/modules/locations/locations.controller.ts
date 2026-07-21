@@ -1,6 +1,13 @@
 import { Body, Controller, Get, Param, ParseIntPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { LocationsService } from './services/locations.service';
-import { CreateCityDto, SearchCitiesDto, UpdateCityDto } from './dto/location.dto';
+import {
+  CreateCityDto,
+  SearchCitiesDto,
+  UpdateCityDto,
+  CreateTehsilDto,
+  SearchTehsilsDto,
+  UpdateTehsilDto,
+} from './dto/location.dto';
 import { JwtGuard } from '@common/guards/jwt.guard';
 import { ActionPermissionGuard } from '@common/guards/action-permission.guard';
 import { RolesGuard } from '@common/guards/roles.guard';
@@ -60,5 +67,35 @@ export class LocationsController {
   @Roles('ADMIN')
   async update(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateCityDto) {
     return this.locationsService.update(id, dto);
+  }
+
+  // ---- Tehsil - admin-only management, no approval queue (see schema comment) ----
+
+  @Get('tehsils')
+  @UseGuards(ActionPermissionGuard)
+  @RequireAction('locations.view')
+  async searchTehsils(@Query() dto: SearchTehsilsDto) {
+    return this.locationsService.searchTehsils(dto);
+  }
+
+  @Post('tehsils')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async createTehsil(@Body() dto: CreateTehsilDto) {
+    return this.locationsService.createTehsil(dto);
+  }
+
+  @Patch('tehsils/:id')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async updateTehsil(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateTehsilDto) {
+    return this.locationsService.updateTehsil(id, dto);
+  }
+
+  @Post('tehsils/:id/deactivate')
+  @UseGuards(RolesGuard)
+  @Roles('ADMIN')
+  async deactivateTehsil(@Param('id', ParseIntPipe) id: number) {
+    return this.locationsService.deactivateTehsil(id);
   }
 }

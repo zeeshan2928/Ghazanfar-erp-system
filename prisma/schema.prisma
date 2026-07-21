@@ -512,6 +512,7 @@ model City {
   requestedByUser User?      @relation("CityRequestedBy", fields: [requestedByUserId], references: [id])
   customers       Customer[]
   vendors         Vendor[]
+  tehsils         Tehsil[]
 
   @@unique([name, provinceId])
   @@index([provinceId, status])
@@ -521,6 +522,24 @@ model City {
 enum CityStatus {
   APPROVED
   PENDING
+}
+
+// Third level of the location hierarchy (Province -> City -> Tehsil).
+// Admin-only management, unlike City - no PENDING/requestedByUserId
+// approval workflow, since only admins can create these (see
+// TehsilsController: RolesGuard + @Roles('ADMIN') on every endpoint).
+model Tehsil {
+  id        Int      @id @default(autoincrement())
+  name      String
+  cityId    Int
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  city City @relation(fields: [cityId], references: [id])
+
+  @@unique([name, cityId])
+  @@index([cityId, isActive])
 }
 
 enum CustomerAccountType {
