@@ -9,109 +9,110 @@ datasource db {
 }
 
 model Organization {
-  id                     Int                    @id @default(autoincrement())
-  name                   String                 @unique
-  slug                   String                 @unique
-  isActive               Boolean                @default(true)
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  bills                  Bill[]
-  billLines              BillLine[]
-  invoiceSequence        InvoiceSequence?
-  transactionSequences   TransactionSequence[]
-  customers              Customer[]
-  gatePasses             GatePass[]
-  gatePassItems          GatePassItem[]
-  inventories            Inventory[]
-  inventoryReservations  InventoryReservation[]
-  inventoryMovements     InventoryMovement[]
-  inventoryTransfers     InventoryTransfer[]
-  inventoryLevels        InventoryLevel[]
-  inventoryHolds         InventoryHold[]
-  inventoryReconciliations InventoryReconciliation[]
+  id                          Int                          @id @default(autoincrement())
+  name                        String                       @unique
+  slug                        String                       @unique
+  isActive                    Boolean                      @default(true)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  bills                       Bill[]
+  billLines                   BillLine[]
+  invoiceSequence             InvoiceSequence?
+  transactionSequences        TransactionSequence[]
+  customers                   Customer[]
+  gatePasses                  GatePass[]
+  gatePassItems               GatePassItem[]
+  inventories                 Inventory[]
+  inventoryReservations       InventoryReservation[]
+  inventoryMovements          InventoryMovement[]
+  inventoryTransfers          InventoryTransfer[]
+  inventoryLevels             InventoryLevel[]
+  inventoryHolds              InventoryHold[]
+  inventoryReconciliations    InventoryReconciliation[]
   inventoryWarehouseTransfers InventoryWarehouseTransfer[]
-  products               Product[]
-  productCategories      ProductCategory[]
-  brands                 Brand[]
-  purchaseOrders         PurchaseOrder[]
-  users                  User[]
-  vendors                Vendor[]
-  warehouses             Warehouse[]
-  warehouseTransfers     WarehouseTransfer[]
-  cashBookEntries        CashBookEntry[]
-  cashBookMatches        CashBookMatch[] @relation("CashBookMatches")
-  bankStatements         BankStatement[]
-  cashBookComments       CashBookComment[]
-  cashBookApprovals      CashBookApproval[]
-  cashBookAudits         CashBookAudit[]
-  commissionRules        CommissionRule[]
-  commissionCalculations CommissionCalculation[]
-  productCommissions     ProductCommission[]
-  chartOfAccounts        ChartOfAccount[]
-  journalEntries         JournalEntry[]
-  glPostings             GLPosting[]
-  budgets                Budget[]
-  arAgings               ArAging[]
-  apAgings               ApAging[]
-  salesmanProductCommissions SalesmanProductCommission[]
-  notifications          Notification[]
-  userPermissions        UserPermission[]
-  salesOrders            SalesOrder[]
-  salesAnalysisUploads   SalesAnalysisUpload[]
-  salesAnalysisRecords   SalesAnalysisRecord[]
-  purchaseAnalysisUploads PurchaseAnalysisUpload[]
-  purchaseAnalysisRecords PurchaseAnalysisRecord[]
-  assemblyFormulas       AssemblyFormula[]
-  assemblyParts          AssemblyPart[]
-  assembledItemCosts     AssembledItemCost[]
-  boms                   Bom[]
-  manufacturingOrders    ManufacturingOrder[]
-  importMappingTemplates ImportMappingTemplate[]
-  salesItemClassifications SalesItemClassification[]
-  productCostHistory     ProductCostHistory[]
+  products                    Product[]
+  productCategories           ProductCategory[]
+  brands                      Brand[]
+  purchaseOrders              PurchaseOrder[]
+  purchaseReturns             PurchaseReturn[]
+  users                       User[]
+  vendors                     Vendor[]
+  warehouses                  Warehouse[]
+  warehouseTransfers          WarehouseTransfer[]
+  cashBookEntries             CashBookEntry[]
+  cashBookMatches             CashBookMatch[]              @relation("CashBookMatches")
+  bankStatements              BankStatement[]
+  cashBookComments            CashBookComment[]
+  cashBookApprovals           CashBookApproval[]
+  cashBookAudits              CashBookAudit[]
+  commissionRules             CommissionRule[]
+  commissionCalculations      CommissionCalculation[]
+  productCommissions          ProductCommission[]
+  chartOfAccounts             ChartOfAccount[]
+  journalEntries              JournalEntry[]
+  glPostings                  GLPosting[]
+  budgets                     Budget[]
+  arAgings                    ArAging[]
+  apAgings                    ApAging[]
+  salesmanProductCommissions  SalesmanProductCommission[]
+  notifications               Notification[]
+  userPermissions             UserPermission[]
+  salesOrders                 SalesOrder[]
+  salesAnalysisUploads        SalesAnalysisUpload[]
+  salesAnalysisRecords        SalesAnalysisRecord[]
+  purchaseAnalysisUploads     PurchaseAnalysisUpload[]
+  purchaseAnalysisRecords     PurchaseAnalysisRecord[]
+  assemblyFormulas            AssemblyFormula[]
+  assemblyParts               AssemblyPart[]
+  assembledItemCosts          AssembledItemCost[]
+  boms                        Bom[]
+  manufacturingOrders         ManufacturingOrder[]
+  importMappingTemplates      ImportMappingTemplate[]
+  salesItemClassifications    SalesItemClassification[]
+  productCostHistory          ProductCostHistory[]
 }
 
 model User {
-  id                                    Int               @id @default(autoincrement())
-  email                                 String            @unique
-  password                              String
-  firstName                             String
-  lastName                              String
-  role                                  UserRole          @default(SALESMAN)
-  canViewFinancials                     Boolean           @default(false) // Manual per-user flag, independent of role - profit/loss, margins, and cost data are gated on this
-  isActive                              Boolean           @default(true)
-  createdAt                             DateTime          @default(now())
-  updatedAt                             DateTime          @updatedAt
-  organizationId                        Int
-  warehouseId                           Int?
-  bills_approved                        Bill[]            @relation("ApprovedBy")
-  Bill_Bill_created_byToUser            Bill[]            @relation("Bill_created_byToUser")
-  bills_modified                        Bill[]            @relation("LastModifiedBy")
-  bills_as_salesman                     Bill[]            @relation("Salesman")
-  cashBookEntries                       CashBookEntry[]
-  cashBookMatchesCreatedBy              CashBookMatch[]   @relation("CashBookMatchesCreatedBy")
-  cashBookComments                      CashBookComment[]
-  cashBookApprovalsApproved             CashBookApproval[]
-  cashBookAudits                        CashBookAudit[]
-  inventoryMovements                    InventoryMovement[]
-  inventoryTransfersRequested           InventoryTransfer[] @relation("InventoryTransfer_requestedBy")
-  inventoryTransfersReceived            InventoryTransfer[] @relation("InventoryTransfer_receivedBy")
-  inventoryHoldsCreated                 InventoryHold[] @relation("InventoryHold_createdBy")
-  inventoryHoldsApproved                InventoryHold[] @relation("InventoryHold_approvedBy")
-  inventoryReconciliationsCounted       InventoryReconciliation[] @relation("InventoryReconciliation_countedBy")
-  inventoryReconciliationsApproved      InventoryReconciliation[] @relation("InventoryReconciliation_approvedBy")
-  inventoryWarehouseTransfersRequested  InventoryWarehouseTransfer[] @relation("InventoryWarehouseTransfer_requestedBy")
-  inventoryWarehouseTransfersApproved   InventoryWarehouseTransfer[] @relation("InventoryWarehouseTransfer_approvedBy")
-  commissionCalculations                CommissionCalculation[] @relation("CommissionCalculations")
-  commissionApprovals                   CommissionCalculation[] @relation("CommissionApprovals")
-  salesmanCommissionAssignments         SalesmanProductCommission[] @relation("SalesmanCommissionAssignments")
-  notifications                         Notification[]
-  permissionOverrides                   UserPermission[]
-  salesAnalysisUploads                  SalesAnalysisUpload[]
-  purchaseAnalysisUploads               PurchaseAnalysisUpload[]
-  cityRequests                          City[]            @relation("CityRequestedBy")
-  organization                          Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Warehouse                             Warehouse?        @relation(fields: [warehouseId], references: [id])
+  id                                   Int                          @id @default(autoincrement())
+  email                                String                       @unique
+  password                             String
+  firstName                            String
+  lastName                             String
+  role                                 UserRole                     @default(SALESMAN)
+  canViewFinancials                    Boolean                      @default(false) // Manual per-user flag, independent of role - profit/loss, margins, and cost data are gated on this
+  isActive                             Boolean                      @default(true)
+  createdAt                            DateTime                     @default(now())
+  updatedAt                            DateTime                     @updatedAt
+  organizationId                       Int
+  warehouseId                          Int?
+  bills_approved                       Bill[]                       @relation("ApprovedBy")
+  Bill_Bill_created_byToUser           Bill[]                       @relation("Bill_created_byToUser")
+  bills_modified                       Bill[]                       @relation("LastModifiedBy")
+  bills_as_salesman                    Bill[]                       @relation("Salesman")
+  cashBookEntries                      CashBookEntry[]
+  cashBookMatchesCreatedBy             CashBookMatch[]              @relation("CashBookMatchesCreatedBy")
+  cashBookComments                     CashBookComment[]
+  cashBookApprovalsApproved            CashBookApproval[]
+  cashBookAudits                       CashBookAudit[]
+  inventoryMovements                   InventoryMovement[]
+  inventoryTransfersRequested          InventoryTransfer[]          @relation("InventoryTransfer_requestedBy")
+  inventoryTransfersReceived           InventoryTransfer[]          @relation("InventoryTransfer_receivedBy")
+  inventoryHoldsCreated                InventoryHold[]              @relation("InventoryHold_createdBy")
+  inventoryHoldsApproved               InventoryHold[]              @relation("InventoryHold_approvedBy")
+  inventoryReconciliationsCounted      InventoryReconciliation[]    @relation("InventoryReconciliation_countedBy")
+  inventoryReconciliationsApproved     InventoryReconciliation[]    @relation("InventoryReconciliation_approvedBy")
+  inventoryWarehouseTransfersRequested InventoryWarehouseTransfer[] @relation("InventoryWarehouseTransfer_requestedBy")
+  inventoryWarehouseTransfersApproved  InventoryWarehouseTransfer[] @relation("InventoryWarehouseTransfer_approvedBy")
+  commissionCalculations               CommissionCalculation[]      @relation("CommissionCalculations")
+  commissionApprovals                  CommissionCalculation[]      @relation("CommissionApprovals")
+  salesmanCommissionAssignments        SalesmanProductCommission[]  @relation("SalesmanCommissionAssignments")
+  notifications                        Notification[]
+  permissionOverrides                  UserPermission[]
+  salesAnalysisUploads                 SalesAnalysisUpload[]
+  purchaseAnalysisUploads              PurchaseAnalysisUpload[]
+  cityRequests                         City[]                       @relation("CityRequestedBy")
+  organization                         Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Warehouse                            Warehouse?                   @relation(fields: [warehouseId], references: [id])
 }
 
 // Per-user action-level permission override. Default-allow model: the
@@ -123,33 +124,33 @@ model UserPermission {
   id             Int      @id @default(autoincrement())
   organizationId Int
   userId         Int
-  permissionKey  String   // e.g. "bills.delete" - see PERMISSION_CATALOG
+  permissionKey  String // e.g. "bills.delete" - see PERMISSION_CATALOG
   granted        Boolean  @default(true)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([userId, permissionKey])
   @@index([organizationId, userId])
 }
 
 model Warehouse {
-  id                                                               Int                 @id @default(autoincrement())
-  organizationId                                                   Int
-  name                                                             String
-  slug                                                             String
-  location                                                         String
-  isActive                                                         Boolean             @default(true)
-  createdAt                                                        DateTime            @default(now())
-  updatedAt                                                        DateTime            @updatedAt
-  gatePasses                                                       GatePass[]
-  inventory                                                        Inventory[]
-  User                                                             User[]
-  organization                                                     Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  warehouseTransfersFrom WarehouseTransfer[] @relation("WarehouseTransfer_from")
-  warehouseTransfersTo   WarehouseTransfer[] @relation("WarehouseTransfer_to")
+  id                     Int                  @id @default(autoincrement())
+  organizationId         Int
+  name                   String
+  slug                   String
+  location               String
+  isActive               Boolean              @default(true)
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+  gatePasses             GatePass[]
+  inventory              Inventory[]
+  User                   User[]
+  organization           Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseTransfersFrom WarehouseTransfer[]  @relation("WarehouseTransfer_from")
+  warehouseTransfersTo   WarehouseTransfer[]  @relation("WarehouseTransfer_to")
   manufacturingOrders    ManufacturingOrder[]
 
   @@unique([organizationId, slug])
@@ -175,9 +176,9 @@ model PurchaseOrder {
   status                 PurchaseOrderStatus    @default(DRAFT)
   expected_delivery_date DateTime?
   actual_delivery_date   DateTime?
-  due_date               DateTime?              // For AP aging calculation
-  po_amount              Int                    @default(0)  // Total PO amount in cents
-  amount_paid            Int                    @default(0)  // Amount paid in cents
+  due_date               DateTime? // For AP aging calculation
+  po_amount              Int                    @default(0) // Total PO amount in cents
+  amount_paid            Int                    @default(0) // Amount paid in cents
   created_by             Int
   remarks                String?
   isActive               Boolean                @default(true)
@@ -187,6 +188,7 @@ model PurchaseOrder {
   vendor                 Vendor                 @relation(fields: [vendorId], references: [id])
   PurchaseOrderItem      PurchaseOrderItem[]
   PurchaseOrderReceipt   PurchaseOrderReceipt[]
+  purchaseReturns        PurchaseReturn[]
   apAgings               ApAging[]
 
   @@unique([organizationId, manual_reference])
@@ -196,27 +198,27 @@ model PurchaseOrder {
 }
 
 model Inventory {
-  id                            Int                              @id @default(autoincrement())
-  organizationId                Int
-  productId                     Int
-  warehouseId                   Int
-  physical_on_hand              Int                              @default(0)
-  reserved                      Int                              @default(0)
-  available                     Int                              @default(0)
-  opening_balance               Int                              @default(0)
-  updatedAt                     DateTime                         @updatedAt
-  lastReservedAt                DateTime?                        @db.Timestamp(6)
-  createdAt                     DateTime                         @default(now()) @db.Timestamp(6)
-  organization                  Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Product                       Product                         @relation(fields: [productId], references: [id], onDelete: Cascade)
-  warehouse                     Warehouse                       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
-  inventoryReservations         InventoryReservation[]
-  movements                     InventoryMovement[]
-  transfersFrom                 InventoryTransfer[]             @relation("InventoryTransfer_from")
-  transfersTo                   InventoryTransfer[]             @relation("InventoryTransfer_to")
-  level                         InventoryLevel?
-  holds                         InventoryHold[]
-  reconciliationItems           InventoryReconciliationItem[]
+  id                    Int                           @id @default(autoincrement())
+  organizationId        Int
+  productId             Int
+  warehouseId           Int
+  physical_on_hand      Int                           @default(0)
+  reserved              Int                           @default(0)
+  available             Int                           @default(0)
+  opening_balance       Int                           @default(0)
+  updatedAt             DateTime                      @updatedAt
+  lastReservedAt        DateTime?                     @db.Timestamp(6)
+  createdAt             DateTime                      @default(now()) @db.Timestamp(6)
+  organization          Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Product               Product                       @relation(fields: [productId], references: [id], onDelete: Cascade)
+  warehouse             Warehouse                     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventoryReservations InventoryReservation[]
+  movements             InventoryMovement[]
+  transfersFrom         InventoryTransfer[]           @relation("InventoryTransfer_from")
+  transfersTo           InventoryTransfer[]           @relation("InventoryTransfer_to")
+  level                 InventoryLevel?
+  holds                 InventoryHold[]
+  reconciliationItems   InventoryReconciliationItem[]
 
   @@unique([organizationId, productId, warehouseId])
   @@index([organizationId, warehouseId])
@@ -229,7 +231,7 @@ model InventoryReservation {
   inventoryId    Int
   quantity       Int
   status         String       @default("RESERVED") // RESERVED, RELEASED, EXPIRED
-  releaseType    String?      // AUTO, MANUAL, EXPIRED
+  releaseType    String? // AUTO, MANUAL, EXPIRED
   releaseDate    DateTime?
   createdAt      DateTime     @default(now()) @db.Timestamp(6)
   updatedAt      DateTime     @updatedAt
@@ -243,19 +245,19 @@ model InventoryReservation {
 }
 
 model InventoryMovement {
-  id               Int                    @id @default(autoincrement())
-  organizationId   Int
-  inventoryId      Int
-  movementType     InventoryMovementType
-  quantity         Int
-  reference        String?                // PO#, Adjustment#, Transfer#, etc.
-  remarks          String?
-  createdBy        Int
-  createdAt        DateTime               @default(now()) @db.Timestamp(6)
-  updatedAt        DateTime               @updatedAt
-  inventory        Inventory              @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  organization     Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdByUser    User                   @relation(fields: [createdBy], references: [id])
+  id             Int                   @id @default(autoincrement())
+  organizationId Int
+  inventoryId    Int
+  movementType   InventoryMovementType
+  quantity       Int
+  reference      String? // PO#, Adjustment#, Transfer#, etc.
+  remarks        String?
+  createdBy      Int
+  createdAt      DateTime              @default(now()) @db.Timestamp(6)
+  updatedAt      DateTime              @updatedAt
+  inventory      Inventory             @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser  User                  @relation(fields: [createdBy], references: [id])
 
   @@index([organizationId, createdAt])
   @@index([inventoryId, movementType])
@@ -263,152 +265,152 @@ model InventoryMovement {
 }
 
 model InventoryTransfer {
-  id                Int          @id @default(autoincrement())
-  organizationId    Int
-  transferNumber    String       @unique
-  fromInventoryId   Int
-  toInventoryId     Int
-  quantity          Int
-  status            String       @default("PENDING") // PENDING, IN_TRANSIT, RECEIVED, REJECTED
-  requestedBy       Int
-  receivedBy        Int?
-  requestDate       DateTime     @default(now())
-  receivedDate      DateTime?
-  remarks           String?
-  createdAt         DateTime     @default(now()) @db.Timestamp(6)
-  updatedAt         DateTime     @updatedAt
-  fromInventory     Inventory    @relation("InventoryTransfer_from", fields: [fromInventoryId], references: [id], onDelete: Cascade)
-  toInventory       Inventory    @relation("InventoryTransfer_to", fields: [toInventoryId], references: [id], onDelete: Cascade)
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  requestedByUser   User         @relation("InventoryTransfer_requestedBy", fields: [requestedBy], references: [id])
-  receivedByUser    User?        @relation("InventoryTransfer_receivedBy", fields: [receivedBy], references: [id])
+  id              Int          @id @default(autoincrement())
+  organizationId  Int
+  transferNumber  String       @unique
+  fromInventoryId Int
+  toInventoryId   Int
+  quantity        Int
+  status          String       @default("PENDING") // PENDING, IN_TRANSIT, RECEIVED, REJECTED
+  requestedBy     Int
+  receivedBy      Int?
+  requestDate     DateTime     @default(now())
+  receivedDate    DateTime?
+  remarks         String?
+  createdAt       DateTime     @default(now()) @db.Timestamp(6)
+  updatedAt       DateTime     @updatedAt
+  fromInventory   Inventory    @relation("InventoryTransfer_from", fields: [fromInventoryId], references: [id], onDelete: Cascade)
+  toInventory     Inventory    @relation("InventoryTransfer_to", fields: [toInventoryId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  requestedByUser User         @relation("InventoryTransfer_requestedBy", fields: [requestedBy], references: [id])
+  receivedByUser  User?        @relation("InventoryTransfer_receivedBy", fields: [receivedBy], references: [id])
 
   @@index([organizationId, status])
   @@index([fromInventoryId, toInventoryId])
 }
 
 model InventoryLevel {
-  id                Int       @id @default(autoincrement())
-  organizationId    Int
-  inventoryId       Int       @unique
-  minimumQuantity   Int       @default(10)
-  reorderQuantity   Int       @default(50)
-  maximumQuantity   Int?
-  safetyStock       Int       @default(0)
-  lastReorderDate   DateTime?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  inventory         Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  id              Int          @id @default(autoincrement())
+  organizationId  Int
+  inventoryId     Int          @unique
+  minimumQuantity Int          @default(10)
+  reorderQuantity Int          @default(50)
+  maximumQuantity Int?
+  safetyStock     Int          @default(0)
+  lastReorderDate DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  inventory       Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId])
   @@index([inventoryId])
 }
 
 model InventoryHold {
-  id               Int       @id @default(autoincrement())
-  organizationId   Int
-  inventoryId      Int
-  quantity         Int
-  holdType         HoldType
-  reason           String?
-  createdBy        Int
-  approvedBy       Int?
-  approvalDate     DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  inventory        Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
-  organization     Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  createdByUser    User      @relation("InventoryHold_createdBy", fields: [createdBy], references: [id])
-  approverUser     User?     @relation("InventoryHold_approvedBy", fields: [approvedBy], references: [id])
+  id             Int          @id @default(autoincrement())
+  organizationId Int
+  inventoryId    Int
+  quantity       Int
+  holdType       HoldType
+  reason         String?
+  createdBy      Int
+  approvedBy     Int?
+  approvalDate   DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  inventory      Inventory    @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdByUser  User         @relation("InventoryHold_createdBy", fields: [createdBy], references: [id])
+  approverUser   User?        @relation("InventoryHold_approvedBy", fields: [approvedBy], references: [id])
 
   @@index([organizationId, holdType])
   @@index([inventoryId, holdType])
 }
 
 model InventoryReconciliation {
-  id                  Int                              @id @default(autoincrement())
-  organizationId      Int
-  reconciliationDate  DateTime
-  status              ReconciliationStatus             @default(PENDING)
-  countedBy           Int
-  approvedBy          Int?
-  approvalDate        DateTime?
-  remarks             String?
-  createdAt           DateTime                         @default(now())
-  updatedAt           DateTime                         @updatedAt
-  organization        Organization                    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  countedByUser       User                            @relation("InventoryReconciliation_countedBy", fields: [countedBy], references: [id])
-  approverUser        User?                           @relation("InventoryReconciliation_approvedBy", fields: [approvedBy], references: [id])
-  items               InventoryReconciliationItem[]
+  id                 Int                           @id @default(autoincrement())
+  organizationId     Int
+  reconciliationDate DateTime
+  status             ReconciliationStatus          @default(PENDING)
+  countedBy          Int
+  approvedBy         Int?
+  approvalDate       DateTime?
+  remarks            String?
+  createdAt          DateTime                      @default(now())
+  updatedAt          DateTime                      @updatedAt
+  organization       Organization                  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  countedByUser      User                          @relation("InventoryReconciliation_countedBy", fields: [countedBy], references: [id])
+  approverUser       User?                         @relation("InventoryReconciliation_approvedBy", fields: [approvedBy], references: [id])
+  items              InventoryReconciliationItem[]
 
   @@index([organizationId, reconciliationDate])
   @@index([status])
 }
 
 model InventoryReconciliationItem {
-  id                   Int                      @id @default(autoincrement())
-  reconciliationId     Int
-  inventoryId          Int
-  systemQuantity       Int
-  countedQuantity      Int
-  variance             Int
-  variancePercentage   Decimal                  @db.Decimal(5, 2)
-  adjustmentId         Int?
-  remarks              String?
-  createdAt            DateTime                 @default(now())
-  reconciliation       InventoryReconciliation  @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
-  inventory            Inventory                @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  id                 Int                     @id @default(autoincrement())
+  reconciliationId   Int
+  inventoryId        Int
+  systemQuantity     Int
+  countedQuantity    Int
+  variance           Int
+  variancePercentage Decimal                 @db.Decimal(5, 2)
+  adjustmentId       Int?
+  remarks            String?
+  createdAt          DateTime                @default(now())
+  reconciliation     InventoryReconciliation @relation(fields: [reconciliationId], references: [id], onDelete: Cascade)
+  inventory          Inventory               @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
 
   @@unique([reconciliationId, inventoryId])
   @@index([reconciliationId])
 }
 
 model InventoryWarehouseTransfer {
-  id                Int          @id @default(autoincrement())
-  organizationId    Int
-  transferNumber    String       @unique
-  fromBillId        Int?
-  toVendorId        Int?
-  productId         Int
-  quantity          Int
-  reason            String
-  status            String       @default("PENDING") // PENDING, APPROVED, REJECTED, PROCESSED
-  requestedBy       Int
-  approvedBy        Int?
-  approvalDate      DateTime?
-  processedDate     DateTime?
-  remarks           String?
-  createdAt         DateTime     @default(now())
-  updatedAt         DateTime     @updatedAt
-  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product           Product      @relation(fields: [productId], references: [id])
-  requestedByUser   User         @relation("InventoryWarehouseTransfer_requestedBy", fields: [requestedBy], references: [id])
-  approverUser      User?        @relation("InventoryWarehouseTransfer_approvedBy", fields: [approvedBy], references: [id])
+  id              Int          @id @default(autoincrement())
+  organizationId  Int
+  transferNumber  String       @unique
+  fromBillId      Int?
+  toVendorId      Int?
+  productId       Int
+  quantity        Int
+  reason          String
+  status          String       @default("PENDING") // PENDING, APPROVED, REJECTED, PROCESSED
+  requestedBy     Int
+  approvedBy      Int?
+  approvalDate    DateTime?
+  processedDate   DateTime?
+  remarks         String?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product         Product      @relation(fields: [productId], references: [id])
+  requestedByUser User         @relation("InventoryWarehouseTransfer_requestedBy", fields: [requestedBy], references: [id])
+  approverUser    User?        @relation("InventoryWarehouseTransfer_approvedBy", fields: [approvedBy], references: [id])
 
   @@index([organizationId, status])
   @@index([productId])
 }
 
 model WarehouseTransfer {
-  id                                                       Int                     @id @default(autoincrement())
-  organizationId                                           Int
-  transfer_number                                          String                  @unique
-  transfer_date                                            DateTime                @default(now())
-  expected_arrival                                         DateTime?
-  from_warehouse_id                                        Int
-  to_warehouse_id                                          Int
-  status                                                   TransferStatus          @default(PENDING)
-  received_by                                              Int?
-  received_date                                            DateTime?
-  remarks                                                  String?
-  created_by                                               Int
-  createdAt                                                DateTime                @default(now())
-  updatedAt                                                DateTime
-  from_warehouse                                           Warehouse               @relation("WarehouseTransfer_from", fields: [from_warehouse_id], references: [id])
-  organization                                             Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  to_warehouse                                             Warehouse               @relation("WarehouseTransfer_to", fields: [to_warehouse_id], references: [id])
-  items                                                    WarehouseTransferItem[]
+  id                Int                     @id @default(autoincrement())
+  organizationId    Int
+  transfer_number   String                  @unique
+  transfer_date     DateTime                @default(now())
+  expected_arrival  DateTime?
+  from_warehouse_id Int
+  to_warehouse_id   Int
+  status            TransferStatus          @default(PENDING)
+  received_by       Int?
+  received_date     DateTime?
+  remarks           String?
+  created_by        Int
+  createdAt         DateTime                @default(now())
+  updatedAt         DateTime
+  from_warehouse    Warehouse               @relation("WarehouseTransfer_from", fields: [from_warehouse_id], references: [id])
+  organization      Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  to_warehouse      Warehouse               @relation("WarehouseTransfer_to", fields: [to_warehouse_id], references: [id])
+  items             WarehouseTransferItem[]
 
   @@unique([organizationId, transfer_number])
 }
@@ -452,26 +454,27 @@ model Customer {
 }
 
 model Vendor {
-  id             Int             @id @default(autoincrement())
-  organizationId Int
-  name           String
-  email          String?
-  phone          String?
-  contact_person String?
-  address        String?
-  cityId         Int?
-  paymentTerms   String?
-  creditLimit    Int             @default(0)
-  taxNumber      String?
-  tags           String[]        @default([])
-  isActive       Boolean         @default(true)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
-  Product        Product[]
-  ProductVendor  ProductVendor[]
-  purchaseOrders PurchaseOrder[]
-  organization   Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  city           City?           @relation(fields: [cityId], references: [id])
+  id              Int              @id @default(autoincrement())
+  organizationId  Int
+  name            String
+  email           String?
+  phone           String?
+  contact_person  String?
+  address         String?
+  cityId          Int?
+  paymentTerms    String?
+  creditLimit     Int              @default(0)
+  taxNumber       String?
+  tags            String[]         @default([])
+  isActive        Boolean          @default(true)
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  Product         Product[]
+  ProductVendor   ProductVendor[]
+  purchaseOrders  PurchaseOrder[]
+  purchaseReturns PurchaseReturn[]
+  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  city            City?            @relation(fields: [cityId], references: [id])
 
   @@unique([organizationId, name])
   @@index([organizationId, name])
@@ -489,18 +492,18 @@ model Province {
 }
 
 model City {
-  id                Int              @id @default(autoincrement())
+  id                Int        @id @default(autoincrement())
   name              String
   provinceId        Int
-  status            CityStatus       @default(APPROVED)
+  status            CityStatus @default(APPROVED)
   requestedByUserId Int?
-  createdAt         DateTime         @default(now())
-  updatedAt         DateTime         @updatedAt
+  createdAt         DateTime   @default(now())
+  updatedAt         DateTime   @updatedAt
 
-  province          Province         @relation(fields: [provinceId], references: [id])
-  requestedByUser   User?            @relation("CityRequestedBy", fields: [requestedByUserId], references: [id])
-  customers         Customer[]
-  vendors           Vendor[]
+  province        Province   @relation(fields: [provinceId], references: [id])
+  requestedByUser User?      @relation("CityRequestedBy", fields: [requestedByUserId], references: [id])
+  customers       Customer[]
+  vendors         Vendor[]
 
   @@unique([name, provinceId])
   @@index([provinceId, status])
@@ -518,13 +521,13 @@ enum CustomerAccountType {
 }
 
 model ProductCategory {
-  id             Int       @id @default(autoincrement())
+  id             Int          @id @default(autoincrement())
   organizationId Int
   name           String
   description    String?
-  isActive       Boolean   @default(true)
-  createdAt      DateTime  @default(now())
-  updatedAt      DateTime  @updatedAt
+  isActive       Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
   products       Product[]
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
@@ -547,58 +550,59 @@ model Brand {
 }
 
 model Product {
-  id                 Int                 @id @default(autoincrement())
-  organizationId     Int
-  code               String              @unique
-  name               String
-  description        String?
-  categoryId         Int?
-  category           ProductCategory?    @relation(fields: [categoryId], references: [id])
-  brandId            Int?
-  brand              Brand?              @relation(fields: [brandId], references: [id])
+  id                          Int                          @id @default(autoincrement())
+  organizationId              Int
+  code                        String                       @unique
+  name                        String
+  description                 String?
+  categoryId                  Int?
+  category                    ProductCategory?             @relation(fields: [categoryId], references: [id])
+  brandId                     Int?
+  brand                       Brand?                       @relation(fields: [brandId], references: [id])
   // Decimal, not Int: components like "Nut 7 ML" / "Bolt Gata" cost paisa, and a
   // recipe using 4 of them would otherwise round the whole line to zero. Prisma
   // returns this as a Decimal object at runtime - never do bare JS arithmetic on
   // it (number * Decimal = NaN); convert with Number(...) at the read site.
-  cost_price         Decimal             @default(0) @db.Decimal(12, 2)
-  productType        ProductType         @default(FINISHED_GOOD)
+  cost_price                  Decimal                      @default(0) @db.Decimal(12, 2)
+  productType                 ProductType                  @default(FINISHED_GOOD)
   // Set true only by the bulk product seeder, for items where the evidence
   // was genuinely ambiguous (e.g. purchased but never sold - could be a spare
   // part or a slow-selling appliance). productType still gets a safe default
   // so nothing is broken meanwhile; this flag is how the review queue finds
   // "guessed, not confirmed" rows after the fact - once seeded, a guessed
   // FINISHED_GOOD is indistinguishable from a confirmed one without it.
-  needsClassificationReview Boolean       @default(false)
-  isVisibleOnCounter Boolean             @default(true)
-  isVisibleOnWebsite Boolean             @default(false)
-  isVisibleWholesale Boolean             @default(false)
-  isVisibleRetail    Boolean             @default(true)
-  base_unit          String              @default("piece")
-  isActive           Boolean             @default(true)
-  createdAt          DateTime            @default(now())
-  updatedAt          DateTime            @updatedAt
-  minimum_quantity   Int                 @default(0)
-  primary_vendor_id  Int?
-  reorder_quantity   Int                 @default(0)
-  billLines          BillLine[]
-  Inventory          Inventory[]
-  organization       Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  Vendor             Vendor?             @relation(fields: [primary_vendor_id], references: [id])
-  prices             ProductPrice[]
-  vendors            ProductVendor[]
-  purchaseHistory    PurchaseHistory[]
-  purchaseOrderItems PurchaseOrderItem[]
-  warehouseTransfers InventoryWarehouseTransfer[]
-  commissions        ProductCommission[]
-  salesmanCommissions SalesmanProductCommission[]
-  salesOrderLines    SalesOrderLine[]
-  media              ProductMedia[]
-  boms               Bom[]               @relation("BomOutput")
-  bomLinesAsComponent BomLine[]          @relation("BomComponent")
-  bomAlternates      BomLineAlternate[]  @relation("BomAlternate")
-  manufacturingOrdersAsOutput ManufacturingOrder[]     @relation("ManufacturingOrderOutput")
-  manufacturingOrderLines     ManufacturingOrderLine[] @relation("ManufacturingOrderLineComponent")
-  costHistory        ProductCostHistory[]
+  needsClassificationReview   Boolean                      @default(false)
+  isVisibleOnCounter          Boolean                      @default(true)
+  isVisibleOnWebsite          Boolean                      @default(false)
+  isVisibleWholesale          Boolean                      @default(false)
+  isVisibleRetail             Boolean                      @default(true)
+  base_unit                   String                       @default("piece")
+  isActive                    Boolean                      @default(true)
+  createdAt                   DateTime                     @default(now())
+  updatedAt                   DateTime                     @updatedAt
+  minimum_quantity            Int                          @default(0)
+  primary_vendor_id           Int?
+  reorder_quantity            Int                          @default(0)
+  billLines                   BillLine[]
+  Inventory                   Inventory[]
+  organization                Organization                 @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  Vendor                      Vendor?                      @relation(fields: [primary_vendor_id], references: [id])
+  prices                      ProductPrice[]
+  vendors                     ProductVendor[]
+  purchaseHistory             PurchaseHistory[]
+  purchaseOrderItems          PurchaseOrderItem[]
+  purchaseReturnItems         PurchaseReturnItem[]
+  warehouseTransfers          InventoryWarehouseTransfer[]
+  commissions                 ProductCommission[]
+  salesmanCommissions         SalesmanProductCommission[]
+  salesOrderLines             SalesOrderLine[]
+  media                       ProductMedia[]
+  boms                        Bom[]                        @relation("BomOutput")
+  bomLinesAsComponent         BomLine[]                    @relation("BomComponent")
+  bomAlternates               BomLineAlternate[]           @relation("BomAlternate")
+  manufacturingOrdersAsOutput ManufacturingOrder[]         @relation("ManufacturingOrderOutput")
+  manufacturingOrderLines     ManufacturingOrderLine[]     @relation("ManufacturingOrderLineComponent")
+  costHistory                 ProductCostHistory[]
 
   @@unique([organizationId, code])
   @@index([organizationId, name])
@@ -624,13 +628,13 @@ model ProductCostHistory {
   organizationId Int
   productId      Int
   costPrice      Decimal  @db.Decimal(12, 2)
-  effectiveFrom  DateTime            // this cost applies from this date onward
-  note           String?             // why it changed (e.g. "vendor raised it 7%")
-  changedBy      String?             // who recorded it, for the audit trail
+  effectiveFrom  DateTime // this cost applies from this date onward
+  note           String? // why it changed (e.g. "vendor raised it 7%")
+  changedBy      String? // who recorded it, for the audit trail
   createdAt      DateTime @default(now())
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  product        Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, productId, effectiveFrom])
   @@index([productId])
@@ -649,7 +653,7 @@ model ProductMedia {
   isPrimary Boolean          @default(false)
   createdAt DateTime         @default(now())
 
-  product   Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  product Product @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([productId])
 }
@@ -692,42 +696,42 @@ model PricingRule {
 }
 
 model Bill {
-  id                         Int          @id @default(autoincrement())
+  id                         Int                    @id @default(autoincrement())
   organizationId             Int
   bill_number                String
-  bill_date                  DateTime     @default(now())
-  due_date                   DateTime?    // For AR aging calculation
-  amount_paid                Int          @default(0)  // Amount in cents
+  bill_date                  DateTime               @default(now())
+  due_date                   DateTime? // For AR aging calculation
+  amount_paid                Int                    @default(0) // Amount in cents
   customerId                 Int
   channel                    Channel
   website_order_id           String?
   order_source_id            String?
   created_by                 Int
-  subtotal                   Int          @default(0)
-  discount_amount            Int          @default(0)
-  tax_amount                 Int          @default(0)
-  total_amount               Int          @default(0)
+  subtotal                   Int                    @default(0)
+  discount_amount            Int                    @default(0)
+  tax_amount                 Int                    @default(0)
+  total_amount               Int                    @default(0)
   payment_method             String?
   remarks                    String?
-  status                     OrderStatus  @default(APPROVED)
-  isActive                   Boolean      @default(true)
-  createdAt                  DateTime     @default(now())
-  updatedAt                  DateTime     @updatedAt
-  salesmanId                 Int          @default(1)
-  discountPercentage         Decimal      @default(0) @db.Decimal(5, 2)
+  status                     OrderStatus            @default(APPROVED)
+  isActive                   Boolean                @default(true)
+  createdAt                  DateTime               @default(now())
+  updatedAt                  DateTime               @updatedAt
+  salesmanId                 Int                    @default(1)
+  discountPercentage         Decimal                @default(0) @db.Decimal(5, 2)
   discountType               String?
-  deliveryCharges            Int          @default(0)
+  deliveryCharges            Int                    @default(0)
   cashbookNumber             Int?
-  transactionType            String       @default("SALE") // SALE | RETURN
-  approvalStatus             String       @default("DRAFT")
+  transactionType            String                 @default("SALE") // SALE | RETURN
+  approvalStatus             String                 @default("DRAFT")
   lastModifiedBy             Int?
   approvedBy                 Int?
-  approvedAt                 DateTime?    @db.Timestamp(6)
-  approvedByUser             User?        @relation("ApprovedBy", fields: [approvedBy], references: [id], onUpdate: NoAction)
-  User_Bill_created_byToUser User         @relation("Bill_created_byToUser", fields: [created_by], references: [id])
-  customer                   Customer     @relation(fields: [customerId], references: [id])
-  lastModifiedByUser         User?        @relation("LastModifiedBy", fields: [lastModifiedBy], references: [id], onUpdate: NoAction)
-  organization               Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  approvedAt                 DateTime?              @db.Timestamp(6)
+  approvedByUser             User?                  @relation("ApprovedBy", fields: [approvedBy], references: [id], onUpdate: NoAction)
+  User_Bill_created_byToUser User                   @relation("Bill_created_byToUser", fields: [created_by], references: [id])
+  customer                   Customer               @relation(fields: [customerId], references: [id])
+  lastModifiedByUser         User?                  @relation("LastModifiedBy", fields: [lastModifiedBy], references: [id], onUpdate: NoAction)
+  organization               Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   salesman                   User                   @relation("Salesman", fields: [salesmanId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   lines                      BillLine[]
   gatePasses                 GatePass[]
@@ -735,12 +739,12 @@ model Bill {
   cashBookEntries            CashBookEntry[]
   cashBookMatches            CashBookMatch[]
   arAgings                   ArAging[]
+  salesOrder                 SalesOrder?
 
   @@unique([organizationId, bill_number])
   @@index([organizationId, customerId, bill_date])
   @@index([organizationId, status, bill_date])
   @@index([organizationId, payment_method])
-  salesOrder                 SalesOrder?
 }
 
 // Optional, secondary to direct invoicing (this business creates most sales
@@ -762,26 +766,26 @@ model SalesOrder {
   createdAt       DateTime         @default(now())
   updatedAt       DateTime         @updatedAt
 
-  organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  customer        Customer         @relation(fields: [customerId], references: [id])
-  convertedBill   Bill?            @relation(fields: [convertedBillId], references: [id])
-  lines           SalesOrderLine[]
+  organization  Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  customer      Customer         @relation(fields: [customerId], references: [id])
+  convertedBill Bill?            @relation(fields: [convertedBillId], references: [id])
+  lines         SalesOrderLine[]
 
   @@unique([organizationId, orderNumber])
   @@index([organizationId, status])
 }
 
 model SalesOrderLine {
-  id           Int        @id @default(autoincrement())
+  id           Int      @id @default(autoincrement())
   salesOrderId Int
   productId    Int
   quantity     Int
   unitPrice    Int
   lineTotal    Int
-  createdAt    DateTime   @default(now())
+  createdAt    DateTime @default(now())
 
-  salesOrder   SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
-  product      Product    @relation(fields: [productId], references: [id])
+  salesOrder SalesOrder @relation(fields: [salesOrderId], references: [id], onDelete: Cascade)
+  product    Product    @relation(fields: [productId], references: [id])
 }
 
 enum SalesOrderStatus {
@@ -878,7 +882,7 @@ model GatePass {
   confirmed_by     Int?
   confirmed_date   DateTime?
   remarks          String?
-  printedAt        DateTime?      // Set on first print. A second+ print is a reprint - ADMIN-only, hard rule (see GatePassesService.recordPrint), not a togglable permission.
+  printedAt        DateTime? // Set on first print. A second+ print is a reprint - ADMIN-only, hard rule (see GatePassesService.recordPrint), not a togglable permission.
   printCount       Int            @default(0)
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
@@ -958,6 +962,41 @@ model PurchaseOrderItem {
   @@index([poId, productId])
 }
 
+model PurchaseReturn {
+  id             Int                  @id @default(autoincrement())
+  organizationId Int
+  return_number  String
+  vendorId       Int
+  poId           Int? // Originating PO, when known
+  return_date    DateTime
+  return_amount  Int                  @default(0) // Total return value in cents
+  created_by     Int
+  remarks        String?
+  isActive       Boolean              @default(true)
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+  organization   Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  vendor         Vendor               @relation(fields: [vendorId], references: [id])
+  purchaseOrder  PurchaseOrder?       @relation(fields: [poId], references: [id])
+  items          PurchaseReturnItem[]
+
+  @@unique([organizationId, return_number])
+  @@index([organizationId, vendorId, return_date])
+  @@index([poId])
+}
+
+model PurchaseReturnItem {
+  id                Int            @id @default(autoincrement())
+  returnId          Int
+  productId         Int
+  quantity_returned Int
+  unit_cost         Int // Cost at time of return, in cents
+  purchaseReturn    PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@index([returnId, productId])
+}
+
 model PurchaseOrderReceipt {
   id                Int           @id @default(autoincrement())
   poId              Int
@@ -980,29 +1019,29 @@ model PurchaseOrderReceipt {
 }
 
 model CashBookEntry {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  entryNumber       String?              // Auto-generated, non-editable (see TransactionSequence). referenceNumber below stays a secondary, optional, user-editable field.
-  date              DateTime
-  amount            Int // in smallest currency unit
-  description       String
-  category          CashBookCategory
-  paymentMethod     PaymentMethod
-  referenceNumber   String? // cheque #, transaction ID, etc. - optional, secondary to entryNumber
-  linkedBillId      Int?
-  status            CashBookEntryStatus  @default(DRAFT)
-  createdBy         Int
-  notes             String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id              Int                 @id @default(autoincrement())
+  organizationId  Int
+  entryNumber     String? // Auto-generated, non-editable (see TransactionSequence). referenceNumber below stays a secondary, optional, user-editable field.
+  date            DateTime
+  amount          Int // in smallest currency unit
+  description     String
+  category        CashBookCategory
+  paymentMethod   PaymentMethod
+  referenceNumber String? // cheque #, transaction ID, etc. - optional, secondary to entryNumber
+  linkedBillId    Int?
+  status          CashBookEntryStatus @default(DRAFT)
+  createdBy       Int
+  notes           String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bill             Bill?       @relation(fields: [linkedBillId], references: [id], onDelete: SetNull)
-  createdByUser    User        @relation(fields: [createdBy], references: [id])
-  cashBookMatches  CashBookMatch[]
-  comments         CashBookComment[]
-  approval         CashBookApproval?
-  auditLogs        CashBookAudit[]
+  organization    Organization      @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill            Bill?             @relation(fields: [linkedBillId], references: [id], onDelete: SetNull)
+  createdByUser   User              @relation(fields: [createdBy], references: [id])
+  cashBookMatches CashBookMatch[]
+  comments        CashBookComment[]
+  approval        CashBookApproval?
+  auditLogs       CashBookAudit[]
 
   @@unique([organizationId, referenceNumber])
   @@unique([organizationId, entryNumber])
@@ -1100,8 +1139,8 @@ enum InventoryMovementType {
   DAMAGE
   SHRINKAGE
   RETURN
-  MANUFACTURE_IN   // finished good produced by a ManufacturingOrder
-  MANUFACTURE_OUT  // component consumed by a ManufacturingOrder
+  MANUFACTURE_IN // finished good produced by a ManufacturingOrder
+  MANUFACTURE_OUT // component consumed by a ManufacturingOrder
 }
 
 enum ReconciliationStatus {
@@ -1130,21 +1169,21 @@ enum UserRole {
 }
 
 model CashBookMatch {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  billId            Int
-  entryId           Int
-  matchedAmount     Int
-  reason            String?
-  status            CashBookMatchStatus  @default(PENDING)
-  createdBy         Int
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id             Int                 @id @default(autoincrement())
+  organizationId Int
+  billId         Int
+  entryId        Int
+  matchedAmount  Int
+  reason         String?
+  status         CashBookMatchStatus @default(PENDING)
+  createdBy      Int
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
 
-  organization      Organization         @relation("CashBookMatches", fields: [organizationId], references: [id], onDelete: Cascade)
-  bill              Bill                 @relation(fields: [billId], references: [id], onDelete: Cascade)
-  entry             CashBookEntry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  createdByUser     User                 @relation("CashBookMatchesCreatedBy", fields: [createdBy], references: [id])
+  organization  Organization  @relation("CashBookMatches", fields: [organizationId], references: [id], onDelete: Cascade)
+  bill          Bill          @relation(fields: [billId], references: [id], onDelete: Cascade)
+  entry         CashBookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdByUser User          @relation("CashBookMatchesCreatedBy", fields: [createdBy], references: [id])
 
   @@unique([organizationId, billId, entryId])
   @@index([organizationId, status])
@@ -1160,34 +1199,34 @@ enum CashBookMatchStatus {
 }
 
 model BankStatement {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  date              DateTime
-  description       String
-  amount            Int // in smallest currency unit
-  referenceNumber   String
-  importedAt        DateTime             @default(now())
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  date            DateTime
+  description     String
+  amount          Int // in smallest currency unit
+  referenceNumber String
+  importedAt      DateTime @default(now())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, date])
   @@index([organizationId, referenceNumber])
 }
 
 model CashBookComment {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  entryId           Int
-  author            Int
-  content           String
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  entryId        Int
+  author         Int
+  content        String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entry             CashBookEntry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  createdByUser     User                 @relation(fields: [author], references: [id])
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry         CashBookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  createdByUser User          @relation(fields: [author], references: [id])
 
   @@index([organizationId, entryId])
   @@index([entryId])
@@ -1200,20 +1239,20 @@ enum CashBookApprovalStatus {
 }
 
 model CashBookApproval {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  entryId           Int                  @unique
-  status            CashBookApprovalStatus @default(PENDING)
-  comments          String?
-  approvedBy        Int?
-  approvedAt        DateTime?
-  rejectionReason   String?
-  createdAt         DateTime             @default(now())
-  updatedAt         DateTime             @updatedAt
+  id              Int                    @id @default(autoincrement())
+  organizationId  Int
+  entryId         Int                    @unique
+  status          CashBookApprovalStatus @default(PENDING)
+  comments        String?
+  approvedBy      Int?
+  approvedAt      DateTime?
+  rejectionReason String?
+  createdAt       DateTime               @default(now())
+  updatedAt       DateTime               @updatedAt
 
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entry             CashBookEntry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  approver          User?                @relation(fields: [approvedBy], references: [id])
+  organization Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry        CashBookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  approver     User?         @relation(fields: [approvedBy], references: [id])
 
   @@index([organizationId, status])
 }
@@ -1228,36 +1267,36 @@ enum CashBookAuditAction {
 }
 
 model CashBookAudit {
-  id                Int                  @id @default(autoincrement())
-  organizationId    Int
-  entryId           Int
-  action            CashBookAuditAction
-  performedBy       Int
-  details           String? // JSON details
-  createdAt         DateTime             @default(now())
+  id             Int                 @id @default(autoincrement())
+  organizationId Int
+  entryId        Int
+  action         CashBookAuditAction
+  performedBy    Int
+  details        String? // JSON details
+  createdAt      DateTime            @default(now())
 
-  organization      Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  entry             CashBookEntry        @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  performedByUser   User                 @relation(fields: [performedBy], references: [id])
+  organization    Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  entry           CashBookEntry @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  performedByUser User          @relation(fields: [performedBy], references: [id])
 
   @@index([organizationId, entryId])
   @@index([organizationId, createdAt])
 }
 
 model CommissionRule {
-  id                     Int                    @id @default(autoincrement())
+  id                     Int                     @id @default(autoincrement())
   organizationId         Int
   name                   String
   description            String?
-  ruleType               String                 // PERCENTAGE, FIXED, TIERED
-  percentage             Decimal?               @db.Decimal(5, 2)
+  ruleType               String // PERCENTAGE, FIXED, TIERED
+  percentage             Decimal?                @db.Decimal(5, 2)
   fixedAmount            Int?
   minSales               Int?
   maxSales               Int?
-  isActive               Boolean                @default(true)
-  createdAt              DateTime               @default(now())
-  updatedAt              DateTime               @updatedAt
-  organization           Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  isActive               Boolean                 @default(true)
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  organization           Organization            @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   commissionCalculations CommissionCalculation[]
 
   @@index([organizationId])
@@ -1265,26 +1304,26 @@ model CommissionRule {
 }
 
 model CommissionCalculation {
-  id                 Int      @id @default(autoincrement())
-  organizationId     Int
-  ruleId             Int
-  salesPersonId      Int
-  period             String   // MONTHLY, QUARTERLY, ANNUAL
-  startDate          DateTime
-  endDate            DateTime
-  baseSales          Int
-  commissionAmount   Int
-  status             String   @default("DRAFT")  // DRAFT, APPROVED, PAID
-  approvedBy         Int?
-  approvalDate       DateTime?
-  notes              String?
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  id               Int       @id @default(autoincrement())
+  organizationId   Int
+  ruleId           Int
+  salesPersonId    Int
+  period           String // MONTHLY, QUARTERLY, ANNUAL
+  startDate        DateTime
+  endDate          DateTime
+  baseSales        Int
+  commissionAmount Int
+  status           String    @default("DRAFT") // DRAFT, APPROVED, PAID
+  approvedBy       Int?
+  approvalDate     DateTime?
+  notes            String?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
 
-  rule               CommissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
-  organization       Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  salesperson        User           @relation("CommissionCalculations", fields: [salesPersonId], references: [id])
-  approver           User?          @relation("CommissionApprovals", fields: [approvedBy], references: [id])
+  rule         CommissionRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  salesperson  User           @relation("CommissionCalculations", fields: [salesPersonId], references: [id])
+  approver     User?          @relation("CommissionApprovals", fields: [approvedBy], references: [id])
 
   @@index([organizationId, salesPersonId])
   @@index([organizationId, status])
@@ -1292,25 +1331,25 @@ model CommissionCalculation {
 }
 
 model ChartOfAccount {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  accountCode       String             // e.g., 1000, 2100, 5000
-  accountName       String             // e.g., Cash, Accounts Payable, Sales Revenue
-  accountType       AccountType        // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
-  accountCategory   AccountCategory?   // Sub-classification for financial statement grouping
-  isCashAccount     Boolean            @default(false) // Flags Cash/Bank accounts for cash journals and cash account register reports
-  parentAccountId   Int?               // For account hierarchy
-  isActive          Boolean            @default(true)
-  description       String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id              Int              @id @default(autoincrement())
+  organizationId  Int
+  accountCode     String // e.g., 1000, 2100, 5000
+  accountName     String // e.g., Cash, Accounts Payable, Sales Revenue
+  accountType     AccountType // ASSET, LIABILITY, EQUITY, REVENUE, EXPENSE
+  accountCategory AccountCategory? // Sub-classification for financial statement grouping
+  isCashAccount   Boolean          @default(false) // Flags Cash/Bank accounts for cash journals and cash account register reports
+  parentAccountId Int? // For account hierarchy
+  isActive        Boolean          @default(true)
+  description     String?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  parentAccount     ChartOfAccount?    @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
-  childAccounts     ChartOfAccount[]   @relation("AccountHierarchy")
-  glPostings        GLPosting[]
-  journalLines      JournalEntryLine[]
-  budgets           Budget[]
+  organization  Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  parentAccount ChartOfAccount?    @relation("AccountHierarchy", fields: [parentAccountId], references: [id])
+  childAccounts ChartOfAccount[]   @relation("AccountHierarchy")
+  glPostings    GLPosting[]
+  journalLines  JournalEntryLine[]
+  budgets       Budget[]
 
   @@unique([organizationId, accountCode])
   @@index([organizationId, accountType])
@@ -1318,24 +1357,24 @@ model ChartOfAccount {
 }
 
 model JournalEntry {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  entryNumber       String?            // Auto-generated, non-editable (see TransactionSequence). reference below stays a secondary, optional, user-editable field.
-  entryDate         DateTime
-  reference         String?            // e.g., INV-001, CHK-123
-  description       String
-  status            JournalEntryStatus @default(DRAFT)  // DRAFT, POSTED, REVERSED
-  postedDate        DateTime?
-  reversalEntryId   Int?               @unique  // If this is a reversal
-  memo              String?
-  createdBy         Int?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id              Int                @id @default(autoincrement())
+  organizationId  Int
+  entryNumber     String? // Auto-generated, non-editable (see TransactionSequence). reference below stays a secondary, optional, user-editable field.
+  entryDate       DateTime
+  reference       String? // e.g., INV-001, CHK-123
+  description     String
+  status          JournalEntryStatus @default(DRAFT) // DRAFT, POSTED, REVERSED
+  postedDate      DateTime?
+  reversalEntryId Int?               @unique // If this is a reversal
+  memo            String?
+  createdBy       Int?
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  lines             JournalEntryLine[]
-  reversal          JournalEntry?      @relation("Reversal", fields: [reversalEntryId], references: [id])
-  reversedBy        JournalEntry?      @relation("Reversal")
+  organization Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  lines        JournalEntryLine[]
+  reversal     JournalEntry?      @relation("Reversal", fields: [reversalEntryId], references: [id])
+  reversedBy   JournalEntry?      @relation("Reversal")
 
   @@unique([organizationId, entryNumber])
   @@index([organizationId, entryDate])
@@ -1343,17 +1382,17 @@ model JournalEntry {
 }
 
 model JournalEntryLine {
-  id                Int                @id @default(autoincrement())
-  entryId           Int
-  accountId         Int
-  description       String?
-  debitAmount       Int                @default(0)  // Amount in cents
-  creditAmount      Int                @default(0)  // Amount in cents
-  lineNumber        Int                // Order within entry
-  createdAt         DateTime           @default(now())
+  id           Int      @id @default(autoincrement())
+  entryId      Int
+  accountId    Int
+  description  String?
+  debitAmount  Int      @default(0) // Amount in cents
+  creditAmount Int      @default(0) // Amount in cents
+  lineNumber   Int // Order within entry
+  createdAt    DateTime @default(now())
 
-  entry             JournalEntry       @relation(fields: [entryId], references: [id], onDelete: Cascade)
-  account           ChartOfAccount     @relation(fields: [accountId], references: [id])
+  entry   JournalEntry   @relation(fields: [entryId], references: [id], onDelete: Cascade)
+  account ChartOfAccount @relation(fields: [accountId], references: [id])
 
   @@unique([entryId, lineNumber])
   @@index([entryId])
@@ -1361,19 +1400,19 @@ model JournalEntryLine {
 }
 
 model GLPosting {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  accountId         Int
-  postingDate       DateTime
-  transactionDate   DateTime           // e.g., invoice date
-  reference         String?            // e.g., JE-001, INV-123
-  debitAmount       Int                @default(0)  // Amount in cents
-  creditAmount      Int                @default(0)  // Amount in cents
-  description       String?
-  createdAt         DateTime           @default(now())
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  accountId       Int
+  postingDate     DateTime
+  transactionDate DateTime // e.g., invoice date
+  reference       String? // e.g., JE-001, INV-123
+  debitAmount     Int      @default(0) // Amount in cents
+  creditAmount    Int      @default(0) // Amount in cents
+  description     String?
+  createdAt       DateTime @default(now())
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  account           ChartOfAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, accountId])
   @@index([organizationId, postingDate])
@@ -1381,36 +1420,36 @@ model GLPosting {
 }
 
 model Budget {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  accountId         Int
-  fiscalYear        Int                // e.g., 2026
-  period            String             // MONTHLY, QUARTERLY, ANNUAL
-  budgetAmount      Int                // Amount in cents
-  notes             String?
-  createdAt         DateTime           @default(now())
-  updatedAt         DateTime           @updatedAt
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  accountId      Int
+  fiscalYear     Int // e.g., 2026
+  period         String // MONTHLY, QUARTERLY, ANNUAL
+  budgetAmount   Int // Amount in cents
+  notes          String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  account           ChartOfAccount     @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  organization Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  account      ChartOfAccount @relation(fields: [accountId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, accountId, fiscalYear, period])
   @@index([organizationId, fiscalYear])
 }
 
 model ArAging {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  billId            Int?               // FK to bill
-  customerId        Int?
-  amount            Int                // Amount in cents (outstanding)
-  days_overdue      Int
-  ageing_bucket     String             // 0-30, 31-60, 61-90, 90+
-  as_of_date        DateTime
-  createdAt         DateTime           @default(now())
+  id             Int      @id @default(autoincrement())
+  organizationId Int
+  billId         Int? // FK to bill
+  customerId     Int?
+  amount         Int // Amount in cents (outstanding)
+  days_overdue   Int
+  ageing_bucket  String // 0-30, 31-60, 61-90, 90+
+  as_of_date     DateTime
+  createdAt      DateTime @default(now())
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  bill              Bill?              @relation(fields: [billId], references: [id], onDelete: SetNull)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  bill         Bill?        @relation(fields: [billId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, as_of_date])
   @@index([customerId])
@@ -1418,18 +1457,18 @@ model ArAging {
 }
 
 model ApAging {
-  id                Int                @id @default(autoincrement())
-  organizationId    Int
-  purchaseOrderId   Int?               // FK to PurchaseOrder
-  vendorId          Int?
-  amount            Int                // Amount in cents (outstanding)
-  days_overdue      Int
-  ageing_bucket     String             // 0-30, 31-60, 61-90, 90+
-  as_of_date        DateTime
-  createdAt         DateTime           @default(now())
+  id              Int      @id @default(autoincrement())
+  organizationId  Int
+  purchaseOrderId Int? // FK to PurchaseOrder
+  vendorId        Int?
+  amount          Int // Amount in cents (outstanding)
+  days_overdue    Int
+  ageing_bucket   String // 0-30, 31-60, 61-90, 90+
+  as_of_date      DateTime
+  createdAt       DateTime @default(now())
 
-  organization      Organization       @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  purchaseOrder     PurchaseOrder?     @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  organization  Organization   @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  purchaseOrder PurchaseOrder? @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
 
   @@index([organizationId, as_of_date])
   @@index([vendorId])
@@ -1494,25 +1533,25 @@ model Notification {
   isRead         Boolean          @default(false)
   createdAt      DateTime         @default(now())
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([organizationId, userId, isRead])
   @@index([organizationId, createdAt])
 }
 
 model ProductCommission {
-  id              Int       @id @default(autoincrement())
-  organizationId  Int
-  productId       Int
-  commissionRate  Decimal   @db.Decimal(5, 2)
-  effectiveFrom   DateTime
-  effectiveTo     DateTime?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  productId      Int
+  commissionRate Decimal   @db.Decimal(5, 2)
+  effectiveFrom  DateTime
+  effectiveTo    DateTime?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, productId, effectiveFrom])
   @@index([organizationId, productId])
@@ -1525,25 +1564,25 @@ model ProductCommission {
 // salesman gets the same products/rates - each row is one deliberate
 // assignment, admin-picked.
 model SalesmanProductCommission {
-  id              Int       @id @default(autoincrement())
-  organizationId  Int
-  salesmanId      Int
-  productId       Int
-  commissionType  String    // PERCENTAGE | FIXED_PER_UNIT
-  rate            Decimal   @db.Decimal(10, 2) // percentage value, or Rs per unit
-  targetQuantity  Int       @default(0)
-  periodStart     DateTime
-  periodEnd       DateTime
-  isActive        Boolean   @default(true)
-  paidAt          DateTime?
-  paidAmount      Int?
-  journalEntryId  Int?
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id             Int       @id @default(autoincrement())
+  organizationId Int
+  salesmanId     Int
+  productId      Int
+  commissionType String // PERCENTAGE | FIXED_PER_UNIT
+  rate           Decimal   @db.Decimal(10, 2) // percentage value, or Rs per unit
+  targetQuantity Int       @default(0)
+  periodStart    DateTime
+  periodEnd      DateTime
+  isActive       Boolean   @default(true)
+  paidAt         DateTime?
+  paidAmount     Int?
+  journalEntryId Int?
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
-  salesman        User         @relation("SalesmanCommissionAssignments", fields: [salesmanId], references: [id])
-  product         Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
-  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  salesman     User         @relation("SalesmanCommissionAssignments", fields: [salesmanId], references: [id])
+  product      Product      @relation(fields: [productId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, salesmanId, productId, periodStart])
   @@index([organizationId, salesmanId])
@@ -1568,9 +1607,9 @@ model SalesAnalysisUpload {
   errorMessage    String?
   createdAt       DateTime @default(now())
 
-  organization    Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  uploadedByUser  User                  @relation(fields: [uploadedBy], references: [id])
-  records         SalesAnalysisRecord[]
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedByUser User                  @relation(fields: [uploadedBy], references: [id])
+  records        SalesAnalysisRecord[]
 
   @@index([organizationId, reportStartDate, reportEndDate])
 }
@@ -1590,7 +1629,7 @@ model SalesAnalysisRecord {
   transactionDate DateTime
   accountName     String?
   customerName    String?
-  salesmanName    String?  // nullable - not every source report includes this
+  salesmanName    String? // nullable - not every source report includes this
   itemRaw         String
   // Leading numeric code parsed from itemRaw (e.g. "123 Product Name" -> "123").
   // Deliberately NOT matched against this app's own Product.code - this whole
@@ -1608,7 +1647,7 @@ model SalesAnalysisRecord {
   brand           String?
   warehouseName   String?
   actualPrice     Decimal? @db.Decimal(12, 2)
-  paymentMethod   String?  // e.g. CASH / CREDIT
+  paymentMethod   String? // e.g. CASH / CREDIT
   // A return nets out of totals: quantity and lineAmount are stored NEGATIVE
   // for return rows, so every downstream aggregate reflects net-of-returns.
   isReturn        Boolean  @default(false)
@@ -1622,8 +1661,8 @@ model SalesAnalysisRecord {
   itemKey         String?
   createdAt       DateTime @default(now())
 
-  organization    Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  upload          SalesAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  organization Organization        @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  upload       SalesAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, billNumber, lineSequence])
   @@index([organizationId, transactionDate])
@@ -1653,9 +1692,9 @@ model PurchaseAnalysisUpload {
   errorMessage    String?
   createdAt       DateTime @default(now())
 
-  organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  uploadedByUser  User                     @relation(fields: [uploadedBy], references: [id])
-  records         PurchaseAnalysisRecord[]
+  organization   Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  uploadedByUser User                     @relation(fields: [uploadedBy], references: [id])
+  records        PurchaseAnalysisRecord[]
 
   @@index([organizationId, reportStartDate, reportEndDate])
 }
@@ -1685,8 +1724,8 @@ model PurchaseAnalysisRecord {
   itemKey         String?
   createdAt       DateTime @default(now())
 
-  organization    Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  upload          PurchaseAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  upload       PurchaseAnalysisUpload @relation(fields: [uploadId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, billNumber, lineSequence])
   @@index([organizationId, transactionDate])
@@ -1723,8 +1762,8 @@ model AssemblyPart {
   createdAt        DateTime       @default(now())
   updatedAt        DateTime       @updatedAt
 
-  organization     Organization         @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  formulaLines     AssemblyFormulaLine[]
+  organization Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formulaLines AssemblyFormulaLine[]
 
   @@unique([organizationId, family, name])
   @@index([organizationId, family])
@@ -1769,15 +1808,15 @@ model AssemblyFormula {
 model AssembledItemCost {
   id             Int      @id @default(autoincrement())
   organizationId Int
-  itemKey        String   // normalized sales item name (see SalesAnalysisRecord.itemKey)
-  itemName       String   // as it appears in the sales file, for display
+  itemKey        String // normalized sales item name (see SalesAnalysisRecord.itemKey)
+  itemName       String // as it appears in the sales file, for display
   formulaId      Int?
   manualCost     Decimal? @db.Decimal(12, 2)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
-  formula        AssemblyFormula? @relation(fields: [formulaId], references: [id], onDelete: SetNull)
+  organization Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  formula      AssemblyFormula? @relation(fields: [formulaId], references: [id], onDelete: SetNull)
 
   @@unique([organizationId, itemKey])
   @@index([organizationId])
@@ -1794,8 +1833,8 @@ model AssemblyFormulaLine {
   partId    Int
   quantity  Decimal @default(1) @db.Decimal(10, 2)
 
-  formula   AssemblyFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
-  part      AssemblyPart    @relation(fields: [partId], references: [id], onDelete: Restrict)
+  formula AssemblyFormula @relation(fields: [formulaId], references: [id], onDelete: Cascade)
+  part    AssemblyPart    @relation(fields: [partId], references: [id], onDelete: Restrict)
 
   @@unique([formulaId, partId])
   @@index([formulaId])
@@ -1811,10 +1850,10 @@ model AssemblyFormulaLine {
 // bootstrap classification and a display hint, never allowed to contradict the
 // recipe graph.
 enum ProductType {
-  RAW_MATERIAL    // a stocked component you buy (Motor, Body, Box, Bolt)
-  SERVICE         // has a cost, has no stock (Labour, Transport, Electricity)
-  FINISHED_GOOD   // bought and resold as-is (the safe default)
-  ASSEMBLED_GOOD  // you manufacture it from the above, via a Bom
+  RAW_MATERIAL // a stocked component you buy (Motor, Body, Box, Bolt)
+  SERVICE // has a cost, has no stock (Labour, Transport, Electricity)
+  FINISHED_GOOD // bought and resold as-is (the safe default)
+  ASSEMBLED_GOOD // you manufacture it from the above, via a Bom
 }
 
 // A recipe: makes ONE output product from other products. Versioned so that a
@@ -1824,7 +1863,7 @@ enum ProductType {
 model Bom {
   id             Int      @id @default(autoincrement())
   organizationId Int
-  productId      Int      // the ASSEMBLED_GOOD this recipe makes
+  productId      Int // the ASSEMBLED_GOOD this recipe makes
   name           String
   version        Int      @default(1)
   outputQuantity Decimal  @default(1) @db.Decimal(12, 3) // a recipe may yield N units
@@ -1849,8 +1888,8 @@ model BomLine {
   id                 Int     @id @default(autoincrement())
   bomId              Int
   sequence           Int     @default(0)
-  slotName           String  // the generic term shown on screen: "Motor", "Body"
-  componentProductId Int     // the CHOSEN product - always set, so cost always computes
+  slotName           String // the generic term shown on screen: "Motor", "Body"
+  componentProductId Int // the CHOSEN product - always set, so cost always computes
   quantity           Decimal @default(1) @db.Decimal(12, 4) // 0.5 wire, 4 bolts
 
   bom        Bom                @relation(fields: [bomId], references: [id], onDelete: Cascade)
@@ -1884,41 +1923,41 @@ model BomLineAlternate {
 // ============================================================================
 
 enum ManufacturingOrderStatus {
-  DRAFT        // planned; nothing has moved
-  IN_PROGRESS  // material availability confirmed; ready to build
-  COMPLETED    // stock moved: components out, finished good in - irreversible
-  CANCELLED    // abandoned before completion; nothing ever moved
+  DRAFT // planned; nothing has moved
+  IN_PROGRESS // material availability confirmed; ready to build
+  COMPLETED // stock moved: components out, finished good in - irreversible
+  CANCELLED // abandoned before completion; nothing ever moved
 }
 
 model ManufacturingOrder {
-  id                Int      @id @default(autoincrement())
+  id                Int                      @id @default(autoincrement())
   organizationId    Int
-  orderNumber       String                                  // the batch identity - "MO-2026-000001"
-  bomId             Int                                      // the recipe used - Bom rows are
-                                                               // immutable-once-superseded (new
-                                                               // version = new row), so this FK alone
-                                                               // pins the exact recipe this batch used
-  finishedProductId Int                                      // denormalized from bom.productId
+  orderNumber       String // the batch identity - "MO-2026-000001"
+  bomId             Int // the recipe used - Bom rows are
+  // immutable-once-superseded (new
+  // version = new row), so this FK alone
+  // pins the exact recipe this batch used
+  finishedProductId Int // denormalized from bom.productId
   warehouseId       Int
   quantityPlanned   Int
-  quantityProduced  Int      @default(0)  // GOOD units (passed QC), added to finished stock
+  quantityProduced  Int                      @default(0) // GOOD units (passed QC), added to finished stock
   // Units built but FAILED inspection - their components were consumed but they
   // never became sellable stock, so they are the yield loss. rejectReason says
   // why. Both set at completion.
-  quantityRejected  Int      @default(0)
+  quantityRejected  Int                      @default(0)
   rejectReason      String?
   status            ManufacturingOrderStatus @default(DRAFT)
   // FROZEN at COMPLETED, from quantityRequired x each line's cost snapshot -
   // never recomputed afterward, even if a component's price later changes.
   // This is the "what did THIS batch cost" the user explicitly needed, since
   // cost is not printed on the product itself.
-  unitCostSnapshot  Decimal? @db.Decimal(12, 2)
+  unitCostSnapshot  Decimal?                 @db.Decimal(12, 2)
   createdBy         Int
   completedBy       Int?
   completedAt       DateTime?
   remarks           String?
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt         DateTime                 @default(now())
+  updatedAt         DateTime                 @updatedAt
 
   organization    Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   bom             Bom                      @relation(fields: [bomId], references: [id])
@@ -1934,9 +1973,9 @@ model ManufacturingOrder {
 model ManufacturingOrderLine {
   id                   Int      @id @default(autoincrement())
   manufacturingOrderId Int
-  slotName             String                                // copied from BomLine at creation time
+  slotName             String // copied from BomLine at creation time
   componentProductId   Int
-  quantityRequired     Decimal  @db.Decimal(12, 4)           // bomLine.quantity x quantityPlanned, frozen at creation
+  quantityRequired     Decimal  @db.Decimal(12, 4) // bomLine.quantity x quantityPlanned, frozen at creation
   // ACTUAL quantity used, entered at completion (defaults to quantityRequired
   // if nothing differed). scrap = quantityConsumed - quantityRequired -
   // measured after the fact, never a number typed into the recipe in advance.
@@ -1946,7 +1985,7 @@ model ManufacturingOrderLine {
   // price moved between planning the batch and building it). Nullable because
   // it was added in Phase 3, after some orders may already exist.
   plannedUnitCost      Decimal? @db.Decimal(12, 2)
-  unitCostSnapshot     Decimal? @db.Decimal(12, 2)           // component.cost_price AT COMPLETION, frozen
+  unitCostSnapshot     Decimal? @db.Decimal(12, 2) // component.cost_price AT COMPLETION, frozen
   // Which received batch of this component went into the build (a
   // PurchaseOrderReceipt.batch_number). Recorded at completion for recall -
   // defective finished good -> the vendor batch its parts came from. Nullable:
@@ -1967,7 +2006,7 @@ model ManufacturingOrderLine {
 model ImportMappingTemplate {
   id             Int      @id @default(autoincrement())
   organizationId Int
-  module         String   // SALES | PURCHASE
+  module         String // SALES | PURCHASE
   signature      String
   label          String
   structure      String   @default("FLAT")
@@ -1975,7 +2014,7 @@ model ImportMappingTemplate {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, module, signature])
   @@index([organizationId, module])
@@ -1991,11 +2030,11 @@ model SalesItemClassification {
   id             Int      @id @default(autoincrement())
   organizationId Int
   itemName       String
-  kind           String   // PART | SALE
+  kind           String // PART | SALE
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   @@unique([organizationId, itemName])
   @@index([organizationId, kind])
