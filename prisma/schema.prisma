@@ -1,3 +1,10 @@
+// NAMING CONVENTION - read before adding or editing any field:
+//   help/PRISMA_FIELD_NAMING_RULEBOOK.md (full rules) / CLAUDE.md (summary)
+// Legacy models mix snake_case and camelCase per-model, with zero @map.
+// New models must use camelCase field names + @map("snake_case") for the
+// DB column (see PurchaseReturn/PurchaseReturnItem below for the pattern).
+// Never assume a field's case from a sibling model or from memory - grep
+// the model here every time.
 generator client {
   provider      = "prisma-client-js"
   binaryTargets = ["native", "linux-musl-openssl-3.0.x"]
@@ -962,15 +969,19 @@ model PurchaseOrderItem {
   @@index([poId, productId])
 }
 
+// Newer model - genuinely camelCase per field, per CLAUDE.md rule 3 / the
+// naming rulebook's policy for models added after the legacy snake_case batch.
+// DB columns stay snake_case via @map so no data migration was needed when
+// this was converted from an initial snake_case draft.
 model PurchaseReturn {
   id             Int                  @id @default(autoincrement())
   organizationId Int
-  return_number  String
+  returnNumber   String               @map("return_number")
   vendorId       Int
   poId           Int? // Originating PO, when known
-  return_date    DateTime
-  return_amount  Int                  @default(0) // Total return value in cents
-  created_by     Int
+  returnDate     DateTime             @map("return_date")
+  returnAmount   Int                  @default(0) @map("return_amount") // Total return value in cents
+  createdBy      Int                  @map("created_by")
   remarks        String?
   isActive       Boolean              @default(true)
   createdAt      DateTime             @default(now())
@@ -980,19 +991,19 @@ model PurchaseReturn {
   purchaseOrder  PurchaseOrder?       @relation(fields: [poId], references: [id])
   items          PurchaseReturnItem[]
 
-  @@unique([organizationId, return_number])
-  @@index([organizationId, vendorId, return_date])
+  @@unique([organizationId, returnNumber])
+  @@index([organizationId, vendorId, returnDate])
   @@index([poId])
 }
 
 model PurchaseReturnItem {
-  id                Int            @id @default(autoincrement())
-  returnId          Int
-  productId         Int
-  quantity_returned Int
-  unit_cost         Int // Cost at time of return, in cents
-  purchaseReturn    PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
-  product           Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
+  id               Int            @id @default(autoincrement())
+  returnId         Int
+  productId        Int
+  quantityReturned Int            @map("quantity_returned")
+  unitCost         Int            @map("unit_cost") // Cost at time of return, in cents
+  purchaseReturn   PurchaseReturn @relation(fields: [returnId], references: [id], onDelete: Cascade)
+  product          Product        @relation(fields: [productId], references: [id], onDelete: Cascade)
 
   @@index([returnId, productId])
 }

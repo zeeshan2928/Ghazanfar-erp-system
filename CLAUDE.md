@@ -2,6 +2,11 @@
 
 ## Naming Convention (CRITICAL)
 
+**Full rulebook:** `help/PRISMA_FIELD_NAMING_RULEBOOK.md` — mandatory reading
+before writing any service code that touches Prisma. The summary below is not
+a substitute; read the full document for the naming-error recovery process,
+the pre-write checklist, and the top-10 mistake patterns.
+
 ### The one rule that matters
 
 **There is no automatic camelCase conversion in this project.** Zero `@map`/`@@map` directives exist in `prisma/schema.prisma`. Whatever case is literally typed in the schema is exactly what the Prisma Client uses at runtime for reads and writes — no exceptions, no magic.
