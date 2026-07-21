@@ -27,13 +27,25 @@ export function CustomersScreen() {
   const [columnFilters, setColumnFilters] = useState<FilterOperatorDto[]>([]);
   const [columnValues, setColumnValues] = useState<Record<string, ColumnValueDto[]>>({});
   const [showAddForm, setShowAddForm] = useState(false);
-  const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
+  const [formData, setFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', customerType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
   // Click a customer row to open their detail + recent sale history.
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [custHistory, setCustHistory] = useState<any[] | null>(null);
   const [editingCustomer, setEditingCustomer] = useState(false);
-  const [editFormData, setEditFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
+  const [editFormData, setEditFormData] = useState({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', customerType: 'WALK_IN', cityId: null as number | null, cityLabel: '' });
   const [savingEdit, setSavingEdit] = useState(false);
+
+  // CustomerType enum (prisma/schema.prisma) - this is the customer's "nature"
+  // (walk-in vs. wholesale vs. retail etc.), distinct from accountType
+  // (walk-in/khata, which is about credit terms not customer nature).
+  const CUSTOMER_TYPE_OPTIONS: { value: string; label: string }[] = [
+    { value: 'WALK_IN', label: 'Walk-in' },
+    { value: 'RETAIL', label: 'Retail' },
+    { value: 'WHOLESALE', label: 'Wholesale' },
+    { value: 'CORPORATE', label: 'Corporate' },
+    { value: 'INDIVIDUAL', label: 'Individual' },
+    { value: 'VIP', label: 'VIP' },
+  ];
 
   async function openCustomer(c: Customer) {
     setSelectedCustomer(c);
@@ -60,6 +72,7 @@ export function CustomersScreen() {
       email: realValue(selectedCustomer.email),
       creditLimit: String(selectedCustomer.creditLimit ?? 0),
       accountType: selectedCustomer.accountType || 'WALK_IN',
+      customerType: selectedCustomer.customerType || 'WALK_IN',
       cityId: selectedCustomer.city?.id ?? null,
       cityLabel: selectedCustomer.city?.name ?? '',
     });
@@ -76,6 +89,7 @@ export function CustomersScreen() {
         email: editFormData.email,
         creditLimit: parseInt(editFormData.creditLimit) || 0,
         accountType: editFormData.accountType,
+        customerType: editFormData.customerType,
         cityId: editFormData.cityId,
       });
       setSelectedCustomer(updated);
@@ -177,9 +191,10 @@ export function CustomersScreen() {
         email: formData.email,
         creditLimit: parseInt(formData.creditLimit) || 0,
         accountType: formData.accountType,
+        customerType: formData.customerType,
         cityId: formData.cityId,
       });
-      setFormData({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', cityId: null, cityLabel: '' });
+      setFormData({ name: '', phone: '', email: '', creditLimit: '', accountType: 'WALK_IN', customerType: 'WALK_IN', cityId: null, cityLabel: '' });
       setShowAddForm(false);
       await fetchCustomers();
       alert('✅ Customer created successfully!');
@@ -205,6 +220,9 @@ export function CustomersScreen() {
           <select value={formData.accountType} onChange={(e) => setFormData({...formData, accountType: e.target.value})} style={styles.input}>
             <option value="WALK_IN">Walk-in (no credit)</option>
             <option value="KHATA">Khata (credit)</option>
+          </select>
+          <select value={formData.customerType} onChange={(e) => setFormData({...formData, customerType: e.target.value})} style={styles.input} title="Customer nature/type">
+            {CUSTOMER_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
           </select>
           <input type="number" placeholder="Credit Limit" value={formData.creditLimit} onChange={(e) => setFormData({...formData, creditLimit: e.target.value})} style={styles.input} />
           <LocationPicker
@@ -285,6 +303,12 @@ export function CustomersScreen() {
                   <option value="WALK_IN">Walk-in (no credit)</option>
                   <option value="KHATA">Khata (credit)</option>
                 </select>
+                <label style={styles.fieldLabel}>
+                  Customer nature
+                  <select value={editFormData.customerType} onChange={(e) => setEditFormData({ ...editFormData, customerType: e.target.value })} style={styles.input}>
+                    {CUSTOMER_TYPE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                  </select>
+                </label>
                 <input type="number" placeholder="Credit Limit" value={editFormData.creditLimit} onChange={(e) => setEditFormData({ ...editFormData, creditLimit: e.target.value })} style={styles.input} />
                 <LocationPicker
                   cityId={editFormData.cityId}
@@ -357,6 +381,7 @@ const styles: Record<string, React.CSSProperties> = {
   modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' },
   closeBtn: { background: 'none', border: 'none', fontSize: '18px', cursor: 'pointer', color: '#666' },
   kv: { fontSize: '13px', padding: '3px 0' },
+  fieldLabel: { display: 'flex', flexDirection: 'column', gap: '4px', fontSize: '12px', color: '#666' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
   addBtn: { padding: '10px 20px', backgroundColor: '#667eea', color: 'white', border: 'none', borderRadius: '5px', cursor: 'pointer', fontWeight: '600' },
   formContainer: { backgroundColor: '#f5f5f5', padding: '20px', borderRadius: '8px', marginBottom: '20px', display: 'flex', gap: '10px', alignItems: 'flex-end', flexWrap: 'wrap' },
