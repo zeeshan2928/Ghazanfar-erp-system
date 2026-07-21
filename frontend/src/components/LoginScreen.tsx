@@ -20,8 +20,8 @@ const EyeOffIcon = (
 );
 
 export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
-  const [email, setEmail] = useState('admin@ghazanfar.com');
-  const [password, setPassword] = useState('admin@123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -58,7 +58,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               style={styles.input}
-              placeholder="admin@ghazanfar.com"
+              placeholder="you@company.com"
               required
             />
           </div>
@@ -71,7 +71,7 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 style={styles.passwordInput}
-                placeholder="admin@123"
+                placeholder="Password"
                 required
               />
               <button
@@ -100,14 +100,6 @@ export function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
             {loading ? 'Logging in...' : 'Login'}
           </button>
         </form>
-
-        <div style={styles.info}>
-          <h4>Demo Credentials:</h4>
-          <code style={styles.code}>
-            Email: admin@ghazanfar.com<br />
-            Password: admin@123
-          </code>
-        </div>
       </div>
     </div>
   );
@@ -202,21 +194,5 @@ const styles = {
     padding: '10px',
     background: '#fadbd8',
     borderRadius: '5px',
-  },
-  info: {
-    marginTop: '20px',
-    padding: '15px',
-    background: '#f5f5f5',
-    borderRadius: '5px',
-    fontSize: '12px',
-  },
-  code: {
-    display: 'block' as const,
-    marginTop: '10px',
-    fontFamily: 'monospace',
-    background: '#fff',
-    padding: '10px',
-    borderRadius: '3px',
-    color: '#333',
   },
 };
